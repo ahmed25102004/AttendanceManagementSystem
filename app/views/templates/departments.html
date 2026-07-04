@@ -1,0 +1,45 @@
+{% extends "partials_layout.html" %}
+{% set title = "إدارة الأقسام" %}
+{% set subtitle = "إضافة وتعديل وحذف الأقسام" %}
+{% block page_content %}
+<div id="departmentAlert"></div>
+<div class="row g-4">
+    <div class="col-xl-5">
+        <div class="card panel-card p-4 h-100">
+            <h5 class="fw-bold mb-3">بيانات القسم</h5>
+            <input type="hidden" id="departmentId">
+            <form id="departmentForm">
+                <div class="mb-3">
+                    <label class="form-label">اسم القسم</label>
+                    <input id="departmentName" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">الوصف</label>
+                    <textarea id="departmentDescription" class="form-control" rows="3"></textarea>
+                </div>
+                <button class="btn btn-primary w-100">حفظ القسم</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-xl-7">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold mb-3">الأقسام</h5>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>الوصف</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="departmentTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/departments.js"></script>
+{% endblock %}

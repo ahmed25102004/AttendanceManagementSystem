@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="p-4">
+    <div class="container">
+        <div class="card panel-card p-4">
+            <h3 class="fw-bold mb-3">تسجيل الحضور والانصراف</h3>
+            <div id="attendanceAlert"></div>
+
+            <div class="d-flex gap-3 align-items-start flex-wrap">
+                <div class="camera-shell" style="min-width:320px;">
+                    <video id="maVideo" class="face-video" autoplay muted playsinline style="width:320px;height:240px;background:#000;border-radius:6px;"></video>
+                    <canvas id="maCanvas" class="d-none"></canvas>
+                    <div class="mt-2 d-flex gap-2">
+                        <button id="maOpenBtn" class="btn btn-primary">فتح الكاميرا</button>
+                        <button id="maStopBtn" class="btn btn-outline-secondary">إيقاف الكاميرا</button>
+                    </div>
+                </div>
+
+                <div style="flex:1;min-width:280px;">
+                    <div class="card p-3 mb-3" id="maStatusBox" style="min-height:120px;display:flex;align-items:center;justify-content:center;">
+                        <div id="maBigStatus">الكاميرا مغلقة</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="mb-2"><strong>حضور اليوم:</strong> <span id="maCheckInStatus">-</span></div>
+                        <div class="mb-2"><strong>انصراف اليوم:</strong> <span id="maCheckOutStatus">-</span></div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button id="maManualCheckInBtn" class="btn btn-success flex-1">تسجيل حضور يدوي</button>
+                        <button id="maManualCheckOutBtn" class="btn btn-warning flex-1">تسجيل انصراف يدوي</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="/static/js/my_attendance.js"></script>
+{% endblock %}

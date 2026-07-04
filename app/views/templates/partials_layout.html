@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-lg-flex main-wrapper">
+    <aside class="sidebar p-3">
+        <div class="text-white mb-4">
+            <h4 class="mb-1">نظام الحضور</h4>
+            <small class="text-white-50">نظام مخصص لمركز واحد</small>
+        </div>
+        <nav class="nav flex-column">
+            <a class="nav-link {% if page == 'dashboard' %}active{% endif %}" href="/dashboard">لوحة التحكم</a>
+            <a class="nav-link {% if page == 'departments' %}active{% endif %}" href="/departments">الأقسام</a>
+            <a class="nav-link {% if page == 'employees' %}active{% endif %}" href="/employees">الموظفين</a>
+            <a class="nav-link {% if page == 'leaves' %}active{% endif %}" href="/leaves">إدارة الأجازات</a>
+            <a class="nav-link {% if page == 'tasks' %}active{% endif %}" href="/tasks">المهام</a>
+            <a class="nav-link {% if page == 'shifts' %}active{% endif %}" href="/shifts">الورديات</a>
+            <a class="nav-link {% if page == 'attendance' %}active{% endif %}" href="/attendance">الحضور والانصراف</a>
+            <a class="nav-link {% if page == 'reports' %}active{% endif %}" href="/reports">التقارير</a>
+            <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings">الإعدادات</a>
+            <a class="nav-link {% if page == 'backups' %}active{% endif %}" href="/backups">النسخ الاحتياطية</a>
+            <button class="btn btn-outline-light mt-3" data-action="logout">تسجيل الخروج</button>
+        </nav>
+    </aside>
+    <main class="content-area p-3 p-lg-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-1">{{ title }}</h2>
+                <p class="text-muted mb-0">{{ subtitle }}</p>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown" id="notificationDropdown">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="unreadCount">0</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" id="notificationDropdownMenu" style="max-height: 400px; overflow-y: auto;">
+                        <li class="p-3 text-center text-muted">لا توجد إشعارات</li>
+                    </ul>
+                </div>
+                <div class="text-start">
+                    <div class="small text-muted">مسجل الدخول باسم</div>
+                    <div class="fw-semibold" id="currentUserName">مدير النظام</div>
+                </div>
+            </div>
+        </div>
+        {% block page_content %}{% endblock %}
+    </main>
+</div>
+{% endblock %}

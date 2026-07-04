@@ -1,0 +1,105 @@
+{% extends "partials_layout.html" %}
+{% set title = "الورديات" %}
+{% set subtitle = "إدارة وحدات العمل للصحح!" %}
+{% block page_content %}
+<div id="shiftsAlert"></div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold">إضافة وردية جديدة</h5>
+            <form id="createShiftForm">
+                <div class="mb-3">
+                    <label class="form-label">اسم الوردية</label>
+                    <input type="text" id="createShiftName" class="form-control" required>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-lg-6">
+                        <label class="form-label">وقت الحضور</label>
+                        <input type="time" id="createShiftStartTime" class="form-control" required>
+                    </div>
+                    <div class="col-lg-6">
+                        <label class="form-label">وقت الانصراف</label>
+                        <input type="time" id="createShiftEndTime" class="form-control" required>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">فترة التأخير المسموح بها (دقيقة)</label>
+                    <input type="number" id="createShiftGracePeriod" class="form-control" value="15">
+                </div>
+                <div class="form-check mb-3">
+                    <input type="checkbox" id="createShiftIsActive" class="form-check-input" checked>
+                    <label class="form-check-label">فعّال</label>
+                </div>
+                <button class="btn btn-primary w-100">إضافة</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold">الورديات الحالية</h5>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>وقت الحضور</th>
+                            <th>وقت الانصراف</th>
+                            <th>فترة التأخير</th>
+                            <th>فعّال</th>
+                            <th>الإجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shiftsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Shift Modal -->
+<div class="modal fade" id="editShiftModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editShiftForm">
+                <input type="hidden" id="editShiftId">
+                <div class="modal-header">
+                    <h5 class="modal-title">تعديل وردية</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">اسم الوردية</label>
+                        <input type="text" id="editShiftName" class="form-control" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-lg-6">
+                            <label class="form-label">وقت الحضور</label>
+                            <input type="time" id="editShiftStartTime" class="form-control" required>
+                        </div>
+                        <div class="col-lg-6">
+                            <label class="form-label">وقت الانصراف</label>
+                            <input type="time" id="editShiftEndTime" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">فترة التأخير المسموح بها (دقيقة)</label>
+                        <input type="number" id="editShiftGracePeriod" class="form-control" value="15">
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" id="editShiftIsActive" class="form-check-input" checked>
+                        <label class="form-check-label">فعّال</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/shifts.js"></script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "partials_layout.html" %}
+{% set title = "لوحة التحكم" %}
+{% set subtitle = "نظرة عامة لحظية على حضور المركز" %}
+{% block page_content %}
+<div id="dashboardAlert"></div>
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3">
+        <div class="card stat-card stat-primary p-4">
+            <div>إجمالي الموظفين</div>
+            <h2 id="totalEmployees">0</h2>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="card stat-card stat-success p-4">
+            <div>الحاضرون اليوم</div>
+            <h2 id="presentToday">0</h2>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="card stat-card stat-danger p-4">
+            <div>الغائبون اليوم</div>
+            <h2 id="absentToday">0</h2>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="card stat-card stat-warning p-4">
+            <div>الموظفون المتأخرون</div>
+            <h2 id="lateEmployees">0</h2>
+        </div>
+    </div>
+</div>
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold">تقرير الحضور الأسبوعي</h5>
+            <canvas id="attendanceChart"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold">توزيع الحضور</h5>
+            <canvas id="attendancePieChart"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "partials_layout.html" %}
+{% set title = "إعدادات المركز" %}
+{% set subtitle = "تخصيص اسم المركز ومواعيد العمل وعطلة نهاية الأسبوع وقواعد التأخير" %}
+{% block page_content %}
+<div id="settingsAlert"></div>
+<div class="card panel-card p-4">
+    <form id="settingsForm">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">اسم المركز</label>
+                <input id="company_name" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">وقت بداية العمل</label>
+                <input id="work_start_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">وقت نهاية العمل</label>
+                <input id="work_end_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label d-block">أيام العطلة الأسبوعية</label>
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="form-check"><input class="form-check-input" type="checkbox" name="weekend_days" value="Friday" id="weekendFriday"><label class="form-check-label" for="weekendFriday">الجمعة</label></div>
+                    <div class="form-check"><input class="form-check-input" type="checkbox" name="weekend_days" value="Saturday" id="weekendSaturday"><label class="form-check-label" for="weekendSaturday">السبت</label></div>
+                    <div class="form-check"><input class="form-check-input" type="checkbox" name="weekend_days" value="Sunday" id="weekendSunday"><label class="form-check-label" for="weekendSunday">الأحد</label></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">دقائق السماح للتأخير</label>
+                <input id="late_grace_minutes" type="number" class="form-control" min="0" max="240" required>
+            </div>
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-12">
+                <h5 class="fw-bold mb-1">قيود مكان العمل للتسجيل الذاتي</h5>
+                <p class="text-muted mb-0">يمكن للموظف التسجيل الذاتي فقط إذا نجح التحقق من الشروط المفعلة أدناه.</p>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">خط العرض لموقع المركز</label>
+                <input id="workplace_latitude" type="number" step="any" class="form-control" placeholder="مثال: 30.0444">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">خط الطول لموقع المركز</label>
+                <input id="workplace_longitude" type="number" step="any" class="form-control" placeholder="مثال: 31.2357">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">نصف قطر السماح بالمتر</label>
+                <input id="workplace_radius_meters" type="number" class="form-control" min="20" max="5000" value="150" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">نطاقات IP المسموح بها</label>
+                <textarea id="allowed_ip_ranges" class="form-control" rows="2" placeholder="مثال: 192.168.1.0/24, 10.0.0.15"></textarea>
+                <div class="form-hint">افصل بين كل نطاق وآخر بفاصلة.</div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-check mt-2">
+                    <input id="enforce_geofence" class="form-check-input" type="checkbox">
+                    <label class="form-check-label" for="enforce_geofence">تفعيل التحقق من موقع المركز</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-check mt-2">
+                    <input id="enforce_ip_check" class="form-check-input" type="checkbox">
+                    <label class="form-check-label" for="enforce_ip_check">تفعيل التحقق من شبكة العمل</label>
+                </div>
+            </div>
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-12">
+                <h5 class="fw-bold mb-1">إعدادات الحضور التلقائي بالوجه</h5>
+                <p class="text-muted mb-0">يتم تسجيل الحضور أو الانصراف تلقائيًا عند نجاح مطابقة الوجه داخل النافذة الزمنية المناسبة.</p>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">حد مطابقة الوجه</label>
+                <input id="face_match_threshold" type="number" step="0.01" min="0.1" max="1.5" class="form-control" required>
+                <div class="form-hint">القيمة الأقل أكثر تشددًا. القيمة الافتراضية المقترحة هي 0.45.</div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">بداية نافذة الحضور</label>
+                <input id="check_in_open_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">نهاية نافذة الحضور</label>
+                <input id="check_in_close_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">بداية نافذة الانصراف</label>
+                <input id="check_out_open_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">نهاية نافذة الانصراف</label>
+                <input id="check_out_close_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-12">
+                <h5 class="fw-bold mb-1">إعدادات النسخ الاحتياطية التلقائية</h5>
+            </div>
+            <div class="col-md-6">
+                <div class="form-check mt-2">
+                    <input id="auto_backup_enabled" class="form-check-input" type="checkbox">
+                    <label class="form-check-label" for="auto_backup_enabled">تفعيل النسخ الاحتياطية التلقائية</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">وقت النسخ الاحتياطية (يومياً)</label>
+                <input id="auto_backup_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">احتفاظ بالنسخ الاحتياطية لعدد أيام</label>
+                <input id="auto_backup_retention_days" type="number" class="form-control" min="1" max="365" required>
+            </div>
+        </div>
+        <button class="btn btn-primary mt-4">حفظ الإعدادات</button>
+    </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/settings.js"></script>
+{% endblock %}

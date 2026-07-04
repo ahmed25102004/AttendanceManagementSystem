@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="p-3 p-lg-4">
+    <div class="container employee-portal-container">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+            <div>
+                <h2 class="fw-bold mb-1">الحضور التلقائي بالوجه</h2>
+                <p class="text-muted mb-0">وجّه الكاميرا إلى وجهك وسيتم التسجيل تلقائيًا عند نجاح المطابقة ودخول الوقت المناسب.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="text-muted small">الموظف</div>
+                <div class="fw-semibold" id="employeePortalName">-</div>
+                <button class="btn btn-outline-secondary btn-sm" data-action="logout">تسجيل الخروج</button>
+            </div>
+        </div>
+
+        <div id="employeePortalAlert"></div>
+
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="card panel-card p-4 h-100">
+                    <h5 class="fw-bold mb-3">حالة اليوم</h5>
+                    <div class="portal-status-item mb-2"><strong>التاريخ:</strong> <span id="portalTodayDate">-</span></div>
+                    <div class="portal-status-item mb-2"><strong>وقت الحضور:</strong> <span id="portalCheckInTime">-</span></div>
+                    <div class="portal-status-item mb-2"><strong>وقت الانصراف:</strong> <span id="portalCheckOutTime">-</span></div>
+                    <div class="portal-status-item mb-2"><strong>ساعات العمل:</strong> <span id="portalWorkingHours">-</span></div>
+                    <div class="portal-status-item mb-3"><strong>حالة التأخير:</strong> <span id="portalLateStatus">-</span></div>
+                    <div class="portal-status-item mb-2"><strong>حالة تسجيل الوجه:</strong> <span id="portalFaceStatus">-</span></div>
+                    <div class="portal-status-item mb-2"><strong>نافذة الحضور:</strong> <span id="portalCheckInWindow">-</span></div>
+                    <div class="portal-status-item mb-3"><strong>نافذة الانصراف:</strong> <span id="portalCheckOutWindow">-</span></div>
+                    <div class="d-grid gap-2">
+                        <button id="registerFaceButton" class="btn btn-outline-primary">تسجيل بصمة الوجه الحالية</button>
+                        <button id="toggleAutoScanButton" class="btn btn-primary">بدء التعرف التلقائي</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card panel-card p-4 h-100">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h5 class="fw-bold mb-0">الكاميرا المباشرة</h5>
+                        <span class="badge text-bg-light" id="portalScanBadge">غير نشط</span>
+                    </div>
+                    <div class="camera-shell mb-3">
+                        <video id="faceVideo" class="face-video" autoplay muted playsinline></video>
+                        <canvas id="faceCanvas" class="d-none"></canvas>
+                    </div>
+                    <p class="text-muted mb-2" id="portalScanMessage">سجّل بصمة الوجه أولًا، ثم ابدأ التعرف التلقائي.</p>
+                    <ul class="mb-0 small text-muted">
+                        <li>يلزم السماح للمتصفح بالوصول إلى الكاميرا والموقع.</li>
+                        <li>يتم التسجيل فقط عند مطابقة الوجه بنجاح ومن داخل موقع العمل المعتمد.</li>
+                        <li>لا توجد أزرار حضور أو انصراف يدوية للموظف في هذه الشاشة.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="/static/js/employee_portal.js"></script>
+{% endblock %}

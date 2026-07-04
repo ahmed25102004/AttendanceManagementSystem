@@ -1,0 +1,43 @@
+{% extends "partials_layout.html" %}
+{% set title = "النسخ الاحتياطية" %}
+{% set subtitle = "إنشاء نسخ احتياطية للبيانات واستعادتها" %}
+{% block page_content %}
+<div id="backupsAlert"></div>
+<div class="card panel-card p-4 mb-4">
+    <h5 class="fw-bold mb-3">إنشاء نسخة احتياطية</h5>
+    <button id="createBackupBtn" class="btn btn-primary">إنشاء نسخة احتياطية الآن</button>
+</div>
+
+<div class="card panel-card p-4 mb-4">
+    <h5 class="fw-bold mb-3">استعادة نسخة احتياطية</h5>
+    <div class="mb-3">
+        <label class="form-label">اختر ملف النسخة الاحتياطية</label>
+        <input id="restoreFileInput" type="file" accept=".json" class="form-control">
+    </div>
+    <button id="restoreBackupBtn" class="btn btn-warning">استعادة النسخة</button>
+</div>
+
+<div class="card panel-card p-4">
+    <h5 class="fw-bold mb-3">النسخ الاحتياطية المتاحة</h5>
+    <div id="backupsList" class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>اسم الملف</th>
+                    <th>تاريخ الإنشاء</th>
+                    <th>الحجم</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="backupsTableBody">
+                <tr>
+                    <td colspan="4" class="text-center text-muted">جار تحميل النسخ الاحتياطية...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/backups.js"></script>
+{% endblock %}

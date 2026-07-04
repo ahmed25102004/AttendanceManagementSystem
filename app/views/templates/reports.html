@@ -1,0 +1,81 @@
+{% extends "partials_layout.html" %}
+{% set title = "التقارير" %}
+{% set subtitle = "إنشاء تقارير يومية وأسبوعية وشهرية مع التصدير إلى Excel أو PDF" %}
+{% block page_content %}
+<div id="reportAlert"></div>
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold">التقرير اليومي</h5>
+            <form id="dailyReportForm" class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">التاريخ</label>
+                    <input id="daily_report_date" type="date" class="form-control" required>
+                </div>
+                <div class="col-12 d-flex gap-2">
+                    <button class="btn btn-primary flex-fill">عرض التقرير اليومي</button>
+                    <button type="button" class="btn btn-outline-success" id="exportDailyExcel">Excel</button>
+                    <button type="button" class="btn btn-outline-danger" id="exportDailyPdf">PDF</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold">التقرير الأسبوعي</h5>
+            <form id="weeklyReportForm" class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">التاريخ (عرض الأسبوع)</label>
+                    <input id="weekly_report_date" type="date" class="form-control" required>
+                </div>
+                <div class="col-12 d-flex gap-2">
+                    <button class="btn btn-primary flex-fill">عرض التقرير الأسبوعي</button>
+                    <button type="button" class="btn btn-outline-success" id="exportWeeklyExcel">Excel</button>
+                    <button type="button" class="btn btn-outline-danger" id="exportWeeklyPdf">PDF</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold">التقرير الشهري</h5>
+            <form id="monthlyReportForm" class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">الشهر</label>
+                    <input id="monthly_report_month" type="month" class="form-control" required>
+                </div>
+                <div class="col-12 d-flex gap-2">
+                    <button class="btn btn-primary flex-fill">عرض التقرير الشهري</button>
+                    <button type="button" class="btn btn-outline-success" id="exportMonthlyExcel">Excel</button>
+                    <button type="button" class="btn btn-outline-danger" id="exportMonthlyPdf">PDF</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="card panel-card p-4">
+    <h5 class="fw-bold">نتائج التقرير</h5>
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>الكود</th>
+                    <th>الاسم</th>
+                    <th>القسم</th>
+                    <th>المسمى الوظيفي</th>
+                    <th>التاريخ</th>
+                    <th>وقت الحضور</th>
+                    <th>وقت الانصراف</th>
+                    <th>الساعات</th>
+                    <th>الحالة</th>
+                    <th>متأخر</th>
+                </tr>
+            </thead>
+            <tbody id="reportTableBody"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/reports.js"></script>
+{% endblock %}

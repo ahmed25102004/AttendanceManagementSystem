@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database Service
+  db:
+    image: postgres:15-alpine
+    container_name: verdebeautyclinic-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-attendance_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+    networks:
+      - verdebeautyclinic-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Application Service
+  app:
+    build: .
+    container_name: verdebeautyclinic-app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - .:/app
+      - backups:/app/backups
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-attendance_db}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - verdebeautyclinic-network
+    restart: unless-stopped
+
+  # Portainer for Docker Management (optional, but nice for VPS)
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: verdebeautyclinic-portainer
+    ports:
+      - "9443:9443"
+      - "8001:8000"
+    volumes:
+      - portainer_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - verdebeautyclinic-network
+    restart: unless-stopped
+
+networks:
+  verdebeautyclinic-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  backups:
+  portainer_data:
