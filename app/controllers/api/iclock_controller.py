@@ -45,9 +45,11 @@ def parse_verify_type(verify_code: str | None) -> str:
 
 @router.get("/cdata")
 @router.get("/heartbeat")
+@router.get("")
 async def handle_heartbeat(request: Request, db: Session = Depends(get_db)):
     # Handle device heartbeat
-    sn = request.query_params.get("SN")
+    logger.info(f"[HEARTBEAT/GET] {request.method} {request.url.path} - Query params: {dict(request.query_params)}")
+    sn = request.query_params.get("SN") or request.query_params.get("sn")
     if not sn:
         logger.warning("Heartbeat received without SN")
         return PlainTextResponse(ERROR_RESPONSE)
@@ -76,15 +78,23 @@ async def handle_heartbeat(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/cdata")
+@router.post("")
 async def handle_cdata(request: Request, db: Session = Depends(get_db)):
     # Handle attendance data
+    logger.info(f"[CDATA/POST] {request.method} {request.url.path}")
     try:
-        form_data = await request.form()
-        # Log all form data for debugging
-        logger.info(f"Received cdata: {dict(form_data)}")
+        # Try to get form data, if that fails try to get raw body
+        try:
+            form_data = await request.form()
+            logger.info(f"[CDATA] Form data: {dict(form_data)}")
+        except Exception as form_err:
+            logger.warning(f"[CDATA] Failed to parse form data: {form_err}")
+            raw_body = await request.body()
+            logger.info(f"[CDATA] Raw body: {raw_body.decode('utf-8', errors='replace')}")
+            form_data = {}
         
         # Extract device SN
-        sn = form_data.get("SN") or form_data.get("sn")
+        sn = form_data.get("SN") or form_data.get("sn") or request.query_params.get("SN") or request.query_params.get("sn")
         if not sn:
             logger.warning("cdata received without SN")
             return PlainTextResponse(ERROR_RESPONSE)
@@ -97,7 +107,7 @@ async def handle_cdata(request: Request, db: Session = Depends(get_db)):
             logger.info(f"Device not found by device_code={sn}, trying serial_number")
             device = device_service.get_by_serial_number(db, sn)
         if not device:
-            logger.warning(f"Unknown device with SN {sn}. All devices: {[d.device_code for d in db.query(device_service.model).all()]}")
+            logger.warning(f"Unknown device with SN {sn}. All devices: {[d.device_code for d in db.query(Device).all()]}")
             return PlainTextResponse(ERROR_RESPONSE)
         
         if not device.is_active:
@@ -111,6 +121,7 @@ async def handle_cdata(request: Request, db: Session = Depends(get_db)):
         if table and "ATTLOG" in table.upper():
             # The data is in "ATTLOG" format
             records = form_data.get("records") or ""
+            logger.info(f"[CDATA] Processing ATTLOG records: {records}")
             for line in records.split("\n"):
                 line = line.strip()
                 if not line:
