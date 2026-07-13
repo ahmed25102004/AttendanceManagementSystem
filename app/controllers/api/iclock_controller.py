@@ -54,17 +54,27 @@ async def handle_heartbeat(request: Request, db: Session = Depends(get_db)):
         logger.warning("Heartbeat received without SN")
         return PlainTextResponse(ERROR_RESPONSE)
     
-    logger.info(f"Received heartbeat from SN: {sn}")
+    logger.info(f"[HEARTBEAT] Received SN: '{sn}' (type: {type(sn)})")
+    
+    # Get ALL devices first and log their details
+    all_devices = db.query(Device).all()
+    logger.info(f"[HEARTBEAT] All devices in DB: {len(all_devices)} devices")
+    for idx, dev in enumerate(all_devices):
+        logger.info(f"[HEARTBEAT] Device {idx+1}: id={dev.id}, name='{dev.device_name}', device_code='{dev.device_code}', serial_number='{dev.serial_number}', is_active={dev.is_active}")
     
     # Try to find device by device_code first
+    logger.info(f"[HEARTBEAT] Trying to find by device_code: '{sn}'")
     device = device_service.get_by_device_code(db, sn)
-    if not device:
-        logger.info(f"Device not found by device_code={sn}, trying serial_number")
+    if device:
+        logger.info(f"[HEARTBEAT] FOUND device by device_code: id={device.id}, name={device.device_name}")
+    else:
+        logger.info(f"[HEARTBEAT] NOT FOUND by device_code, trying serial_number: '{sn}'")
         device = device_service.get_by_serial_number(db, sn)
+        if device:
+            logger.info(f"[HEARTBEAT] FOUND device by serial_number: id={device.id}, name={device.device_name}")
+    
     if not device:
-        all_devices = db.query(Device).all()
-        device_info = [f"id={d.id}, device_code={d.device_code}, serial_number={d.serial_number}" for d in all_devices]
-        logger.warning(f"Unknown device with SN {sn}. All devices: {device_info}")
+        logger.error(f"[HEARTBEAT] FAILED: Unknown device with SN '{sn}'")
         return PlainTextResponse(ERROR_RESPONSE)
     
     if not device.is_active:
@@ -99,15 +109,27 @@ async def handle_cdata(request: Request, db: Session = Depends(get_db)):
             logger.warning("cdata received without SN")
             return PlainTextResponse(ERROR_RESPONSE)
         
-        logger.info(f"Received cdata from SN: {sn}")
+        logger.info(f"[DEVICE LOOKUP] Received SN from request: '{sn}' (type: {type(sn)})")
+        
+        # Get ALL devices first and log their details
+        all_devices = db.query(Device).all()
+        logger.info(f"[DEVICE LOOKUP] All devices in DB: {len(all_devices)} devices")
+        for idx, dev in enumerate(all_devices):
+            logger.info(f"[DEVICE LOOKUP] Device {idx+1}: id={dev.id}, name='{dev.device_name}', device_code='{dev.device_code}', serial_number='{dev.serial_number}', is_active={dev.is_active}")
         
         # Try to find device by device_code first
+        logger.info(f"[DEVICE LOOKUP] Trying to find by device_code: '{sn}'")
         device = device_service.get_by_device_code(db, sn)
-        if not device:
-            logger.info(f"Device not found by device_code={sn}, trying serial_number")
+        if device:
+            logger.info(f"[DEVICE LOOKUP] FOUND device by device_code: id={device.id}, name={device.device_name}")
+        else:
+            logger.info(f"[DEVICE LOOKUP] NOT FOUND by device_code, trying serial_number: '{sn}'")
             device = device_service.get_by_serial_number(db, sn)
+            if device:
+                logger.info(f"[DEVICE LOOKUP] FOUND device by serial_number: id={device.id}, name={device.device_name}")
+        
         if not device:
-            logger.warning(f"Unknown device with SN {sn}. All devices: {[d.device_code for d in db.query(Device).all()]}")
+            logger.error(f"[DEVICE LOOKUP] FAILED: Unknown device with SN '{sn}'")
             return PlainTextResponse(ERROR_RESPONSE)
         
         if not device.is_active:
