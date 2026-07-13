@@ -144,7 +144,7 @@ async def handle_cdata(request: Request, db: Session = Depends(get_db)):
                         attendance_type=parse_attendance_type(status),
                         verify_type=parse_verify_type(verify),
                         raw_data={"raw_line": line},
-                        record_id=f"{device_code}-{pin}-{time_str}"
+                        record_id=f"{device.device_code or device.serial_number}-{pin}-{time_str}"
                     )
                 except HTTPException as e:
                     if e.status_code != 409:  # Ignore duplicates
