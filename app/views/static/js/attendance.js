@@ -1,7 +1,8 @@
 async function loadAttendanceEmployees() {
-    const employees = await fetchJSON("/api/employees");
+    const employees = await fetchJSON("/api/employees?all=true");
     const checkInSelect = document.getElementById("attendance_employee_id");
     const checkOutSelect = document.getElementById("checkout_employee_id");
+    if (!checkInSelect || !checkOutSelect) return;
     checkInSelect.innerHTML = '<option value="">اختر الموظف</option>';
     checkOutSelect.innerHTML = '<option value="">اختر الموظف</option>';
     employees.forEach((employee) => {
@@ -13,9 +14,13 @@ async function loadAttendanceEmployees() {
 }
 
 async function loadAttendanceRecords(dateValue = "") {
-    const query = dateValue ? `?attendance_date=${dateValue}` : "";
+    let query = "?all=true";
+    if (dateValue) {
+        query += `&attendance_date=${dateValue}`;
+    }
     const records = await fetchJSON(`/api/attendance${query}`);
     const tbody = document.getElementById("attendanceTableBody");
+    if (!tbody) return;
     tbody.innerHTML = "";
 
     records.forEach((record) => {
@@ -34,7 +39,6 @@ async function loadAttendanceRecords(dateValue = "") {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    requireAuth();
     await hydrateUser();
 
     try {

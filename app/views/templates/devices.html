@@ -1,0 +1,80 @@
+{% extends "partials_layout.html" %}
+{% set title = "إدارة الأجهزة" %}
+{% set subtitle = "إدارة الأجهزة البصرية" %}
+{% block page_content %}
+<div id="deviceAlert"></div>
+<div class="row g-4">
+    <div class="col-xl-5">
+        <div class="card panel-card p-4 h-100">
+            <h5 class="fw-bold mb-3">بيانات الجهاز</h5>
+            <input type="hidden" id="deviceId">
+            <form id="deviceForm">
+                <div class="mb-3">
+                    <label class="form-label">اسم الجهاز</label>
+                    <input id="deviceName" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">كود الجهاز</label>
+                    <input id="deviceCode" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">الرقم التسلسلي</label>
+                    <input id="serialNumber" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">الفرع</label>
+                    <select id="deviceBranchId" class="form-select" required></select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">عنوان IP</label>
+                    <input id="ipAddress" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">المنفذ</label>
+                    <input id="devicePort" type="number" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">البروتوكول</label>
+                    <select id="deviceProtocol" class="form-select">
+                        <option value="ADMS" selected>ADMS</option>
+                        <option value="TCP-IP">TCP-IP</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">نسخة البرنامج</label>
+                    <input id="firmwareVersion" class="form-control">
+                </div>
+                <div class="form-check mb-3">
+                    <input id="deviceIsActive" type="checkbox" class="form-check-input" checked>
+                    <label class="form-check-label">فعال</label>
+                </div>
+                <button class="btn btn-primary w-100">حفظ الجهاز</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-xl-7">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold mb-3">قائمة الأجهزة</h5>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>الفرع</th>
+                            <th>الحالة</th>
+                            <th>آخر اتصال</th>
+                            <th>آخر مزامنة</th>
+                            <th>عدد السجلات</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deviceTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/devices.js?v=2"></script>
+{% endblock %}

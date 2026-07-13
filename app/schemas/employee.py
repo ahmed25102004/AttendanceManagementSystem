@@ -6,11 +6,13 @@ from pydantic import BaseModel, Field
 
 class EmployeeWriteBase(BaseModel):
     full_name: str = Field(min_length=2, max_length=160)
+    employee_code: str = Field(min_length=1, max_length=30)
     phone: str | None = Field(default=None, max_length=30)
     address: str | None = None
     job_title: str = Field(min_length=2, max_length=100)
     hire_date: date
     department_id: int | None = None
+    branch_id: int | None = None
     employment_type: str = "full_time"
 
 
@@ -26,6 +28,7 @@ class EmployeeResponse(BaseModel):
     id: int
     full_name: str
     role: str = "employee"
+    employee_code: str
     phone: str | None = None
     address: str | None = None
     job_title: str
@@ -33,6 +36,7 @@ class EmployeeResponse(BaseModel):
     first_name: str
     last_name: str
     department_id: int | None = None
+    branch_id: int | None = None
     employment_type: str = "full_time"
     
     class Config:

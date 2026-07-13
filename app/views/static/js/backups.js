@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    requireAuth();
     await hydrateUser();
 
     async function loadBackups() {

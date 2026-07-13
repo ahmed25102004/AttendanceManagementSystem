@@ -10,16 +10,19 @@
             <input type="hidden" id="employeeId">
             <form id="employeeForm">
                 <div class="row g-3">
-                    <div class="col-12">
-                        <label class="form-label">الاسم</label>
-                        <input id="full_name" class="form-control" required>
+                    <div class="col-md-6">
+                        <label class="form-label">الفرع</label>
+                        <select id="employee_branch_id" class="form-select">
+                            <option value="">-- اختر الفرع --</option>
+                        </select>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">دور المستخدم</label>
-                        <select id="user_role" class="form-select">
-                            <option value="employee" selected>موظف</option>
-                            <option value="admin">مدير</option>
-                        </select>
+                        <label class="form-label">كود الموظف (على جهاز البصمة)</label>
+                        <input id="employee_code" class="form-control" required placeholder="مثال: 101">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">الاسم</label>
+                        <input id="full_name" class="form-control" required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">القسم</label>
@@ -64,13 +67,14 @@
                 <table class="table align-middle">
                     <thead>
                         <tr>
+                            <th>كود الموظف</th>
                             <th>الاسم</th>
+                            <th>الفرع</th>
                             <th>القسم</th>
                             <th>رقم الهاتف</th>
                             <th>تاريخ التعيين</th>
                             <th>المسمى الوظيفى</th>
                             <th>نوع التوظيف</th>
-                            <th>الدور</th>
                             <th>الإجراءات</th>
                         </tr>
                     </thead>
@@ -119,5 +123,5 @@
 {% endblock %}
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-<script src="/static/js/employees.js"></script>
+<script src="/static/js/employees.js?v=2"></script>
 {% endblock %}

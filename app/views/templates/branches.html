@@ -1,0 +1,74 @@
+{% extends "partials_layout.html" %}
+{% set title = "إدارة الفروع" %}
+{% set subtitle = "إضافة وتعديل وحذف الفروع" %}
+{% block page_content %}
+<div id="branchAlert"></div>
+<div class="row g-4">
+    <div class="col-xl-5">
+        <div class="card panel-card p-4 h-100">
+            <h5 class="fw-bold mb-3">بيانات الفرع</h5>
+            <input type="hidden" id="branchId">
+            <form id="branchForm">
+                <div class="mb-3">
+                    <label class="form-label">اسم الفرع</label>
+                    <input id="branchName" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">الوصف</label>
+                    <textarea id="branchDescription" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">وقت فتح الحضور</label>
+                        <input id="checkInOpenTime" type="time" class="form-control" value="08:00">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">وقت إغلاق الحضور</label>
+                        <input id="checkInCloseTime" type="time" class="form-control" value="11:00">
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">وقت فتح الانصراف</label>
+                        <input id="checkOutOpenTime" type="time" class="form-control" value="16:00">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">وقت إغلاق الانصراف</label>
+                        <input id="checkOutCloseTime" type="time" class="form-control" value="22:00">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">دقائق التأخير المسموح بها</label>
+                    <input id="allowedLateMinutes" type="number" class="form-control" value="15">
+                </div>
+                <div class="form-check mb-3">
+                    <input id="branchIsActive" type="checkbox" class="form-check-input" checked>
+                    <label class="form-check-label">فعال</label>
+                </div>
+                <button class="btn btn-primary w-100">حفظ الفرع</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-xl-7">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold mb-3">قائمة الفروع</h5>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>الوصف</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="branchTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/branches.js?v=2"></script>
+{% endblock %}

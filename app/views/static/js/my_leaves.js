@@ -41,13 +41,7 @@ async function loadMyLeaves() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    requireAuth();
     const user = await hydrateUser();
-    if (!user) return;
-    if (user.role !== "employee") {
-        window.location.href = "/leaves";
-        return;
-    }
     
     await loadMyLeaves();
     

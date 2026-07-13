@@ -2,7 +2,7 @@ let attendanceLineChart = null;
 let attendancePieChart = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
-    requireAuth();
+    // requireAuth();
     await hydrateUser();
 
     try {
@@ -14,15 +14,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         // Line chart
         const lineCtx = document.getElementById("attendanceChart").getContext("2d");
-        const labels = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"];
         attendanceLineChart = new Chart(lineCtx, {
             type: "line",
             data: {
-                labels: labels,
+                labels: summary.weekly_data.labels,
                 datasets: [
                     {
                         label: "الحاضرون",
-                        data: [summary.total_employees * 0.9, summary.total_employees, summary.total_employees * 0.95, summary.total_employees * 0.98, summary.total_employees, summary.total_employees * 0.75, summary.total_employees * 0.5],
+                        data: summary.weekly_data.present,
                         borderColor: "#0d6efd",
                         backgroundColor: "rgba(13, 110, 253, 0.1)",
                         fill: true,
@@ -30,7 +29,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     },
                     {
                         label: "المتأخرون",
-                        data: [2, 1, 3, 0, 1, 0, 0],
+                        data: summary.weekly_data.late,
                         borderColor: "#ffc107",
                         backgroundColor: "rgba(255, 193, 7, 0.1)",
                         fill: true,

@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.core.database import Base
 
 class BackupService:
@@ -22,7 +23,7 @@ class BackupService:
         backup_data = {}
         for table in tables:
             # Use raw SQL to avoid model dependencies
-            result = db.execute(f"SELECT * FROM {table}")
+            result = db.execute(text(f"SELECT * FROM {table}"))
             rows = result.mappings().all()
             backup_data[table] = [dict(row) for row in rows]
             
@@ -67,7 +68,7 @@ class BackupService:
                 columns = list(rows[0].keys())
                 
                 # Delete existing data in table
-                db.execute(f"DELETE FROM {table}")
+                db.execute(text(f"DELETE FROM {table}"))
                 
                 # Insert new data
                 for row in rows:
@@ -81,7 +82,7 @@ class BackupService:
                             
                     placeholders = ", ".join([f":{col}" for col in columns])
                     db.execute(
-                        f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})",
+                        text(f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"),
                         cleaned_row
                     )
                     

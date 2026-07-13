@@ -1,4 +1,4 @@
-const leavesCache = [];
+let leavesCache = [];
 
 function getStatusLabel(status) {
     const statusMap = {
@@ -67,13 +67,7 @@ function openEditModal(leaveId) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    requireAuth();
     const user = await hydrateUser();
-    if (!user) return;
-    if (user.role !== "admin") {
-        window.location.href = "/my-leaves";
-        return;
-    }
     
     await loadLeaves();
     

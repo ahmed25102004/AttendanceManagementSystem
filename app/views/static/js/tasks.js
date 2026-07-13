@@ -121,7 +121,6 @@ function openEditTaskModal(taskId) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    requireAuth();
     currentUser = await hydrateUser();
     if (!currentUser) return;
     

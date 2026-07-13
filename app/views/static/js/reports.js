@@ -46,7 +46,6 @@ function securedDownload(path) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    requireAuth();
     await hydrateUser();
 
     document.getElementById("dailyReportForm").addEventListener("submit", async (event) => {

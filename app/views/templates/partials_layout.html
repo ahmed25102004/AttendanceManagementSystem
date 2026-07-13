@@ -8,12 +8,15 @@
         </div>
         <nav class="nav flex-column">
             <a class="nav-link {% if page == 'dashboard' %}active{% endif %}" href="/dashboard">لوحة التحكم</a>
+            <a class="nav-link {% if page == 'branches' %}active{% endif %}" href="/branches">الفروع</a>
             <a class="nav-link {% if page == 'departments' %}active{% endif %}" href="/departments">الأقسام</a>
             <a class="nav-link {% if page == 'employees' %}active{% endif %}" href="/employees">الموظفين</a>
+            <a class="nav-link {% if page == 'devices' %}active{% endif %}" href="/devices">الأجهزة</a>
             <a class="nav-link {% if page == 'leaves' %}active{% endif %}" href="/leaves">إدارة الأجازات</a>
             <a class="nav-link {% if page == 'tasks' %}active{% endif %}" href="/tasks">المهام</a>
             <a class="nav-link {% if page == 'shifts' %}active{% endif %}" href="/shifts">الورديات</a>
             <a class="nav-link {% if page == 'attendance' %}active{% endif %}" href="/attendance">الحضور والانصراف</a>
+            <a class="nav-link {% if page == 'monitoring' %}active{% endif %}" href="/monitoring">المراقبة</a>
             <a class="nav-link {% if page == 'reports' %}active{% endif %}" href="/reports">التقارير</a>
             <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings">الإعدادات</a>
             <a class="nav-link {% if page == 'backups' %}active{% endif %}" href="/backups">النسخ الاحتياطية</a>
@@ -27,6 +30,11 @@
                 <p class="text-muted mb-0">{{ subtitle }}</p>
             </div>
             <div class="d-flex align-items-center gap-3">
+                <div class="d-none d-md-flex flex-column align-items-end">
+                    <label class="form-label small mb-1">الفرع</label>
+                    <select id="branchSelector" class="form-select form-select-sm"></select>
+                    <div class="small text-muted" id="branchStatusText">جارٍ التحميل...</div>
+                </div>
                 <div class="dropdown">
                     <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown" id="notificationDropdown">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

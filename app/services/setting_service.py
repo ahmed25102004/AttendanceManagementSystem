@@ -1,3 +1,4 @@
+from datetime import time
 from ipaddress import ip_address, ip_network
 
 from fastapi import HTTPException, status
@@ -37,8 +38,54 @@ class SettingService:
             ) from exc
         return normalized_rule
 
-    def get_settings(self, db: Session) -> CompanySettingResponse:
-        settings = db.query(CompanySetting).first()
+    def get_settings(self, db: Session, branch_id: int | None = None) -> CompanySettingResponse:
+        query = db.query(CompanySetting)
+        if branch_id:
+            settings = query.filter(CompanySetting.branch_id == branch_id).first()
+            if not settings:
+                # If no settings for this branch, create default ones
+                global_settings = db.query(CompanySetting).filter(CompanySetting.branch_id.is_(None)).first()
+                settings = CompanySetting(
+                    branch_id=branch_id,
+                    company_name=global_settings.company_name if global_settings else "شركة",
+                    work_start_time=global_settings.work_start_time if global_settings else time(9, 0),
+                    work_end_time=global_settings.work_end_time if global_settings else time(17, 0),
+                    weekend_days=global_settings.weekend_days if global_settings else "Saturday,Sunday",
+                    late_grace_minutes=global_settings.late_grace_minutes if global_settings else 15,
+                    workplace_latitude=global_settings.workplace_latitude if global_settings else None,
+                    workplace_longitude=global_settings.workplace_longitude if global_settings else None,
+                    workplace_radius_meters=global_settings.workplace_radius_meters if global_settings else 150,
+                    allowed_ip_ranges=global_settings.allowed_ip_ranges if global_settings else "",
+                    enforce_geofence=global_settings.enforce_geofence if global_settings else False,
+                    enforce_ip_check=global_settings.enforce_ip_check if global_settings else False,
+                    face_match_threshold=global_settings.face_match_threshold if global_settings else 0.6,
+                    check_in_open_time=global_settings.check_in_open_time if global_settings else time(8, 0),
+                    check_in_close_time=global_settings.check_in_close_time if global_settings else time(11, 0),
+                    check_out_open_time=global_settings.check_out_open_time if global_settings else time(16, 0),
+                    check_out_close_time=global_settings.check_out_close_time if global_settings else time(22, 0),
+                    auto_backup_enabled=global_settings.auto_backup_enabled if global_settings else False,
+                    auto_backup_time=global_settings.auto_backup_time if global_settings else time(2, 0),
+                    auto_backup_retention_days=global_settings.auto_backup_retention_days if global_settings else 30,
+                    zkteco_enabled=global_settings.zkteco_enabled if hasattr(global_settings, 'zkteco_enabled') else False,
+                    zkteco_ip=global_settings.zkteco_ip if hasattr(global_settings, 'zkteco_ip') else "192.168.1.201",
+                    zkteco_port=global_settings.zkteco_port if hasattr(global_settings, 'zkteco_port') else 4370,
+                    zkteco_password=global_settings.zkteco_password if hasattr(global_settings, 'zkteco_password') else "",
+                    zkteco_auto_sync_enabled=global_settings.zkteco_auto_sync_enabled if hasattr(global_settings, 'zkteco_auto_sync_enabled') else False,
+                    zkteco_auto_sync_interval_minutes=global_settings.zkteco_auto_sync_interval_minutes if hasattr(global_settings, 'zkteco_auto_sync_interval_minutes') else 30,
+                )
+                db.add(settings)
+                db.commit()
+                db.refresh(settings)
+        else:
+            settings = query.filter(CompanySetting.branch_id.is_(None)).first()
+            if not settings:
+                # If no global settings, create default ones
+                settings = CompanySetting(
+                    company_name="شركة",
+                )
+                db.add(settings)
+                db.commit()
+                db.refresh(settings)
         return CompanySettingResponse(
             id=settings.id,
             company_name=settings.company_name,
@@ -60,9 +107,15 @@ class SettingService:
             auto_backup_enabled=settings.auto_backup_enabled,
             auto_backup_time=settings.auto_backup_time,
             auto_backup_retention_days=settings.auto_backup_retention_days,
+            zkteco_enabled=settings.zkteco_enabled if hasattr(settings, 'zkteco_enabled') else False,
+            zkteco_ip=settings.zkteco_ip if hasattr(settings, 'zkteco_ip') else "192.168.1.201",
+            zkteco_port=settings.zkteco_port if hasattr(settings, 'zkteco_port') else 4370,
+            zkteco_password=settings.zkteco_password if hasattr(settings, 'zkteco_password') else "",
+            zkteco_auto_sync_enabled=settings.zkteco_auto_sync_enabled if hasattr(settings, 'zkteco_auto_sync_enabled') else False,
+            zkteco_auto_sync_interval_minutes=settings.zkteco_auto_sync_interval_minutes if hasattr(settings, 'zkteco_auto_sync_interval_minutes') else 30,
         )
 
-    def update_settings(self, db: Session, payload: CompanySettingUpdate) -> CompanySettingResponse:
+    def update_settings(self, db: Session, payload: CompanySettingUpdate, branch_id: int | None = None) -> CompanySettingResponse:
         if payload.work_end_time <= payload.work_start_time:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -79,59 +132,36 @@ class SettingService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="تتضمن أيام العطلة الأسبوعية قيمة غير مدعومة.",
             )
-        if (payload.workplace_latitude is None) ^ (payload.workplace_longitude is None):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="يجب إدخال خط العرض وخط الطول معًا عند تحديد موقع المركز.",
-            )
-        if payload.check_in_close_time <= payload.check_in_open_time:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="وقت إغلاق نافذة الحضور يجب أن يكون بعد وقت بدايتها.",
-            )
-        if payload.check_out_close_time <= payload.check_out_open_time:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="وقت إغلاق نافذة الانصراف يجب أن يكون بعد وقت بدايتها.",
-            )
-        if payload.check_out_open_time <= payload.check_in_open_time:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="نافذة الانصراف يجب أن تبدأ بعد بداية نافذة الحضور.",
-            )
 
-        normalized_ip_ranges = [self._validate_ip_rule(item) for item in payload.allowed_ip_ranges]
-        if payload.enforce_geofence and (payload.workplace_latitude is None or payload.workplace_longitude is None):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="يجب تحديد خط العرض وخط الطول قبل تفعيل التحقق من موقع المركز.",
-            )
-        if payload.enforce_ip_check and not payload.allowed_ip_ranges:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="يجب إدخال نطاق IP واحد على الأقل قبل تفعيل التحقق من شبكة العمل.",
-            )
+        if branch_id:
+            settings = db.query(CompanySetting).filter(CompanySetting.branch_id == branch_id).first()
+            if not settings:
+                # Create settings for this branch
+                settings = CompanySetting(branch_id=branch_id)
+                db.add(settings)
+        else:
+            settings = db.query(CompanySetting).filter(CompanySetting.branch_id.is_(None)).first()
+            if not settings:
+                settings = CompanySetting()
+                db.add(settings)
 
-        settings = db.query(CompanySetting).first()
         settings.company_name = payload.company_name
         settings.work_start_time = payload.work_start_time
         settings.work_end_time = payload.work_end_time
         settings.weekend_days = ",".join(payload.weekend_days)
         settings.late_grace_minutes = payload.late_grace_minutes
-        settings.workplace_latitude = payload.workplace_latitude
-        settings.workplace_longitude = payload.workplace_longitude
-        settings.workplace_radius_meters = payload.workplace_radius_meters
-        settings.allowed_ip_ranges = ",".join(normalized_ip_ranges)
-        settings.enforce_geofence = payload.enforce_geofence
-        settings.enforce_ip_check = payload.enforce_ip_check
-        settings.face_match_threshold = payload.face_match_threshold
-        settings.check_in_open_time = payload.check_in_open_time
-        settings.check_in_close_time = payload.check_in_close_time
-        settings.check_out_open_time = payload.check_out_open_time
-        settings.check_out_close_time = payload.check_out_close_time
         settings.auto_backup_enabled = payload.auto_backup_enabled
         settings.auto_backup_time = payload.auto_backup_time
         settings.auto_backup_retention_days = payload.auto_backup_retention_days
+        
+        # Add ZKTeco settings
+        settings.zkteco_enabled = payload.zkteco_enabled
+        settings.zkteco_ip = payload.zkteco_ip or ""
+        settings.zkteco_port = payload.zkteco_port
+        settings.zkteco_password = payload.zkteco_password or ""
+        settings.zkteco_auto_sync_enabled = payload.zkteco_auto_sync_enabled
+        settings.zkteco_auto_sync_interval_minutes = payload.zkteco_auto_sync_interval_minutes
+        
         db.commit()
         db.refresh(settings)
-        return self.get_settings(db)
+        return self.get_settings(db, branch_id)

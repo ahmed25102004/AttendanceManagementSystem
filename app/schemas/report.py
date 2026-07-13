@@ -1,12 +1,19 @@
 from pydantic import BaseModel
 
 
+class WeeklyAttendanceData(BaseModel):
+    labels: list[str]
+    present: list[int]
+    late: list[int]
+
+
 class DashboardSummary(BaseModel):
     total_employees: int
     present_today: int
     absent_today: int
     late_employees: int
     attendance_rate: float
+    weekly_data: WeeklyAttendanceData
 
 
 class ReportRow(BaseModel):

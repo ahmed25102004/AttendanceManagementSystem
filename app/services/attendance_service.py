@@ -450,8 +450,10 @@ class AttendanceService:
             return None
         return self._to_response(record)
 
-    def list_records(self, db: Session, attendance_date: date | None = None) -> list[AttendanceResponse]:
+    def list_records(self, db: Session, attendance_date: date | None = None, branch_id: int | None = None) -> list[AttendanceResponse]:
         query = db.query(AttendanceRecord).options(joinedload(AttendanceRecord.employee))
+        if branch_id:
+            query = query.join(Employee).filter(Employee.branch_id == branch_id)
         if attendance_date:
             query = query.filter(AttendanceRecord.attendance_date == attendance_date)
         records = query.order_by(AttendanceRecord.attendance_date.desc(), AttendanceRecord.id.desc()).all()

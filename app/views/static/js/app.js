@@ -1,7 +1,32 @@
 const apiBase = "";
 
+// Safe element getter - returns dummy object if element not found
+function el(id) {
+    const element = document.getElementById(id);
+    if (element) {
+        return element;
+    }
+    return new Proxy({}, {
+        set: () => true,
+        get: (target, prop) => {
+            if (prop === 'addEventListener') {
+                return () => {};
+            }
+            return '';
+        }
+    });
+}
+
+// Since we removed all authentication, just use a dummy token
+const DUMMY_TOKEN = "dummy_token_no_auth_needed";
+
 function getToken() {
-    return localStorage.getItem("attendance_token");
+    let token = localStorage.getItem("attendance_token");
+    if (!token) {
+        token = DUMMY_TOKEN;
+        setToken(token);
+    }
+    return token;
 }
 
 function setToken(token) {
@@ -26,6 +51,7 @@ function getUser() {
 
 async function fetchJSON(url, options = {}) {
     const token = getToken();
+    const branchId = getCurrentBranchId();
     const headers = {
         "Content-Type": "application/json",
         ...(options.headers || {}),
@@ -35,17 +61,14 @@ async function fetchJSON(url, options = {}) {
         headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetch(url, { ...options, headers });
-    if (response.status === 401) {
-        // silent handling: clear token and redirect to login without showing alert text
-        clearToken();
-        if (!window.location.pathname.endsWith("/")) {
-            window.location.href = "/";
-        }
-        // reject with empty message so UI handlers that call showAlert won't display text
-        throw new Error("");
+    if (branchId) {
+        headers["X-Branch-Id"] = branchId;
     }
 
+    const response = await fetch(url, { ...options, headers });
+    
+    // Removed 401 check since we don't use auth anymore
+    
     if (response.status === 204) {
         return null;
     }
@@ -60,26 +83,21 @@ async function fetchJSON(url, options = {}) {
 }
 
 function requireAuth() {
-    if (!getToken()) {
-        window.location.href = "/";
-    }
+    // No auth required anymore
+    return;
 }
 
 async function hydrateUser() {
-    if (!getToken()) {
-        return null;
-    }
-
     try {
         const user = await fetchJSON("/api/auth/me");
         setUser(user);
-        const userNameElement = document.getElementById("currentUserName");
+        const userNameElement = el("currentUserName");
         if (userNameElement) {
             userNameElement.textContent = user.full_name;
         }
         return user;
     } catch (error) {
-        console.error(error);
+        console.error("Error hydrating user:", error);
         return null;
     }
 }
@@ -101,82 +119,80 @@ function downloadFile(url) {
     window.open(`${url}${url.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`, "_blank");
 }
 
-async function loadNotifications() {
-    const unreadCountEl = document.getElementById("unreadCount");
-    const dropdownMenu = document.getElementById("notificationDropdownMenu");
-    
-    if (!unreadCountEl || !dropdownMenu) {
+function getCurrentBranchId() {
+    return localStorage.getItem("attendance_branch_id");
+}
+
+function setCurrentBranchId(branchId) {
+    localStorage.setItem("attendance_branch_id", String(branchId));
+}
+
+function getCurrentBranchName() {
+    return localStorage.getItem("attendance_branch_name") || "";
+}
+
+function setCurrentBranchName(branchName) {
+    localStorage.setItem("attendance_branch_name", branchName);
+}
+
+async function loadBranchSelector() {
+    const branchSelector = document.getElementById("branchSelector");
+    const branchStatusText = document.getElementById("branchStatusText");
+    if (!branchSelector || !branchStatusText) {
         return;
     }
-    
-    try {
-        const notifications = await fetchJSON("/api/notifications");
-        const unreadNotifications = notifications.filter(n => !n.is_read);
-        
-        unreadCountEl.textContent = unreadNotifications.length;
-        if (unreadNotifications.length === 0) {
-            unreadCountEl.style.display = "none";
-        } else {
-            unreadCountEl.style.display = "block";
-        }
-        
-        if (notifications.length === 0) {
-            dropdownMenu.innerHTML = `<li class="p-3 text-center text-muted">لا توجد إشعارات</li>`;
-        } else {
-            let html = `
-                <li><a class="dropdown-item" href="#" onclick="markAllAsRead(event)">تعليم جميع الإشعارات كمقروءة</a></li>
-                <li><hr class="dropdown-divider"></li>
-            `;
-            
-            notifications.forEach(notification => {
-                html += `
-                    <li>
-                        <a class="dropdown-item ${!notification.is_read ? 'bg-light fw-semibold' : ''}" href="#" onclick="markNotificationAsRead(event, ${notification.id})">
-                            <h6 class="mb-0">${notification.title}</h6>
-                            <p class="mb-0 text-muted small">${notification.message}</p>
-                            <small class="text-muted">${new Date(notification.created_at).toLocaleString('ar-EG')}</small>
-                        </a>
-                    </li>
-                `;
-            });
-            
-            dropdownMenu.innerHTML = html;
-        }
-    } catch (error) {
-        console.error(error);
-    }
-}
 
-async function markAllAsRead(event) {
-    event.preventDefault();
     try {
-        await fetchJSON("/api/notifications/mark-all-read", {
-            method: "PUT"
-        });
-        await loadNotifications();
-    } catch (error) {
-        console.error(error);
-    }
-}
+        const branches = await fetchJSON("/api/branches?all=true");
+        branchSelector.innerHTML = "";
 
-async function markNotificationAsRead(event, notificationId) {
-    event.preventDefault();
-    try {
-        await fetchJSON(`/api/notifications/${notificationId}/read`, {
-            method: "PUT"
+        if (!branches || !branches.length) {
+            branchSelector.innerHTML = `<option value="">لا توجد فروع</option>`;
+            branchStatusText.textContent = "لا توجد فروع مسجلة.";
+            return;
+        }
+
+        const currentBranchId = getCurrentBranchId();
+        let selectedId = currentBranchId && branches.some((branch) => String(branch.id) === currentBranchId)
+            ? currentBranchId
+            : String(branches[0].id);
+
+        branches.forEach((branch) => {
+            const option = document.createElement("option");
+            option.value = branch.id;
+            option.textContent = branch.name;
+            if (String(branch.id) === selectedId) {
+                option.selected = true;
+            }
+            branchSelector.append(option);
         });
-        await loadNotifications();
+
+        const selectedBranch = branches.find((branch) => String(branch.id) === selectedId);
+        if (selectedBranch) {
+            setCurrentBranchId(selectedBranch.id);
+            setCurrentBranchName(selectedBranch.name);
+            branchStatusText.textContent = `الفرع الحالي: ${selectedBranch.name}`;
+        }
+
+        branchSelector.addEventListener("change", (event) => {
+            const branchId = event.target.value;
+            const branch = branches.find((item) => String(item.id) === branchId);
+            if (!branch) {
+                return;
+            }
+            setCurrentBranchId(branch.id);
+            setCurrentBranchName(branch.name);
+            branchStatusText.textContent = `الفرع الحالي: ${branch.name}`;
+        });
     } catch (error) {
-        console.error(error);
+        branchStatusText.textContent = "غير متاح";
+        branchSelector.innerHTML = `<option value="">غير متاح</option>`;
     }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
     await hydrateUser();
-    await loadNotifications();
-    
-    // Poll for new notifications every 30 seconds
-    setInterval(loadNotifications, 30000);
+    await loadBranchSelector();
 });
 
 document.addEventListener("click", (event) => {

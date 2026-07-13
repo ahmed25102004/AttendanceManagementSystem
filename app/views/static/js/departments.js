@@ -2,22 +2,23 @@
 const departmentCache = new Map();
 
 function showDepartmentAlert(message, type = "danger") {
-    const el = document.getElementById("departmentAlert");
-    if (!el) return;
-    el.innerHTML = `
+    const element = document.getElementById("departmentAlert");
+    if (!element) return;
+    element.innerHTML = `
         <div class="alert alert-${type} alert-dismissible fade show" role="alert">
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     `;
     setTimeout(() => {
-        el.innerHTML = "";
+        element.innerHTML = "";
     }, 3000);
 }
 
 async function loadDepartments() {
     const departments = await fetchJSON("/api/departments");
     const tbody = document.getElementById("departmentTableBody");
+    if (!tbody) return;
     tbody.innerHTML = "";
     departmentCache.clear();
 
@@ -37,8 +38,9 @@ async function loadDepartments() {
 }
 
 function resetDepartmentForm() {
-    document.getElementById("departmentForm").reset();
-    document.getElementById("departmentId").value = "";
+    const form = document.getElementById("departmentForm");
+    if (form) form.reset();
+    el("departmentId").value = "";
 }
 
 function editDepartment(departmentId) {
@@ -48,9 +50,9 @@ function editDepartment(departmentId) {
         return;
     }
 
-    document.getElementById("departmentId").value = department.id;
-    document.getElementById("departmentName").value = department.name;
-    document.getElementById("departmentDescription").value = department.description || "";
+    el("departmentId").value = department.id;
+    el("departmentName").value = department.name;
+    el("departmentDescription").value = department.description || "";
 }
 
 async function deleteDepartment(departmentId) {
@@ -69,13 +71,7 @@ async function deleteDepartment(departmentId) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    requireAuth();
     const user = await hydrateUser();
-    if (!user) return;
-    if (user.role !== "admin") {
-        window.location.href = "/my-attendance";
-        return;
-    }
 
     try {
         await loadDepartments();
@@ -83,29 +79,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         showDepartmentAlert(error.message);
     }
 
-    document.getElementById("departmentForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const departmentId = document.getElementById("departmentId").value;
+    const form = document.getElementById("departmentForm");
+    if (form) {
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const departmentId = el("departmentId").value;
 
-        const payload = {
-            name: document.getElementById("departmentName").value.trim(),
-            description: document.getElementById("departmentDescription").value.trim() || null,
-        };
+            const payload = {
+                name: el("departmentName").value.trim(),
+                description: el("departmentDescription").value.trim() || null,
+            };
 
-        const method = departmentId ? "PUT" : "POST";
-        const url = departmentId ? `/api/departments/${departmentId}` : "/api/departments";
+            const method = departmentId ? "PUT" : "POST";
+            const url = departmentId ? `/api/departments/${departmentId}` : "/api/departments";
 
-        try {
-            await fetchJSON(url, {
-                method,
-                body: JSON.stringify(payload),
-            });
-            resetDepartmentForm();
-            await loadDepartments();
-            showDepartmentAlert(departmentId ? "تم تحديث بيانات القسم بنجاح." : "تم إضافة القسم بنجاح.", "success");
-        } catch (error) {
-            showDepartmentAlert(error.message);
-        }
-    });
+            try {
+                await fetchJSON(url, {
+                    method,
+                    body: JSON.stringify(payload),
+                });
+                resetDepartmentForm();
+                await loadDepartments();
+                showDepartmentAlert(departmentId ? "تم تحديث بيانات القسم بنجاح." : "تم إضافة القسم بنجاح.", "success");
+            } catch (error) {
+                showDepartmentAlert(error.message);
+            }
+        });
+    }
 });
 

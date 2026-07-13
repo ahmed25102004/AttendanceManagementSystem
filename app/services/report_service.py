@@ -37,17 +37,18 @@ class ReportService:
             )
         return rows
 
-    def daily_report(self, db: Session, report_date: date) -> list[ReportRow]:
+    def daily_report(self, db: Session, report_date: date, branch_id: int | None = None) -> list[ReportRow]:
         records = (
             db.query(AttendanceRecord)
             .options(joinedload(AttendanceRecord.employee).joinedload(Employee.department))
             .filter(AttendanceRecord.attendance_date == report_date)
-            .order_by(AttendanceRecord.id.desc())
-            .all()
         )
+        if branch_id:
+            records = records.join(Employee).filter(Employee.branch_id == branch_id)
+        records = records.order_by(AttendanceRecord.id.desc()).all()
         return self._build_rows(records)
 
-    def weekly_report(self, db: Session, report_date: date) -> list[ReportRow]:
+    def weekly_report(self, db: Session, report_date: date, branch_id: int | None = None) -> list[ReportRow]:
         week_start = report_date - timedelta(days=report_date.weekday())
         week_end = week_start + timedelta(days=7)
         
@@ -55,12 +56,13 @@ class ReportService:
             db.query(AttendanceRecord)
             .options(joinedload(AttendanceRecord.employee).joinedload(Employee.department))
             .filter(AttendanceRecord.attendance_date >= week_start, AttendanceRecord.attendance_date < week_end)
-            .order_by(AttendanceRecord.attendance_date.desc(), AttendanceRecord.id.desc())
-            .all()
         )
+        if branch_id:
+            records = records.join(Employee).filter(Employee.branch_id == branch_id)
+        records = records.order_by(AttendanceRecord.attendance_date.desc(), AttendanceRecord.id.desc()).all()
         return self._build_rows(records)
 
-    def monthly_report(self, db: Session, month: str) -> list[ReportRow]:
+    def monthly_report(self, db: Session, month: str, branch_id: int | None = None) -> list[ReportRow]:
         month_start = datetime.strptime(f"{month}-01", "%Y-%m-%d").date()
         if month_start.month == 12:
             month_end = date(month_start.year + 1, 1, 1)
@@ -71,9 +73,10 @@ class ReportService:
             db.query(AttendanceRecord)
             .options(joinedload(AttendanceRecord.employee).joinedload(Employee.department))
             .filter(AttendanceRecord.attendance_date >= month_start, AttendanceRecord.attendance_date < month_end)
-            .order_by(AttendanceRecord.attendance_date.desc(), AttendanceRecord.id.desc())
-            .all()
         )
+        if branch_id:
+            records = records.join(Employee).filter(Employee.branch_id == branch_id)
+        records = records.order_by(AttendanceRecord.attendance_date.desc(), AttendanceRecord.id.desc()).all()
         return self._build_rows(records)
 
     def export_to_excel(self, report_data: list[ReportRow]) -> BytesIO:

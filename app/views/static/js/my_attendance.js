@@ -222,7 +222,6 @@ async function manualCheckOut() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    requireAuth();
     const user = await hydrateUser();
     if (!user) return;
 

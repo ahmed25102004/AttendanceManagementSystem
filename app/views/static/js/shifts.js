@@ -1,4 +1,4 @@
-const shiftsCache = [];
+let shiftsCache = [];
 
 async function loadShifts() {
     const tbody = document.getElementById("shiftsTableBody");
@@ -52,7 +52,6 @@ function openEditModal(shiftId) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    requireAuth();
     await hydrateUser();
     await loadShifts();
     
