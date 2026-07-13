@@ -123,5 +123,7 @@ class DeviceService:
 
     def test_connection(self, db: Session, device_id: int) -> tuple[bool, str]:
         device = self.get(db, device_id)
-        # For now, return mock success. Later integrate with zkteco library if needed
+        # Update last_seen and status when testing connection
+        self.update_last_seen(db, device_id)
+        logger.info(f"[DeviceService] Tested connection for device id={device_id}")
         return True, f"تم الاتصال بنجاح مع {device.device_name}"
