@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.core.dependencies import get_db
+from app.models.device import Device
 from app.services.device_service import DeviceService
 from app.services.attendance_log_service import AttendanceLogService
 
@@ -46,20 +47,29 @@ def parse_verify_type(verify_code: str | None) -> str:
 @router.get("/heartbeat")
 async def handle_heartbeat(request: Request, db: Session = Depends(get_db)):
     # Handle device heartbeat
-    device_code = request.query_params.get("SN")
-    if not device_code:
+    sn = request.query_params.get("SN")
+    if not sn:
         logger.warning("Heartbeat received without SN")
         return PlainTextResponse(ERROR_RESPONSE)
     
-    device = device_service.get_by_device_code(db, device_code)
+    logger.info(f"Received heartbeat from SN: {sn}")
+    
+    # Try to find device by device_code first
+    device = device_service.get_by_device_code(db, sn)
     if not device:
-        logger.warning(f"Unknown device with SN {device_code}")
+        logger.info(f"Device not found by device_code={sn}, trying serial_number")
+        device = device_service.get_by_serial_number(db, sn)
+    if not device:
+        all_devices = db.query(Device).all()
+        device_info = [f"id={d.id}, device_code={d.device_code}, serial_number={d.serial_number}" for d in all_devices]
+        logger.warning(f"Unknown device with SN {sn}. All devices: {device_info}")
         return PlainTextResponse(ERROR_RESPONSE)
     
     if not device.is_active:
-        logger.warning(f"Device {device_code} is inactive")
+        logger.warning(f"Device {sn} is inactive")
         return PlainTextResponse(ERROR_RESPONSE)
     
+    logger.info(f"Heartbeat successful for device id={device.id}, name={device.device_name}")
     # Update last seen
     device_service.update_last_seen(db, device.id)
     return PlainTextResponse(OK_RESPONSE)
@@ -74,13 +84,20 @@ async def handle_cdata(request: Request, db: Session = Depends(get_db)):
         logger.info(f"Received cdata: {dict(form_data)}")
         
         # Extract device SN
-        device_code = form_data.get("SN") or form_data.get("sn")
-        if not device_code:
+        sn = form_data.get("SN") or form_data.get("sn")
+        if not sn:
+            logger.warning("cdata received without SN")
             return PlainTextResponse(ERROR_RESPONSE)
         
-        device = device_service.get_by_device_code(db, device_code)
+        logger.info(f"Received cdata from SN: {sn}")
+        
+        # Try to find device by device_code first
+        device = device_service.get_by_device_code(db, sn)
         if not device:
-            logger.warning(f"Unknown device with SN {device_code}")
+            logger.info(f"Device not found by device_code={sn}, trying serial_number")
+            device = device_service.get_by_serial_number(db, sn)
+        if not device:
+            logger.warning(f"Unknown device with SN {sn}. All devices: {[d.device_code for d in db.query(device_service.model).all()]}")
             return PlainTextResponse(ERROR_RESPONSE)
         
         if not device.is_active:
