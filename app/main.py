@@ -24,6 +24,7 @@ from app.controllers.api import (
     setting_controller,
     shift_controller,
     task_controller,
+    ws,
 )
 from app.controllers.web import page_controller
 from app.core.bootstrap import bootstrap_defaults
@@ -87,3 +88,4 @@ app.include_router(backup_controller.router, prefix="/api/backups", tags=["Backu
 app.include_router(branch_controller.router, prefix="/api/branches", tags=["Branches"])
 app.include_router(iclock_controller.router, prefix="/iclock", tags=["iClock ADMS"])
 app.include_router(iclock_controller.router, prefix="/attendance", tags=["Device Attendance"])
+app.include_router(ws.router, prefix="/api", tags=["WebSocket"])

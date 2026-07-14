@@ -38,9 +38,33 @@
         </div>
     </div>
 </div>
+<!-- Attendance Logs from Device (Real-Time) -->
+<div class="card panel-card p-4 mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+        <h5 class="fw-bold mb-0">سجلات البصمة (مباشرة)</h5>
+        <span class="text-muted small" id="attendanceLogStatus">جارٍ الاتصال...</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>الوقت</th>
+                    <th>الموظف</th>
+                    <th>كود الموظف</th>
+                    <th>النوع</th>
+                    <th>طريقة التحقق</th>
+                    <th>الجهاز</th>
+                    <th>المصدر</th>
+                </tr>
+            </thead>
+            <tbody id="attendanceLogTableBody"></tbody>
+        </table>
+    </div>
+</div>
+<!-- Original Attendance Records -->
 <div class="card panel-card p-4">
     <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
-        <h5 class="fw-bold mb-0">سجلات الحضور</h5>
+        <h5 class="fw-bold mb-0">سجلات الحضور اليومية</h5>
         <input id="attendanceFilterDate" type="date" class="form-control w-auto">
     </div>
     <div class="table-responsive">

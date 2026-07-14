@@ -18,3 +18,6 @@ class AttendanceLogResponse(BaseModel):
     raw_data: Optional[Any] = None
     record_id: Optional[str] = None
     created_at: datetime
+    # Additional fields for display
+    employee_name: Optional[str] = None
+    device_name: Optional[str] = None

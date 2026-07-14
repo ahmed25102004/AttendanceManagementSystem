@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 import logging
+import time
 
 from app.core.dependencies import get_db
 from app.models.device import Device
@@ -15,13 +16,13 @@ attendance_log_service = AttendanceLogService()
 
 logger = logging.getLogger(__name__)
 
-# ZKTeco ADMS responses
+# ZKTeco ADMS standard responses
 OK_RESPONSE = "OK"
 ERROR_RESPONSE = "ERROR"
+GETREQUEST_RESPONSE = ""  # Empty means no commands pending
 
 
 def parse_attendance_type(status_code: str | None) -> str:
-    # Map ZKTeco status codes to our types
     mapping = {
         "0": "check_in",
         "1": "check_out",
@@ -43,46 +44,35 @@ def parse_verify_type(verify_code: str | None) -> str:
     return mapping.get(str(verify_code) if verify_code else "1", "fingerprint")
 
 
+def log_full_request(request: Request, stage: str = "request"):
+    logger.info(f"[{stage}] METHOD={request.method} URL={request.url} PARAMS={dict(request.query_params)}")
+
+
 @router.get("/cdata")
 @router.get("/heartbeat")
 @router.get("")
 async def handle_heartbeat(request: Request, db: Session = Depends(get_db)):
-    # Handle device heartbeat
-    logger.info(f"[HEARTBEAT/GET] {request.method} {request.url.path} - Query params: {dict(request.query_params)}")
+    log_full_request(request, "HEARTBEAT")
     sn = request.query_params.get("SN") or request.query_params.get("sn")
     if not sn:
         logger.warning("Heartbeat received without SN")
         return PlainTextResponse(ERROR_RESPONSE)
     
-    logger.info(f"[HEARTBEAT] Received SN: '{sn}' (type: {type(sn)})")
+    logger.info(f"[HEARTBEAT] Received SN: '{sn}'")
     
-    # Get ALL devices first and log their details
-    all_devices = db.query(Device).all()
-    logger.info(f"[HEARTBEAT] All devices in DB: {len(all_devices)} devices")
-    for idx, dev in enumerate(all_devices):
-        logger.info(f"[HEARTBEAT] Device {idx+1}: id={dev.id}, name='{dev.device_name}', device_code='{dev.device_code}', serial_number='{dev.serial_number}', is_active={dev.is_active}")
-    
-    # Try to find device by device_code first
-    logger.info(f"[HEARTBEAT] Trying to find by device_code: '{sn}'")
     device = device_service.get_by_device_code(db, sn)
-    if device:
-        logger.info(f"[HEARTBEAT] FOUND device by device_code: id={device.id}, name={device.device_name}")
-    else:
-        logger.info(f"[HEARTBEAT] NOT FOUND by device_code, trying serial_number: '{sn}'")
+    if not device:
         device = device_service.get_by_serial_number(db, sn)
-        if device:
-            logger.info(f"[HEARTBEAT] FOUND device by serial_number: id={device.id}, name={device.device_name}")
     
     if not device:
-        logger.error(f"[HEARTBEAT] FAILED: Unknown device with SN '{sn}'")
+        logger.error(f"[HEARTBEAT] Unknown device SN={sn}")
         return PlainTextResponse(ERROR_RESPONSE)
     
     if not device.is_active:
-        logger.warning(f"Device {sn} is inactive")
+        logger.warning(f"[HEARTBEAT] Device {sn} inactive")
         return PlainTextResponse(ERROR_RESPONSE)
     
-    logger.info(f"Heartbeat successful for device id={device.id}, name={device.device_name}")
-    # Update last seen
+    logger.info(f"[HEARTBEAT] Success for {device.device_name}")
     device_service.update_last_seen(db, device.id)
     return PlainTextResponse(OK_RESPONSE)
 
@@ -90,117 +80,127 @@ async def handle_heartbeat(request: Request, db: Session = Depends(get_db)):
 @router.post("/cdata")
 @router.post("")
 async def handle_cdata(request: Request, db: Session = Depends(get_db)):
-    # Handle attendance data
-    logger.info(f"[CDATA/POST] {request.method} {request.url.path}")
+    start_time = time.time()
+    log_full_request(request, "CDATA")
+    
     try:
-        # Try to get form data, if that fails try to get raw body
+        form_data = None
+        raw_body = None
+        
         try:
             form_data = await request.form()
-            logger.info(f"[CDATA] Form data: {dict(form_data)}")
-        except Exception as form_err:
-            logger.warning(f"[CDATA] Failed to parse form data: {form_err}")
-            raw_body = await request.body()
-            logger.info(f"[CDATA] Raw body: {raw_body.decode('utf-8', errors='replace')}")
-            form_data = {}
+            raw_body = str(dict(form_data))
+        except Exception:
+            raw_body = (await request.body()).decode('utf-8', errors='replace')
         
-        # Extract device SN
-        sn = form_data.get("SN") or form_data.get("sn") or request.query_params.get("SN") or request.query_params.get("sn")
+        logger.info(f"[CDATA] DATA: {raw_body}")
+        
+        sn = form_data.get("SN") if form_data else None
         if not sn:
-            logger.warning("cdata received without SN")
+            sn = request.query_params.get("SN") or request.query_params.get("sn")
+            
+        if not sn:
+            logger.warning("[CDATA] No SN received")
             return PlainTextResponse(ERROR_RESPONSE)
         
-        logger.info(f"[DEVICE LOOKUP] Received SN from request: '{sn}' (type: {type(sn)})")
-        
-        # Get ALL devices first and log their details
-        all_devices = db.query(Device).all()
-        logger.info(f"[DEVICE LOOKUP] All devices in DB: {len(all_devices)} devices")
-        for idx, dev in enumerate(all_devices):
-            logger.info(f"[DEVICE LOOKUP] Device {idx+1}: id={dev.id}, name='{dev.device_name}', device_code='{dev.device_code}', serial_number='{dev.serial_number}', is_active={dev.is_active}")
-        
-        # Try to find device by device_code first
-        logger.info(f"[DEVICE LOOKUP] Trying to find by device_code: '{sn}'")
         device = device_service.get_by_device_code(db, sn)
-        if device:
-            logger.info(f"[DEVICE LOOKUP] FOUND device by device_code: id={device.id}, name={device.device_name}")
-        else:
-            logger.info(f"[DEVICE LOOKUP] NOT FOUND by device_code, trying serial_number: '{sn}'")
-            device = device_service.get_by_serial_number(db, sn)
-            if device:
-                logger.info(f"[DEVICE LOOKUP] FOUND device by serial_number: id={device.id}, name={device.device_name}")
-        
         if not device:
-            logger.error(f"[DEVICE LOOKUP] FAILED: Unknown device with SN '{sn}'")
+            device = device_service.get_by_serial_number(db, sn)
+            
+        if not device:
+            logger.error(f"[CDATA] Unknown device: {sn}")
             return PlainTextResponse(ERROR_RESPONSE)
-        
-        if not device.is_active:
-            return PlainTextResponse(ERROR_RESPONSE)
-        
-        # Update last seen
+            
         device_service.update_last_seen(db, device.id)
         
-        # Process attendance records
-        table = form_data.get("table")
-        if table and "ATTLOG" in table.upper():
-            # The data is in "ATTLOG" format
-            records = form_data.get("records") or ""
-            logger.info(f"[CDATA] Processing ATTLOG records: {records}")
-            for line in records.split("\n"):
-                line = line.strip()
-                if not line:
-                    continue
-                # Parse log line (usually tab or comma separated)
-                # Sample line format: PIN\tTime\tStatus\tVerifyCode\tWorkCode
-                parts = line.split("\t") if "\t" in line else line.split(",")
-                if len(parts) < 2:
-                    continue
+        if form_data:
+            table = form_data.get("table")
+            
+            if table and "ATTLOG" in table.upper():
+                records = form_data.get("records", "")
+                logger.info(f"[CDATA] Processing ATTLOG: {records}")
                 
-                pin = parts[0].strip()
-                time_str = parts[1].strip()
-                status = parts[2].strip() if len(parts) > 2 else "0"
-                verify = parts[3].strip() if len(parts) > 3 else "1"
-                
-                try:
-                    check_time = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
-                except ValueError:
-                    try:
-                        check_time = datetime.strptime(time_str, "%Y/%m/%d %H:%M:%S")
-                    except Exception:
-                        logger.warning(f"Invalid time format: {time_str}")
+                for line in records.split("\n"):
+                    line = line.strip()
+                    if not line:
                         continue
+                        
+                    parts = line.split("\t") if "\t" in line else line.split(",")
+                    if len(parts) <2:
+                        continue
+                        
+                    pin = parts[0].strip()
+                    time_str = parts[1].strip()
+                    att_status = parts[2].strip() if len(parts) > 2 else "0"
+                    verify = parts[3].strip() if len(parts) >3 else "1"
+                    
+                    try:
+                        check_time = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                    except ValueError:
+                        try:
+                            check_time = datetime.strptime(time_str, "%Y/%m/%d %H:%M:%S")
+                        except Exception as e:
+                            logger.warning(f"Invalid time: {time_str} - {e}")
+                            continue
+                            
+                    try:
+                        attendance_log = attendance_log_service.create(
+                            db=db,
+                            device=device,
+                            employee_code=pin,
+                            check_time=check_time,
+                            attendance_type=parse_attendance_type(att_status),
+                            verify_type=parse_verify_type(verify),
+                            raw_data={"raw": line},
+                            record_id=f"{device.device_code or device.serial_number}-{pin}-{time_str}"
+                        )
+                        logger.info(f"[CDATA] Saved log saved: {pin} at {check_time}")
+                    except HTTPException as e:
+                        if e.status_code != 409:
+                            logger.error(f"Error processing log: {e}")
                 
-                try:
-                    attendance_log_service.create(
-                        db=db,
-                        device=device,
-                        employee_code=pin,
-                        check_time=check_time,
-                        attendance_type=parse_attendance_type(status),
-                        verify_type=parse_verify_type(verify),
-                        raw_data={"raw_line": line},
-                        record_id=f"{device.device_code or device.serial_number}-{pin}-{time_str}"
-                    )
-                except HTTPException as e:
-                    if e.status_code != 409:  # Ignore duplicates
-                        logger.error(f"Error processing log: {e}")
+        process_time = round(time.time() - start_time)
+        logger.info(f"[CDATA] Processed in: {process_time:.2f}s")
         return PlainTextResponse(OK_RESPONSE)
     except Exception as e:
-        logger.exception("Error processing cdata request")
+        logger.exception("[CDATA] Fatal error")
         return PlainTextResponse(ERROR_RESPONSE)
 
 
 @router.get("/getinfo")
 async def handle_getinfo(request: Request, db: Session = Depends(get_db)):
-    # Return device info
+    log_full_request(request, "GETINFO")
     return PlainTextResponse("Ret=0")
 
 
-@router.api_route("/{path:path}", methods=["GET", "POST"])
+@router.get("/getrequest")
+async def handle_getrequest(request: Request, db: Session = Depends(get_db)):
+    """
+    CRITICAL: This is the most important endpoint for ZKTeco ADMS!
+    The device polls this endpoint to get commands!
+    We return empty string to tell device to send pending data!
+    """
+    log_full_request(request, "GETREQUEST")
+    sn = request.query_params.get("SN") or request.query_params.get("sn")
+    if sn:
+        device = device_service.get_by_device_code(db, sn)
+        if not device:
+            device = device_service.get_by_serial_number(db, sn)
+        if device:
+            device_service.update_last_seen(db, device.id)
+            logger.info(f"[GETREQUEST] Device {sn} checked in")
+    return PlainTextResponse(GETREQUEST_RESPONSE)
+
+
+@router.get("/gettime")
+async def handle_gettime(request: Request, db: Session = Depends(get_db)):
+    """Return current time to device for time sync"""
+    log_full_request(request, "GETTIME")
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return PlainTextResponse(f"Ret=0\nTime={now}")
+
+
+@router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def handle_other_requests(request: Request, path: str, db: Session = Depends(get_db)):
-    # Handle other ADMS requests (like gettime, setuser, etc.)
-    logger.info(f"Received request to /{path}: {request.method} {dict(request.query_params)}")
-    if request.method == "POST":
-        try:
-            logger.info(f"POST body: {await request.form()}")
-        except Exception:
-            pass
+    log_full_request(request, f"OTHER:{path}")
     return PlainTextResponse(OK_RESPONSE)

@@ -190,9 +190,68 @@ async function loadBranchSelector() {
     }
 }
 
+let ws;
+
+function connectWebSocket() {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/api/ws/attendance`;
+    ws = new WebSocket(wsUrl);
+    
+    ws.onopen = function () {
+        console.log("WebSocket connected");
+    };
+    
+    ws.onmessage = function (event) {
+        try {
+            const message = JSON.parse(event.data);
+            if (message.type === "attendance_log") {
+                handleNewAttendanceLog(message.data);
+            }
+        } catch (error) {
+            console.error("Error parsing WebSocket message:", error);
+        }
+    };
+    
+    ws.onclose = function () {
+        console.log("WebSocket closed, trying to reconnect...");
+        setTimeout(connectWebSocket, 3000);
+    };
+    
+    ws.onerror = function (error) {
+        console.error("WebSocket error:", error);
+    };
+}
+
+function handleNewAttendanceLog(data) {
+    // Show real-time notification
+    const notification = document.createElement("div");
+    notification.className = "alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3 z-index-3";
+    notification.style.minWidth = "300px";
+    notification.innerHTML = `
+        <i class="bi bi-check-circle-fill me-2"></i>
+        ${data.employee_name} checked in at ${new Date(data.check_time).toLocaleTimeString()}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(notification);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+    
+    // Reload page if we are on attendance page
+    if (window.location.pathname.includes("attendance") || window.location.pathname === "/") {
+        // Optionally refresh data without full reload
+        console.log("New attendance log received");
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     await hydrateUser();
     await loadBranchSelector();
+    connectWebSocket();
 });
 
 document.addEventListener("click", (event) => {
