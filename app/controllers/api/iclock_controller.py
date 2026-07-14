@@ -60,7 +60,22 @@ async def handle_gettime(request: Request, db: Session = Depends(get_db)):
     """Return current time for sync"""
     log_request("GETTIME", request)
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return PlainTextResponse(f"Ret=0\nTime={now}")
+    response = f"Ret=0\nTime={now}"
+    logger.info(f"[GETTIME] Sending response: {response}")
+    return PlainTextResponse(response)
+
+
+@router.get("/ping")
+async def handle_ping(request: Request, db: Session = Depends(get_db)):
+    """Handle ping from device"""
+    log_request("PING", request)
+    sn = get_sn(request)
+    if sn:
+        device = get_device(db, sn)
+        if device:
+            device_service.update_last_seen(db, device.id)
+            logger.info(f"[PING] Device {sn} ping received")
+    return PlainTextResponse("OK")
 
 
 @router.get("/cdata")
@@ -111,7 +126,10 @@ async def handle_cdata_get(request: Request, db: Session = Depends(get_db)):
 
         # Join with CRLF and return as plain text
         response_body = "\r\n".join(response_lines)
-        logger.info(f"[CDATA-GET] Handshake response sent: {response_body}")
+        logger.info("=" * 80)
+        logger.info(f"[CDATA-GET] --- SENDING HANDSHAKE RESPONSE TO DEVICE {sn} ---")
+        logger.info(response_body)
+        logger.info("=" * 80)
         return PlainTextResponse(response_body, media_type="text/plain")
 
     # Otherwise, treat as a heartbeat
