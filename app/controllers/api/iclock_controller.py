@@ -1,3 +1,4 @@
+
 from datetime import datetime
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse
@@ -14,17 +15,13 @@ device_service = DeviceService()
 attendance_log_service = AttendanceLogService()
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-# TEST ENDPOINT
-@router.get("/test")
-async def test():
-    return PlainTextResponse("HELLO WORLD - NEW CODE IS RUNNING!")
 
 
 def log_request(prefix: str, request: Request):
     logger.info(f"[{prefix}] {request.method} {request.url}")
-    logger.info(f"Params: {dict(request.query_params)}")
+    params = dict(request.query_params)
+    if params:
+        logger.info(f"  Params: {params}")
 
 
 def get_sn(request: Request) -> str | None:
@@ -39,6 +36,23 @@ def get_device(db: Session, sn: str):
     return device
 
 
+@router.get("/test")
+async def test_endpoint():
+    return PlainTextResponse("NEW CODE IS RUNNING! SUCCESS!")
+
+
+@router.get("/ping")
+async def handle_ping(request: Request, db: Session = Depends(get_db)):
+    log_request("PING", request)
+    sn = get_sn(request)
+    if sn:
+        device = get_device(db, sn)
+        if device:
+            device_service.update_last_seen(db, device.id)
+            logger.info(f"  Ping from device {sn} updated")
+    return PlainTextResponse("OK")
+
+
 @router.get("/getrequest")
 async def handle_getrequest(request: Request, db: Session = Depends(get_db)):
     log_request("GETREQUEST", request)
@@ -47,7 +61,8 @@ async def handle_getrequest(request: Request, db: Session = Depends(get_db)):
         device = get_device(db, sn)
         if device:
             device_service.update_last_seen(db, device.id)
-            logger.info(f"GETREQUEST: Device {sn} connected")
+            logger.info(f"  Device {sn} polled, last seen updated")
+    # Always empty command queue for now
     return PlainTextResponse("")
 
 
@@ -64,17 +79,6 @@ async def handle_gettime(request: Request, db: Session = Depends(get_db)):
     return PlainTextResponse(f"Ret=0\nTime={now}")
 
 
-@router.get("/ping")
-async def handle_ping(request: Request, db: Session = Depends(get_db)):
-    log_request("PING", request)
-    sn = get_sn(request)
-    if sn:
-        device = get_device(db, sn)
-        if device:
-            device_service.update_last_seen(db, device.id)
-    return PlainTextResponse("OK")
-
-
 @router.get("/cdata")
 async def handle_cdata_get(request: Request, db: Session = Depends(get_db)):
     log_request("CDATA-GET", request)
@@ -82,40 +86,61 @@ async def handle_cdata_get(request: Request, db: Session = Depends(get_db)):
     sn = get_sn(request)
     options = params.get("options")
 
-    logger.info("="*100)
-    logger.info(f"OPTIONS PARAMS: {params}")
-    logger.info("="*100)
-
-    if options and "all" in options:
+    # This is a handshake!
+    if options and ("all" in options or "options" in options):
         if not sn:
-            logger.warning("Handshake missing SN")
+            logger.error("  Handshake missing SN, rejecting")
             return PlainTextResponse("ERROR")
+
         device = get_device(db, sn)
         if not device:
-            logger.error(f"Unknown device {sn}")
+            logger.error(f"  Device {sn} not found in database, rejecting")
             return PlainTextResponse("ERROR")
 
-        device_service.update_last_seen(db, device.id)
+        logger.info("=" * 100)
+        logger.info(f"  PERFORMING FULL HANDSHAKE FOR DEVICE {sn}")
+        logger.info("=" * 100)
 
-        res_lines = [
+        # Update device's last seen & last sync
+        device_service.update_last_seen(db, device.id)
+        device_service.update_last_sync(db, device.id)
+
+        # Exactly following msaied/zkteco-php Legacy + Push SDK config!
+        config_lines = [
             f"GET OPTION FROM: {sn}",
-            "ATTLOGStamp=0",
-            "OPERLOGStamp=0",
-            "ErrorDelay=10",
-            "Delay=5",
-            "TransTimes=00:00;23:59",
+            "Stamp=0",
+            "OpStamp=0",
+            "ErrorDelay=30",
+            "Delay=10",
+            "TransTimes=00:00;14:05",
             "TransInterval=1",
-            "Realtime=1",
-            "ServerVer=3.0.1",
-            "PushProtVer=2.4.1",
-            "TimeZone=0"
+            "TransFlag=1111111111",
+            "Realtime=1",  # KEY: enables real-time attendance upload!
+            "Encrypt=0",
+            # Push SDK additions for Ver 8.x firmware!
+            "BioDataFun=1",
+            "RtDataFun=1",
+            "BioStamp=0",
+            "RtStamp=0",
         ]
-        res = "\r\n".join(res_lines)
-        logger.info("="*100)
-        logger.info("RESPONDING WITH HANDSHAKE:")
-        logger.info(repr(res))
-        logger.info("="*100)
-        return PlainTextResponse(res, media_type="text/plain")
+
+        # Join with CRLF as required by ZKTeco firmware
+        response_content = "\r\n".join(config_lines) + "\r\n"
+
+        logger.info(f"  SENDING EXACT CONFIG BLOCK:")
+        for line in response_content.split("\n"):
+            logger.info(f"    {repr(line)}")
+
+        logger.info("=" * 100)
+        logger.info("  HANDSHAKE COMPLETE!")
+        logger.info("=" * 100)
+
+        return PlainTextResponse(
+            response_content,
+            media_type="text/plain"
+        )
+
+    # If not an options handshake, just update last seen
     if sn:
         device = get_device(db, sn)
         if device:
@@ -126,69 +151,109 @@ async def handle_cdata_get(request: Request, db: Session = Depends(get_db)):
 @router.post("/cdata")
 async def handle_cdata_post(request: Request, db: Session = Depends(get_db)):
     log_request("CDATA-POST", request)
-    logger.info("="*100)
+    logger.info("=" * 100)
+    logger.info("  INCOMING DATA UPLOAD")
+    logger.info("=" * 100)
+
+    # Read everything
     try:
         form_data = await request.form()
-        logger.info(f"FORM: {dict(form_data)}")
-        raw = await request.body()
-        logger.info(f"BODY: {raw}")
+        logger.info(f"  Form data: {dict(form_data)}")
+        raw_body = await request.body()
+        logger.info(f"  Raw body (first 500 chars): {raw_body.decode('utf-8', errors='replace')[:500]}")
     except Exception as e:
-        logger.error(e)
-        raw = await request.body()
-        logger.info(f"RAW BODY: {raw}")
+        logger.error(f"  Error parsing form data: {e}")
+        raw_body = await request.body()
+        logger.info(f"  Raw body: {raw_body}")
         form_data = {}
+
+    # Get SN from params or form
     params = dict(request.query_params)
     sn = get_sn(request) or form_data.get("SN") or form_data.get("sn")
 
     if not sn:
+        logger.error("  No SN found, rejecting")
         return PlainTextResponse("ERROR")
 
     device = get_device(db, sn)
     if not device:
+        logger.error(f"  Device {sn} not found, rejecting")
         return PlainTextResponse("ERROR")
+
+    # Update timestamps
     device_service.update_last_seen(db, device.id)
+    device_service.update_last_sync(db, device.id)
 
+    # Check what table is being uploaded
     table = params.get("table") or form_data.get("table")
-    logger.info(f"TABLE: {table}")
+    logger.info(f"  Uploading table: {table}")
 
-    if table and "ATTLOG" in table.upper():
-        records = params.get("records") or form_data.get("records") or ""
-        logger.info(f"RECORDS: {records}")
-        for line in records.splitlines():
+    # Process ATTLOG or RTLOG
+    if table and ("ATTLOG" in table.upper() or "RTLOG" in table.upper()):
+        records_text = (
+            params.get("records") or
+            form_data.get("records") or
+            raw_body.decode("utf-8", errors="replace")
+        )
+
+        logger.info(f"  Processing records: {records_text}")
+
+        count = 0
+        for line in records_text.splitlines():
             line = line.strip()
             if not line:
                 continue
+
+            # Split by tabs or commas
             parts = line.split("\t") if "\t" in line else line.split(",")
             if len(parts) < 2:
+                logger.warning(f"  Skipping malformed line: {line}")
                 continue
-            pin = parts[0].strip()
-            t_str = parts[1].strip()
-            try:
-                check_time = datetime.strptime(t_str, "%Y-%m-%d %H:%M:%S")
-            except Exception as e:
-                logger.error(e)
-                try:
-                    check_time = datetime.strptime(t_str, "%Y/%m/%d %H:%M:%S")
-                except:
-                    continue
 
-            attendance_log_service.create(
-                db=db,
-                device=device,
-                employee_code=pin,
-                check_time=check_time,
-                attendance_type="0",
-                verify_type="1",
-                raw_data=dict(raw_line=line),
-                record_id=f"{device.id}-{pin}-{t_str}"
-            )
-            logger.info(f"LOG CREATED")
+            pin = parts[0].strip()
+            time_str = parts[1].strip()
+            status = parts[2].strip() if len(parts) > 2 else "0"
+            verify = parts[3].strip() if len(parts) > 3 else "1"
+
+            try:
+                try:
+                    check_time = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    try:
+                        check_time = datetime.strptime(time_str, "%Y/%m/%d %H:%M:%S")
+                    except ValueError:
+                        logger.warning(f"  Could not parse time: {time_str}, skipping")
+                        continue
+
+                logger.info(f"  Creating attendance record for PIN {pin} at {check_time}")
+
+                attendance_log_service.create(
+                    db=db,
+                    device=device,
+                    employee_code=pin,
+                    check_time=check_time,
+                    attendance_type=str(status),
+                    verify_type=str(verify),
+                    raw_data={"raw_line": line},
+                    record_id=f"{device.id}-{pin}-{time_str}"
+                )
+
+                count += 1
+                logger.info(f"  Successfully saved record {count}")
+
+            except Exception as e:
+                logger.error(f"  Error processing record line {line}: {e}", exc_info=True)
+
+        logger.info(f"  Done processing {count} attendance records")
+
+    logger.info("=" * 100)
+
     return PlainTextResponse("OK")
 
 
 @router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def handle_other(request: Request, db: Session = Depends(get_db)):
-    log_request(f"OTHER_{request.method}", request)
+async def handle_other_requests(request: Request, db: Session = Depends(get_db)):
+    log_request(f"OTHER-{request.method}", request)
     sn = get_sn(request)
     if sn:
         device = get_device(db, sn)
