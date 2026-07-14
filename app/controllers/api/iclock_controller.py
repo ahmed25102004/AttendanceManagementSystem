@@ -16,6 +16,11 @@ attendance_log_service = AttendanceLogService()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+# TEST ENDPOINT
+@router.get("/test")
+async def test():
+    return PlainTextResponse("HELLO WORLD - NEW CODE IS RUNNING!")
+
 
 def log_request(prefix: str, request: Request):
     logger.info(f"[{prefix}] {request.method} {request.url}")
