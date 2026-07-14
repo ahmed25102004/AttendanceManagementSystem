@@ -1,4 +1,13 @@
 import logging
+# Configure logging to show everything in Docker!
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
+logger.info("=== LOGGING IS NOW CONFIGURED ===")
+
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 
