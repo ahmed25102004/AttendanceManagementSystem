@@ -63,7 +63,53 @@ async def handle_getrequest(request: Request, db: Session = Depends(get_db)):
             device_service.update_last_seen(db, device.id)
             logger.info(f"  Device {sn} polled, last seen updated")
     # Always empty command queue for now
-    return PlainTextResponse("")
+    return PlainTextResponse("OK")
+
+
+@router.get("/registry")
+async def handle_registry(request: Request, db: Session = Depends(get_db)):
+    log_request("REGISTRY", request)
+    sn = get_sn(request)
+    if not sn:
+        logger.error("  Registry request missing SN, rejecting")
+        return PlainTextResponse("ERROR")
+    
+    device = get_device(db, sn)
+    if not device:
+        logger.error(f"  Device {sn} not found in database, rejecting")
+        return PlainTextResponse("ERROR")
+    
+    device_service.update_last_seen(db, device.id)
+    # Return registry block as per Push SDK
+    return PlainTextResponse(f"RegistryCode={sn}\r\n")
+
+
+@router.post("/devicecmd")
+async def handle_devicecmd(request: Request, db: Session = Depends(get_db)):
+    log_request("DEVICECMD", request)
+    sn = get_sn(request)
+    if not sn:
+        logger.error("  Devicecmd request missing SN, rejecting")
+        return PlainTextResponse("ERROR")
+    
+    device = get_device(db, sn)
+    if not device:
+        logger.error(f"  Device {sn} not found in database, rejecting")
+        return PlainTextResponse("ERROR")
+    
+    # Update last seen
+    device_service.update_last_seen(db, device.id)
+    
+    # Log the command result
+    try:
+        form_data = await request.form()
+        logger.info(f"  Form data: {dict(form_data)}")
+        raw_body = await request.body()
+        logger.info(f"  Raw body: {raw_body.decode('utf-8', errors='replace')}")
+    except Exception as e:
+        logger.error(f"  Error reading devicecmd request: {e}")
+    
+    return PlainTextResponse("OK")
 
 
 @router.get("/getinfo")
