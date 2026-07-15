@@ -1,4 +1,6 @@
+from __future__ import annotations
 from datetime import date, datetime, timedelta
+from typing import List, Dict
 from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
@@ -119,7 +121,7 @@ class BranchService:
             ]
         }
     
-    def get_all_stats(self, db: Session) -> list[dict]:
+    def get_all_stats(self, db: Session) -> List[Dict]:
         branches = self.list(db)
         all_stats = []
         for branch in branches:

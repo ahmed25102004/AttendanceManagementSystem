@@ -1,4 +1,6 @@
+from __future__ import annotations
 from datetime import datetime, date, timedelta
+from typing import List
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_, func
@@ -290,7 +292,7 @@ class EmployeeService:
         start_date: date | None = None, 
         end_date: date | None = None, 
         branch_id: int | None = None
-    ) -> list[AttendanceLogEntry]:
+    ) -> List[AttendanceLogEntry]:
         query = db.query(AttendanceLog).options(
             joinedload(AttendanceLog.device),
             joinedload(AttendanceLog.branch)
