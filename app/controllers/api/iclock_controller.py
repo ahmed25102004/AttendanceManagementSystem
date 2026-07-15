@@ -1,12 +1,16 @@
 
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 import logging
 
 from app.core.dependencies import get_db
 from app.models.device import Device
+from app.models.employee import Employee
+from app.models.shift import Shift
+from app.models.attendance_log import AttendanceLog
 from app.services.device_service import DeviceService
 from app.services.attendance_log_service import AttendanceLogService
 
@@ -33,6 +37,9 @@ def get_device(db: Session, sn: str):
     device = device_service.get_by_device_code(db, sn)
     if not device:
         device = device_service.get_by_serial_number(db, sn)
+    # Load branch relationship
+    if device:
+        device = db.query(Device).options(joinedload(Device.branch)).filter(Device.id == device.id).first()
     return device
 
 
@@ -270,7 +277,69 @@ async def handle_cdata_post(request: Request, db: Session = Depends(get_db)):
                 "4": "ot_in",
                 "5": "ot_out"
             }
+            
+            # First try to use the status from device
             attendance_type = zkteco_status_map.get(status, status)
+            
+            # If device sends "0", try to infer based on time and previous logs
+            if attendance_type == "0" or attendance_type is None:
+                # Try to find the employee
+                employee = db.query(Employee).filter(
+                    Employee.employee_code == pin,
+                    Employee.branch_id == device.branch_id
+                ).first()
+                
+                if employee:
+                    # Get check in/out windows from branch or shift
+                    check_in_open = None
+                    check_in_close = None
+                    check_out_open = None
+                    check_out_close = None
+                    
+                    if employee.shift_id:
+                        shift = db.query(Shift).filter(Shift.id == employee.shift_id).first()
+                        if shift:
+                            check_in_open = shift.start_time
+                            check_out_close = shift.end_time
+                            # For simplicity, use 3 hours after start as check-in close time
+                            check_in_close = (datetime.combine(date.today(), shift.start_time) + timedelta(hours=3)).time()
+                            # For simplicity, use 3 hours before end as check-out open time
+                            check_out_open = (datetime.combine(date.today(), shift.end_time) - timedelta(hours=3)).time()
+                    
+                    # If no shift or shift doesn't have times, use branch settings
+                    if not check_in_open and device.branch:
+                        check_in_open = datetime.strptime(device.branch.check_in_open_time, "%H:%M:%S").time()
+                        check_in_close = datetime.strptime(device.branch.check_in_close_time, "%H:%M:%S").time()
+                        check_out_open = datetime.strptime(device.branch.check_out_open_time, "%H:%M:%S").time()
+                        check_out_close = datetime.strptime(device.branch.check_out_close_time, "%H:%M:%S").time()
+                    
+                    # Get today's date from check_time
+                    log_date = check_time.date()
+                    # Get all attendance logs for this employee today
+                    today_logs = db.query(AttendanceLog).filter(
+                        AttendanceLog.employee_id == employee.id,
+                        func.date(AttendanceLog.check_time) == log_date
+                    ).order_by(AttendanceLog.check_time.asc()).all()
+                    
+                    # Infer based on previous logs count and time
+                    if len(today_logs) == 0:
+                        # First log today → check_in
+                        attendance_type = "check_in"
+                    elif len(today_logs) % 2 == 0:
+                        # Even number of logs (after adding this will be odd) → check_in
+                        attendance_type = "check_in"
+                    else:
+                        # Odd number of logs → check_out
+                        attendance_type = "check_out"
+                    
+                    # Also check the time window
+                    if check_in_open and check_in_close and check_in_open <= check_time.time() <= check_in_close:
+                        attendance_type = "check_in"
+                    elif check_out_open and check_out_close and check_out_open <= check_time.time() <= check_out_close:
+                        attendance_type = "check_out"
+                else:
+                    # If no employee found, default to check_in
+                    attendance_type = "check_in"
             
             # Map ZKTeco verify codes to our verify types
             zkteco_verify_map = {
