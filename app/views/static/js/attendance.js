@@ -55,6 +55,56 @@ async function loadAttendanceLogs() {
     });
 }
 
+function getAttendanceTypeName(type) {
+    const map = {
+        'check_in': 'حضور',
+        'check_out': 'انصراف',
+        'break_out': 'خروج استراحة',
+        'break_in': 'عودة استراحة',
+        'ot_in': 'بداية دوام إضافي',
+        'ot_out': 'نهاية دوام إضافي',
+        '0': 'حضور',
+        '1': 'انصراف',
+        '2': 'خروج استراحة',
+        '3': 'عودة استراحة',
+        '4': 'بداية دوام إضافي',
+        '5': 'نهاية دوام إضافي',
+    };
+    return map[type] || type;
+}
+
+function getAttendanceTypeBadge(type) {
+    const map = {
+        'check_in': 'bg-primary',
+        'check_out': 'bg-danger',
+        'break_out': 'bg-warning',
+        'break_in': 'bg-info',
+        'ot_in': 'bg-success',
+        'ot_out': 'bg-secondary',
+        '0': 'bg-primary',
+        '1': 'bg-danger',
+        '2': 'bg-warning',
+        '3': 'bg-info',
+        '4': 'bg-success',
+        '5': 'bg-secondary',
+    };
+    return map[type] || 'bg-secondary';
+}
+
+function getVerifyTypeName(type) {
+    const map = {
+        'fingerprint': 'بصمة',
+        'card': 'بطاقة',
+        'face': 'وجه',
+        'password': 'كلمة مرور',
+        '0': 'كلمة مرور',
+        '1': 'بصمة',
+        '2': 'بطاقة',
+        '15': 'وجه',
+    };
+    return map[type] || type;
+}
+
 function addAttendanceLogToTable(log, prepend = true) {
     if (seenLogIds.has(log.id)) {
         return; // Avoid duplicates
@@ -73,10 +123,10 @@ function addAttendanceLogToTable(log, prepend = true) {
         <td>${checkTime}</td>
         <td>${employeeName}</td>
         <td>${log.employee_code}</td>
-        <td><span class="badge text-bg-primary">${log.attendance_type}</span></td>
-        <td><span class="badge text-bg-secondary">${log.verify_type}</span></td>
+        <td><span class="badge ${getAttendanceTypeBadge(log.attendance_type)}">${getAttendanceTypeName(log.attendance_type)}</span></td>
+        <td><span class="badge bg-secondary">${getVerifyTypeName(log.verify_type)}</span></td>
         <td>${log.device_name}</td>
-        <td><span class="badge text-bg-info">${log.source}</span></td>
+        <td><span class="badge bg-info">${log.source}</span></td>
     `;
 
     if (prepend) {

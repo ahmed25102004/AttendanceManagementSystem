@@ -210,8 +210,32 @@ document.addEventListener('DOMContentLoaded', () => {
             'break_in': 'عودة استراحة',
             'ot_in': 'بداية دوام إضافي',
             'ot_out': 'نهاية دوام إضافي',
+            '0': 'حضور',
+            '1': 'انصراف',
+            '2': 'خروج استراحة',
+            '3': 'عودة استراحة',
+            '4': 'بداية دوام إضافي',
+            '5': 'نهاية دوام إضافي',
         };
         return map[type] || type;
+    }
+    
+    function getAttendanceTypeBadge(type) {
+        const map = {
+            'check_in': 'bg-primary',
+            'check_out': 'bg-danger',
+            'break_out': 'bg-warning',
+            'break_in': 'bg-info',
+            'ot_in': 'bg-success',
+            'ot_out': 'bg-secondary',
+            '0': 'bg-primary',
+            '1': 'bg-danger',
+            '2': 'bg-warning',
+            '3': 'bg-info',
+            '4': 'bg-success',
+            '5': 'bg-secondary',
+        };
+        return map[type] || 'bg-secondary';
     }
     
     function getVerifyTypeName(type) {
