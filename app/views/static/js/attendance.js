@@ -1,58 +1,206 @@
-const seenLogIds = new Set();
+let allLogs = [];
+let currentBranchFilter = "";
+let currentDateFrom = "";
+let currentDateTo = "";
 
-async function loadAttendanceEmployees() {
-    const employees = await fetchJSON("/api/employees?all=true");
-    const checkInSelect = document.getElementById("attendance_employee_id");
-    const checkOutSelect = document.getElementById("checkout_employee_id");
-    if (!checkInSelect || !checkOutSelect) return;
-    checkInSelect.innerHTML = '<option value="">اختر الموظف</option>';
-    checkOutSelect.innerHTML = '<option value="">اختر الموظف</option>';
-    employees.forEach((employee) => {
-        const displayName = employee.full_name || [employee.first_name, employee.last_name].filter(Boolean).join(" ").trim();
-        const option = `<option value="${employee.id}">${displayName}</option>`;
-        checkInSelect.innerHTML += option;
-        checkOutSelect.innerHTML += option;
+function getDayName(date) {
+    const days = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+    return days[date.getDay()];
+}
+
+function normalizeAttendanceType(type) {
+    const map = {
+        "0": "check_in",
+        "1": "check_out",
+        "4": "ot_in",
+        "5": "ot_out",
+    };
+    return map[type] || type;
+}
+
+function getDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+function formatDisplayTime(dateValue) {
+    if (!dateValue) return "-";
+    return new Date(dateValue).toLocaleTimeString("ar-EG", {
+        hour: "2-digit",
+        minute: "2-digit",
     });
 }
 
-async function loadAttendanceRecords(dateValue = "") {
-    let query = "?all=true";
-    if (dateValue) {
-        query += `&attendance_date=${dateValue}`;
-    }
-    const records = await fetchJSON(`/api/attendance${query}`);
-    const tbody = document.getElementById("attendanceTableBody");
-    if (!tbody) return;
-    tbody.innerHTML = "";
+function formatDisplayDate(dateValue) {
+    if (!dateValue) return "-";
+    const [year, month, day] = dateValue.split("-");
+    return `${day}/${month}/${year}`;
+}
 
-    records.forEach((record) => {
-        tbody.innerHTML += `
-            <tr>
-                <td>${record.employee_name}</td>
-                <td>${record.attendance_date}</td>
-                <td>${record.check_in_time ? new Date(record.check_in_time).toLocaleString("ar-EG") : "-"}</td>
-                <td>${record.check_out_time ? new Date(record.check_out_time).toLocaleString("ar-EG") : "-"}</td>
-                <td>${record.working_hours}</td>
-                <td><span class="badge text-bg-${record.is_late ? "warning" : "success"}">${record.is_late ? "متأخر" : "في الموعد"}</span></td>
-                <td>${record.source_type === "manual" ? "يدوي" : record.source_type}</td>
-            </tr>
-        `;
+function buildAttendanceSummaries(logs) {
+    const summaries = new Map();
+
+    logs.forEach((log) => {
+        const checkDate = new Date(log.check_time);
+        const dateKey = getDateKey(checkDate);
+        const employeeKey = log.employee_id || `code-${log.employee_code}`;
+        const summaryKey = `${log.branch_id || "no-branch"}-${employeeKey}-${dateKey}`;
+        const normalizedType = normalizeAttendanceType(log.attendance_type);
+
+        if (!summaries.has(summaryKey)) {
+            summaries.set(summaryKey, {
+                key: summaryKey,
+                branch_id: log.branch_id,
+                branch_name: log.branch_name || "-",
+                date_key: dateKey,
+                day_name: getDayName(checkDate),
+                employee_id: log.employee_id || null,
+                employee_name: log.employee_name || "Unknown",
+                employee_code: log.employee_code || "-",
+                check_in_time: null,
+                check_out_time: null,
+                ot_in_time: null,
+                ot_out_time: null,
+                device_names: new Set(),
+                verify_types: new Set(),
+                sources: new Set(),
+                latest_event_time: checkDate,
+            });
+        }
+
+        const summary = summaries.get(summaryKey);
+        const logTime = new Date(log.check_time);
+
+        if (log.device_name) {
+            summary.device_names.add(log.device_name);
+        }
+        if (log.verify_type) {
+            summary.verify_types.add(getVerifyTypeName(log.verify_type));
+        }
+        if (log.source) {
+            summary.sources.add(log.source);
+        }
+        if (logTime > summary.latest_event_time) {
+            summary.latest_event_time = logTime;
+        }
+
+        if (normalizedType === "check_in") {
+            if (!summary.check_in_time || logTime < new Date(summary.check_in_time)) {
+                summary.check_in_time = log.check_time;
+            }
+        }
+
+        if (normalizedType === "check_out") {
+            if (!summary.check_out_time || logTime > new Date(summary.check_out_time)) {
+                summary.check_out_time = log.check_time;
+            }
+        }
+
+        if (normalizedType === "ot_in") {
+            if (!summary.ot_in_time || logTime < new Date(summary.ot_in_time)) {
+                summary.ot_in_time = log.check_time;
+            }
+        }
+
+        if (normalizedType === "ot_out") {
+            if (!summary.ot_out_time || logTime > new Date(summary.ot_out_time)) {
+                summary.ot_out_time = log.check_time;
+            }
+        }
+    });
+
+    return Array.from(summaries.values()).sort((a, b) => b.latest_event_time - a.latest_event_time);
+}
+
+async function loadBranches() {
+    const branches = await fetchJSON("/api/branches?all=true");
+    const select = document.getElementById("branchFilter");
+    if (!select) return;
+    select.innerHTML = '<option value="">كل الفروع</option>';
+    branches.forEach((branch) => {
+        select.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
     });
 }
 
 async function loadAttendanceLogs() {
-    const logs = await fetchJSON("/api/attendance-logs?all=true");
+    allLogs = await fetchJSON("/api/attendance-logs?all=true");
+    // Sort logs by check_time descending (newest at top)
+    allLogs.sort((a, b) => new Date(b.check_time) - new Date(a.check_time));
+    renderAttendanceLogs();
+}
+
+function renderAttendanceLogs() {
     const tbody = document.getElementById("attendanceLogTableBody");
     if (!tbody) return;
     tbody.innerHTML = "";
-    seenLogIds.clear();
 
-    // Sort logs by check_time descending (newest at top)
-    logs.sort((a, b) => new Date(b.check_time) - new Date(a.check_time));
+    // Filter logs
+    let filteredLogs = [...allLogs];
     
-    logs.forEach((log) => {
-        addAttendanceLogToTable(log, false);
+    // Branch filter
+    if (currentBranchFilter) {
+        filteredLogs = filteredLogs.filter(log => log.branch_id === Number(currentBranchFilter));
+    }
+    
+    // Date from filter
+    if (currentDateFrom) {
+        const fromDate = new Date(`${currentDateFrom}T00:00:00`);
+        fromDate.setHours(0, 0, 0, 0);
+        filteredLogs = filteredLogs.filter(log => new Date(log.check_time) >= fromDate);
+    }
+    
+    // Date to filter
+    if (currentDateTo) {
+        const toDate = new Date(`${currentDateTo}T23:59:59`);
+        toDate.setHours(23, 59, 59, 999);
+        filteredLogs = filteredLogs.filter(log => new Date(log.check_time) <= toDate);
+    }
+
+    const summaries = buildAttendanceSummaries(filteredLogs);
+    summaries.forEach((summary) => {
+        addAttendanceSummaryRow(summary);
     });
+}
+
+function setToday() {
+    const today = new Date();
+    const dateStr = getDateKey(today);
+    document.getElementById("dateFrom").value = dateStr;
+    document.getElementById("dateTo").value = dateStr;
+    currentDateFrom = dateStr;
+    currentDateTo = dateStr;
+    renderAttendanceLogs();
+}
+
+function setThisWeek() {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 is Sunday
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    
+    document.getElementById("dateFrom").value = getDateKey(startOfWeek);
+    document.getElementById("dateTo").value = getDateKey(endOfWeek);
+    currentDateFrom = getDateKey(startOfWeek);
+    currentDateTo = getDateKey(endOfWeek);
+    renderAttendanceLogs();
+}
+
+function setThisMonth() {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+    
+    document.getElementById("dateFrom").value = getDateKey(startOfMonth);
+    document.getElementById("dateTo").value = getDateKey(endOfMonth);
+    currentDateFrom = getDateKey(startOfMonth);
+    currentDateTo = getDateKey(endOfMonth);
+    renderAttendanceLogs();
 }
 
 function getAttendanceTypeName(type) {
@@ -105,48 +253,40 @@ function getVerifyTypeName(type) {
     return map[type] || type;
 }
 
-function addAttendanceLogToTable(log, prepend = true) {
-    if (seenLogIds.has(log.id)) {
-        return; // Avoid duplicates
-    }
-    seenLogIds.add(log.id);
+function addAttendanceSummaryRow(summary) {
     const tbody = document.getElementById("attendanceLogTableBody");
     if (!tbody) return;
 
-    // Format log for display
-    const employeeName = log.employee_name || "Unknown";
-    const checkTime = new Date(log.check_time).toLocaleString("ar-EG");
-
     const row = document.createElement("tr");
-    row.id = `log-${log.id}`;
-    row.innerHTML = `
-        <td>${checkTime}</td>
-        <td>${employeeName}</td>
-        <td>${log.employee_code}</td>
-        <td><span class="badge ${getAttendanceTypeBadge(log.attendance_type)}">${getAttendanceTypeName(log.attendance_type)}</span></td>
-        <td><span class="badge bg-secondary">${getVerifyTypeName(log.verify_type)}</span></td>
-        <td>${log.device_name}</td>
-        <td><span class="badge bg-info">${log.source}</span></td>
-    `;
+    row.id = `summary-${summary.key}`;
+    const employeeCell = summary.employee_id
+        ? `<a href="/employees/${summary.employee_id}" class="text-decoration-none fw-semibold">${summary.employee_name}</a>`
+        : summary.employee_name;
+    const verifyTypes = Array.from(summary.verify_types);
+    const devices = Array.from(summary.device_names);
+    const sources = Array.from(summary.sources);
 
-    if (prepend) {
-        tbody.insertBefore(row, tbody.firstChild);
-        // Add a little animation
-        row.style.backgroundColor = "#d1fae5";
-        setTimeout(() => {
-            row.style.transition = "background-color 0.5s";
-            row.style.backgroundColor = "";
-        }, 1000);
-    } else {
-        tbody.appendChild(row);
-    }
+    row.innerHTML = `
+        <td>${summary.branch_name || "-"}</td>
+        <td>${summary.day_name}</td>
+        <td>${formatDisplayDate(summary.date_key)}</td>
+        <td>${employeeCell}</td>
+        <td>${summary.employee_code}</td>
+        <td>${formatDisplayTime(summary.check_in_time)}</td>
+        <td>${formatDisplayTime(summary.check_out_time)}</td>
+        <td>${formatDisplayTime(summary.ot_in_time)}</td>
+        <td>${formatDisplayTime(summary.ot_out_time)}</td>
+        <td>${verifyTypes.length ? verifyTypes.join(" / ") : "-"}</td>
+        <td>${devices.length ? devices.join(" / ") : "-"}</td>
+        <td>${sources.length ? sources.join(" / ") : "-"}</td>
+    `;
+    tbody.appendChild(row);
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
     await hydrateUser();
     try {
-        await loadAttendanceEmployees();
-        await loadAttendanceRecords();
+        await loadBranches();
         await loadAttendanceLogs();
         
         // Check if we have WebSocket initialized
@@ -167,9 +307,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 try {
                     const message = JSON.parse(event.data);
                     if (message.type === "attendance_log") {
-                        addAttendanceLogToTable(message.data, true);
+                        const alreadyExists = allLogs.some((log) => log.id === message.data.id);
+                        if (!alreadyExists) {
+                            allLogs.unshift(message.data);
+                        }
+                        renderAttendanceLogs();
                         // Show notification
-                        showAlert("attendanceAlert", `✅ ${message.data.employee_name} ${message.data.attendance_type} في ${new Date(message.data.check_time).toLocaleTimeString("ar-EG")}`, "success");
+                        showAlert("attendanceAlert", `✅ ${message.data.employee_name} ${getAttendanceTypeName(message.data.attendance_type)} في ${new Date(message.data.check_time).toLocaleTimeString("ar-EG")}`, "success");
                     }
                 } catch (error) {
                     console.error("Error parsing WS message:", error);
@@ -190,43 +334,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         showAlert("attendanceAlert", error.message);
     }
 
-    document.getElementById("attendanceFilterDate").addEventListener("change", async (event) => {
-        await loadAttendanceRecords(event.target.value);
+    document.getElementById("branchFilter").addEventListener("change", async (event) => {
+        currentBranchFilter = event.target.value;
+        renderAttendanceLogs();
     });
-
-    document.getElementById("checkInForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        try {
-            await fetchJSON("/api/attendance/check-in", {
-                method: "POST",
-                body: JSON.stringify({
-                    employee_id: Number(document.getElementById("attendance_employee_id").value),
-                    attendance_date: document.getElementById("attendance_date").value || null,
-                    source_type: "manual",
-                    verification_data: { note: "تم تسجيل الحضور بواسطة المدير" },
-                }),
-            });
-            await loadAttendanceRecords(document.getElementById("attendanceFilterDate").value);
-            showAlert("attendanceAlert", "تم تسجيل الحضور بنجاح.", "success");
-        } catch (error) {
-            showAlert("attendanceAlert", error.message);
-        }
+    
+    document.getElementById("dateFrom").addEventListener("change", (event) => {
+        currentDateFrom = event.target.value;
+        renderAttendanceLogs();
     });
-
-    document.getElementById("checkOutForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        try {
-            await fetchJSON("/api/attendance/check-out", {
-                method: "POST",
-                body: JSON.stringify({
-                    employee_id: Number(document.getElementById("checkout_employee_id").value),
-                    attendance_date: document.getElementById("checkout_date").value || null,
-                }),
-            });
-            await loadAttendanceRecords(document.getElementById("attendanceFilterDate").value);
-            showAlert("attendanceAlert", "تم تسجيل الانصراف بنجاح.", "success");
-        } catch (error) {
-            showAlert("attendanceAlert", error.message);
-        }
+    
+    document.getElementById("dateTo").addEventListener("change", (event) => {
+        currentDateTo = event.target.value;
+        renderAttendanceLogs();
     });
+    
+    document.getElementById("btnToday").addEventListener("click", setToday);
+    document.getElementById("btnThisWeek").addEventListener("click", setThisWeek);
+    document.getElementById("btnThisMonth").addEventListener("click", setThisMonth);
 });

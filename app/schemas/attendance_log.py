@@ -21,3 +21,4 @@ class AttendanceLogResponse(BaseModel):
     # Additional fields for display
     employee_name: Optional[str] = None
     device_name: Optional[str] = None
+    branch_name: Optional[str] = None

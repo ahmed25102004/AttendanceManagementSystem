@@ -38,7 +38,7 @@ class AttendanceLogService:
         
         logs = query.order_by(AttendanceLog.check_time.desc()).all()
         
-        # Map to response with employee and device names
+        # Map to response with employee, device, and branch names
         response_logs = []
         for log in logs:
             log_dict = AttendanceLogResponse.model_validate(log).model_dump()
@@ -49,23 +49,10 @@ class AttendanceLogService:
                 log_dict["employee_name"] = f"Unknown ({log.employee_code})"
             # Add device name
             log_dict["device_name"] = log.device.device_name
-            # Translate attendance type and verify type to Arabic
-            type_map = {
-                "check_in": "حضور",
-                "check_out": "انصراف",
-                "break_in": "بداية استراحة",
-                "break_out": "نهاية استراحة",
-                "ot_in": "بداية وقت إضافي",
-                "ot_out": "نهاية وقت إضافي"
-            }
-            log_dict["attendance_type"] = type_map.get(log_dict["attendance_type"], log_dict["attendance_type"] or "حضور")
-            verify_map = {
-                "password": "كلمة مرور",
-                "fingerprint": "بصمة",
-                "card": "بطاقة",
-                "face": "وجه"
-            }
-            log_dict["verify_type"] = verify_map.get(log_dict["verify_type"], log_dict["verify_type"] or "بصمة")
+            # Add branch name
+            log_dict["branch_name"] = log.branch.name
+            # Keep the original type codes for JS mapping
+            # (don't translate here so JS can apply badges correctly)
             
             response_logs.append(AttendanceLogResponse(**log_dict))
         return response_logs
@@ -125,34 +112,19 @@ class AttendanceLogService:
         # Broadcast new log via WebSocket with all required details
         try:
             employee_name = f"{employee.first_name} {employee.last_name}" if employee else f"Unknown ({employee_code})"
-            # Map attendance type to friendly text (Arabic)
-            type_map = {
-                "check_in": "حضور",
-                "check_out": "انصراف",
-                "break_in": "بداية استراحة",
-                "break_out": "نهاية استراحة",
-                "ot_in": "بداية وقت إضافي",
-                "ot_out": "نهاية وقت إضافي"
-            }
-            attendance_type_text = type_map.get(log.attendance_type, log.attendance_type or "حضور")
-            # Map verify type to friendly text (Arabic)
-            verify_map = {
-                "password": "كلمة مرور",
-                "fingerprint": "بصمة",
-                "card": "بطاقة",
-                "face": "وجه"
-            }
-            verify_type_text = verify_map.get(log.verify_type, log.verify_type or "بصمة")
             message = {
                 "type": "attendance_log",
                 "data": {
                     "id": log.id,
+                    "employee_id": employee.id if employee else None,
                     "employee_code": employee_code,
                     "employee_name": employee_name,
                     "device_name": device.device_name,
+                    "branch_id": device.branch_id,
+                    "branch_name": device.branch.name,
                     "check_time": log.check_time.isoformat(),
-                    "attendance_type": attendance_type_text,
-                    "verify_type": verify_type_text,
+                    "attendance_type": log.attendance_type,  # Keep original type for JS
+                    "verify_type": log.verify_type,  # Keep original type for JS
                     "source": log.source
                 }
             }

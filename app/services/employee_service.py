@@ -119,6 +119,8 @@ class EmployeeService:
             department_id=employee.department_id,
             branch_id=employee.branch_id,
             employment_type=employee.employment_type,
+            annual_leave_balance=employee.annual_leave_balance,
+            sick_leave_balance=employee.sick_leave_balance,
         )
 
     def list(self, db: Session, search: str | None = None, branch_id: int | None = None, department_id: int | None = None, is_active: bool | None = None, employment_type: str | None = None) -> list[EmployeeResponse]:
@@ -173,6 +175,8 @@ class EmployeeService:
             department_id=payload.department_id,
             employment_type=payload.employment_type,
             branch_id=final_branch_id,
+            annual_leave_balance=payload.annual_leave_balance,
+            sick_leave_balance=payload.sick_leave_balance,
         )
         db.add(employee)
         db.flush()
@@ -218,6 +222,8 @@ class EmployeeService:
         employee.department_id = payload.department_id
         employee.branch_id = payload.branch_id or branch_id
         employee.employment_type = payload.employment_type
+        employee.annual_leave_balance = payload.annual_leave_balance
+        employee.sick_leave_balance = payload.sick_leave_balance
 
         self._sync_employee_user(
             db,
@@ -278,6 +284,8 @@ class EmployeeService:
             department_id=employee.department_id,
             branch_id=employee.branch_id,
             employment_type=employee.employment_type,
+            annual_leave_balance=employee.annual_leave_balance,
+            sick_leave_balance=employee.sick_leave_balance,
             branch_name=employee.branch.name if employee.branch else None,
             department_name=employee.department.name if employee.department else None,
             shift_name=employee.shift.name if employee.shift else None,

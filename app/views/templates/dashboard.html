@@ -3,43 +3,93 @@
 {% set subtitle = "نظرة عامة لحظية على حضور المركز" %}
 {% block page_content %}
 <div id="dashboardAlert"></div>
+
+<!-- Main KPI Cards (Expanded) -->
 <div class="row g-4 mb-4">
     <div class="col-md-6 col-xl-3">
         <div class="card stat-card stat-primary p-4">
-            <div>إجمالي الموظفين</div>
-            <h2 id="totalEmployees">0</h2>
+            <div class="text-uppercase fw-bold small mb-1">إجمالي الموظفين</div>
+            <div class="fs-3 fw-bold" id="totalEmployees">0</div>
         </div>
     </div>
     <div class="col-md-6 col-xl-3">
         <div class="card stat-card stat-success p-4">
-            <div>الحاضرون اليوم</div>
-            <h2 id="presentToday">0</h2>
+            <div class="text-uppercase fw-bold small mb-1">الحاضرون اليوم</div>
+            <div class="fs-3 fw-bold" id="presentToday">0</div>
         </div>
     </div>
     <div class="col-md-6 col-xl-3">
-        <div class="card stat-card stat-danger p-4">
-            <div>الغائبون اليوم</div>
-            <h2 id="absentToday">0</h2>
+        <div class="card stat-card stat-info p-4">
+            <div class="text-uppercase fw-bold small mb-1">يعملون الآن</div>
+            <div class="fs-3 fw-bold" id="currentlyWorking">0</div>
         </div>
     </div>
     <div class="col-md-6 col-xl-3">
-        <div class="card stat-card stat-warning p-4">
-            <div>الموظفون المتأخرون</div>
-            <h2 id="lateEmployees">0</h2>
+        <div class="card stat-card stat-secondary p-4">
+            <div class="text-uppercase fw-bold small mb-1">أجهزة متصلة</div>
+            <div class="fs-3 fw-bold"><span id="onlineDevices">0</span> / <span id="totalDevices">0</span></div>
         </div>
     </div>
 </div>
-<div class="row g-4">
-    <div class="col-lg-8">
+
+<!-- Alerts Section -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-4">
         <div class="card panel-card p-4">
-            <h5 class="fw-bold">تقرير الحضور الأسبوعي</h5>
+            <h5 class="fw-bold mb-3">التنبيهات</h5>
+            <div class="list-group list-group-flush" id="alertsList">
+                <!-- Filled by JS -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Branches Summary -->
+    <div class="col-xl-8">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold mb-3">مقارنة الفروع</h5>
+            <div class="table-responsive">
+                <table class="table align-middle" id="branchesTable">
+                    <thead>
+                        <tr>
+                            <th>الفرع</th>
+                            <th>الموظفين</th>
+                            <th>الحاضرون</th>
+                            <th>نسبة الحضور</th>
+                            <th>الأجهزة المتصلة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="branchesTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts & Recent Logs -->
+<div class="row g-4">
+    <div class="col-xl-6">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold mb-3">تقرير الحضور الأسبوعي</h5>
             <canvas id="attendanceChart"></canvas>
         </div>
     </div>
-    <div class="col-lg-4">
+    
+    <div class="col-xl-6">
         <div class="card panel-card p-4">
-            <h5 class="fw-bold">توزيع الحضور</h5>
-            <canvas id="attendancePieChart"></canvas>
+            <h5 class="fw-bold mb-3">آخر الحركات</h5>
+            <div class="table-responsive">
+                <table class="table align-middle" id="recentLogsTable">
+                    <thead>
+                        <tr>
+                            <th>الوقت</th>
+                            <th>الموظف</th>
+                            <th>الفرع</th>
+                            <th>النوع</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentLogsTableBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

@@ -4,8 +4,8 @@
 {% block page_content %}
 <div id="employeeAlert"></div>
 <div class="row g-4">
-    <div class="col-xl-5">
-        <div class="card panel-card p-4 h-100">
+    <div class="col-12">
+        <div class="card panel-card p-4 mb-4">
             <h5 class="fw-bold mb-3">بيانات الموظف</h5>
             <input type="hidden" id="employeeId">
             <form id="employeeForm">
@@ -47,7 +47,7 @@
                         <label class="form-label">تاريخ التعيين</label>
                         <input id="hire_date" type="date" class="form-control" required>
                     </div>
-                    <div class="col-12">
+                    <div class="col-md-6">
                         <label class="form-label">المسمى الوظيفي</label>
                         <input id="job_title" class="form-control" required>
                     </div>
@@ -60,26 +60,60 @@
             </form>
         </div>
     </div>
-    <div class="col-xl-7">
+    <div class="col-12">
         <div class="card panel-card p-4 mb-4">
-            <h5 class="fw-bold mb-3">الموظفون</h5>
-            <div class="table-responsive">
-                <table class="table align-middle">
-                    <thead>
-                        <tr>
-                            <th>كود الموظف</th>
-                            <th>الاسم</th>
-                            <th>الفرع</th>
-                            <th>القسم</th>
-                            <th>رقم الهاتف</th>
-                            <th>تاريخ التعيين</th>
-                            <th>المسمى الوظيفى</th>
-                            <th>نوع التوظيف</th>
-                            <th>الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="employeeTableBody"></tbody>
-                </table>
+            <div class="d-flex flex-column gap-3 mb-3">
+                <h5 class="fw-bold mb-0">الموظفون</h5>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <input id="employeeSearch" type="search" class="form-control" style="min-width: 200px;" placeholder="بحث بالاسم أو الكود">
+                    <select id="filterBranch" class="form-select" style="min-width: 150px;">
+                        <option value="">كل الفروع</option>
+                    </select>
+                    <select id="filterDepartment" class="form-select" style="min-width: 150px;">
+                        <option value="">كل الأقسام</option>
+                    </select>
+                    <select id="filterEmploymentType" class="form-select" style="min-width: 150px;">
+                        <option value="">كل الأنواع</option>
+                        <option value="full_time">دوام كامل</option>
+                        <option value="part_time">دوام جزئي</option>
+                        <option value="contract">عقد عمل</option>
+                        <option value="internship">تدريب</option>
+                    </select>
+                    <select id="filterActiveStatus" class="form-select" style="min-width: 120px;">
+                        <option value="">كل الحالات</option>
+                        <option value="true">نشط</option>
+                        <option value="false">غير نشط</option>
+                    </select>
+                    <div class="btn-group" role="group">
+                        <button id="tableViewBtn" class="btn btn-sm btn-outline-primary active"><i class="bi bi-table"></i></button>
+                        <button id="cardViewBtn" class="btn btn-sm btn-outline-primary"><i class="bi bi-grid"></i></button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="tableView">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>كود الموظف</th>
+                                <th>الاسم</th>
+                                <th>الفرع</th>
+                                <th>القسم</th>
+                                <th>رقم الهاتف</th>
+                                <th>تاريخ التعيين</th>
+                                <th>المسمى الوظيفى</th>
+                                <th>نوع التوظيف</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeeTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="cardView" class="row g-3" style="display: none;">
             </div>
         </div>
         
@@ -87,7 +121,7 @@
             <h5 class="fw-bold mb-3">مستندات الموظف: <span id="documentEmployeeName"></span></h5>
             
             <form id="uploadDocumentForm" class="row g-3 mb-4">
-                <div class="col-md-5">
+                <div class="col-md-6">
                     <label class="form-label">اسم المستند</label>
                     <input type="text" id="docName" class="form-control" required>
                 </div>
@@ -95,7 +129,7 @@
                     <label class="form-label">ملاحظات</label>
                     <input type="text" id="docNotes" class="form-control">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">الملف</label>
                     <input type="file" id="docFile" class="form-control" required>
                 </div>
@@ -123,5 +157,5 @@
 {% endblock %}
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-<script src="/static/js/employees.js?v=2"></script>
+<script src="/static/js/employees.js?v=3"></script>
 {% endblock %}

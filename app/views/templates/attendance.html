@@ -1,86 +1,52 @@
 {% extends "partials_layout.html" %}
-{% set title = "الحضور والانصراف" %}
-{% set subtitle = "إدارة تسجيل الحضور والانصراف ومتابعة السجل اليومي" %}
+{% set title = "سجلات البصمة" %}
+{% set subtitle = "مشاهدة سجلات البصمة المباشرة من الأجهزة" %}
 {% block page_content %}
 <div id="attendanceAlert"></div>
-<div class="row g-4 mb-4">
-    <div class="col-lg-6">
-        <div class="card panel-card p-4">
-            <h5 class="fw-bold">تسجيل الحضور</h5>
-            <form id="checkInForm">
-                <div class="mb-3">
-                    <label class="form-label">الموظف</label>
-                    <select id="attendance_employee_id" class="form-select" required></select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">تاريخ الحضور</label>
-                    <input id="attendance_date" type="date" class="form-control">
-                </div>
-                <p class="form-hint">التنفيذ الحالي يعتمد على التحقق اليدوي، وتم تصميم نفس التدفق لإضافة التعرف على الوجه لاحقًا دون إعادة بناء الوحدة.</p>
-                <button class="btn btn-primary w-100">تسجيل الحضور</button>
-            </form>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card panel-card p-4">
-            <h5 class="fw-bold">تسجيل الانصراف</h5>
-            <form id="checkOutForm">
-                <div class="mb-3">
-                        <label class="form-label">الموظف</label>
-                        <select id="checkout_employee_id" class="form-select" required></select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">تاريخ الحضور</label>
-                    <input id="checkout_date" type="date" class="form-control">
-                </div>
-                <button class="btn btn-outline-primary w-100">تسجيل الانصراف</button>
-            </form>
-        </div>
-    </div>
-</div>
 <!-- Attendance Logs from Device (Real-Time) -->
 <div class="card panel-card p-4 mb-4">
     <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
         <h5 class="fw-bold mb-0">سجلات البصمة (مباشرة)</h5>
         <span class="text-muted small" id="attendanceLogStatus">جارٍ الاتصال...</span>
     </div>
+    <!-- Filters -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <select id="branchFilter" class="form-select">
+                <option value="">كل الفروع</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <input id="dateFrom" type="date" class="form-control" placeholder="من">
+        </div>
+        <div class="col-md-3">
+            <input id="dateTo" type="date" class="form-control" placeholder="إلى">
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button id="btnToday" class="btn btn-outline-primary flex-grow-1">اليوم</button>
+            <button id="btnThisWeek" class="btn btn-outline-primary flex-grow-1">هذا الأسبوع</button>
+            <button id="btnThisMonth" class="btn btn-outline-primary flex-grow-1">هذا الشهر</button>
+        </div>
+    </div>
     <div class="table-responsive">
         <table class="table align-middle">
             <thead class="table-light">
                 <tr>
-                    <th>الوقت</th>
+                    <th>الفرع</th>
+                    <th>اليوم</th>
+                    <th>التاريخ</th>
                     <th>الموظف</th>
                     <th>كود الموظف</th>
-                    <th>النوع</th>
+                    <th>حضور أساسي</th>
+                    <th>انصراف أساسي</th>
+                    <th>OT In</th>
+                    <th>OT Out</th>
                     <th>طريقة التحقق</th>
                     <th>الجهاز</th>
                     <th>المصدر</th>
                 </tr>
             </thead>
             <tbody id="attendanceLogTableBody"></tbody>
-        </table>
-    </div>
-</div>
-<!-- Original Attendance Records -->
-<div class="card panel-card p-4">
-    <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
-        <h5 class="fw-bold mb-0">سجلات الحضور اليومية</h5>
-        <input id="attendanceFilterDate" type="date" class="form-control w-auto">
-    </div>
-    <div class="table-responsive">
-        <table class="table align-middle">
-            <thead>
-                <tr>
-                    <th>الموظف</th>
-                    <th>التاريخ</th>
-                    <th>وقت الحضور</th>
-                    <th>وقت الانصراف</th>
-                    <th>ساعات العمل</th>
-                    <th>حالة التأخير</th>
-                    <th>المصدر</th>
-                </tr>
-            </thead>
-            <tbody id="attendanceTableBody"></tbody>
         </table>
     </div>
 </div>

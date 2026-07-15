@@ -199,3 +199,14 @@ def my_attendance(request: Request, db: Session = Depends(get_db)):
     if user.role == "admin":
         return RedirectResponse("/dashboard", status_code=302)
     return templates.TemplateResponse("my_attendance.html", {"request": request, "page": "my-attendance"})
+
+
+@router.get("/my-leaves", response_class=HTMLResponse)
+@router.get("/my_leaves", response_class=HTMLResponse)
+def my_leaves(request: Request, db: Session = Depends(get_db)):
+    user = _get_request_user(db)
+    if not user:
+        return RedirectResponse("/", status_code=302)
+    if user.role == "admin":
+        return RedirectResponse("/leaves", status_code=302)
+    return templates.TemplateResponse("my_leaves.html", {"request": request, "page": "my-leaves"})

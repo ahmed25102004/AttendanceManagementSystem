@@ -3,6 +3,8 @@ const employeeCache = new Map();
 const departmentCache = new Map();
 const branchCache = new Map();
 let selectedEmployeeId = null;
+let allEmployees = [];
+let currentView = "table"; // "table" or "card"
 
 function showAlert(alertId, message, type = "danger") {
   const element = document.getElementById(alertId);
@@ -21,21 +23,34 @@ function showAlert(alertId, message, type = "danger") {
 async function loadBranches() {
   const branches = await fetchJSON("/api/branches?all=true");
   const selectEl = document.getElementById("employee_branch_id");
-  if (!selectEl) return;
-  selectEl.innerHTML = '<option value="">-- اختر الفرع --</option>';
+  const filterSelectEl = document.getElementById("filterBranch");
+  if (selectEl) {
+    selectEl.innerHTML = '<option value="">-- اختر الفرع --</option>';
+  }
+  if (filterSelectEl) {
+    filterSelectEl.innerHTML = '<option value="">كل الفروع</option>';
+  }
   branchCache.clear();
 
   branches.forEach((branch) => {
     branchCache.set(branch.id, branch);
-    const option = document.createElement("option");
-    option.value = branch.id;
-    option.textContent = branch.name;
-    selectEl.appendChild(option);
+    if (selectEl) {
+      const option = document.createElement("option");
+      option.value = branch.id;
+      option.textContent = branch.name;
+      selectEl.appendChild(option);
+    }
+    if (filterSelectEl) {
+      const option = document.createElement("option");
+      option.value = branch.id;
+      option.textContent = branch.name;
+      filterSelectEl.appendChild(option);
+    }
   });
   
   // Auto-select current branch
   const currentBranchId = getCurrentBranchId();
-  if (currentBranchId && branchCache.has(parseInt(currentBranchId))) {
+  if (currentBranchId && branchCache.has(parseInt(currentBranchId)) && selectEl) {
     selectEl.value = currentBranchId;
   }
 }
@@ -43,57 +58,160 @@ async function loadBranches() {
 async function loadDepartments() {
   const departments = await fetchJSON("/api/departments");
   const selectEl = document.getElementById("department_id");
-  if (!selectEl) return;
-  selectEl.innerHTML = '<option value="">-- اختر القسم --</option>';
+  const filterSelectEl = document.getElementById("filterDepartment");
+  if (selectEl) {
+    selectEl.innerHTML = '<option value="">-- اختر القسم --</option>';
+  }
+  if (filterSelectEl) {
+    filterSelectEl.innerHTML = '<option value="">كل الأقسام</option>';
+  }
   departmentCache.clear();
 
   departments.forEach((dept) => {
     departmentCache.set(dept.id, dept);
-    const option = document.createElement("option");
-    option.value = dept.id;
-    option.textContent = dept.name;
-    selectEl.appendChild(option);
+    if (selectEl) {
+      const option = document.createElement("option");
+      option.value = dept.id;
+      option.textContent = dept.name;
+      selectEl.appendChild(option);
+    }
+    if (filterSelectEl) {
+      const option = document.createElement("option");
+      option.value = dept.id;
+      option.textContent = dept.name;
+      filterSelectEl.appendChild(option);
+    }
   });
 }
 
 async function loadEmployees() {
-        const employees = await fetchJSON("/api/employees?all=true");
-        const tbody = document.getElementById("employeeTableBody");
-        if (!tbody) return;
-        tbody.innerHTML = "";
+        allEmployees = await fetchJSON("/api/employees?all=true");
         employeeCache.clear();
-        
-        const employmentTypeLabels = {
-            "full_time": "دوام كامل",
-            "part_time": "دوام جزئي",
-            "contract": "عقد عمل",
-            "internship": "تدريب"
-        };
+        allEmployees.forEach(emp => employeeCache.set(emp.id, emp));
+        renderEmployees();
+}
 
-        employees.forEach((employee) => {
-            employeeCache.set(employee.id, employee);
-            const dept = employee.department_id ? departmentCache.get(employee.department_id) : null;
-            const branch = employee.branch_id ? branchCache.get(employee.branch_id) : null;
-            tbody.innerHTML += `
-                <tr>
-                    <td>${employee.employee_code}</td>
-                    <td>${employee.full_name}</td>
-                    <td>${branch ? branch.name : "-"}</td>
-                    <td>${dept ? dept.name : "-"}</td>
-                    <td>${employee.phone || "-"}</td>
-                    <td>${employee.hire_date}</td>
-                    <td>${employee.job_title}</td>
-                    <td>${employmentTypeLabels[employee.employment_type] || employee.employment_type}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-success ms-2" onclick="window.location.href='/employees/${employee.id}'">ملف الموظف</button>
-                        <button class="btn btn-sm btn-outline-info ms-2" onclick="viewDocuments(${employee.id}, '${employee.full_name}')">مستندات</button>
-                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="editEmployee(${employee.id})">تعديل</button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.id})">حذف</button>
-                    </td>
-                </tr>
-            `;
-        });
-    }
+function renderEmployees() {
+  const searchTerm = (document.getElementById("employeeSearch").value || "").toLowerCase();
+  const filterBranch = document.getElementById("filterBranch").value;
+  const filterDepartment = document.getElementById("filterDepartment").value;
+  const filterEmploymentType = document.getElementById("filterEmploymentType").value;
+  const filterActiveStatus = document.getElementById("filterActiveStatus").value;
+  
+  let filteredEmployees = allEmployees.filter(emp => 
+    (emp.full_name && emp.full_name.toLowerCase().includes(searchTerm)) || 
+    (emp.employee_code && emp.employee_code.toLowerCase().includes(searchTerm))
+  );
+  
+  if (filterBranch) {
+    filteredEmployees = filteredEmployees.filter(emp => emp.branch_id === Number(filterBranch));
+  }
+  if (filterDepartment) {
+    filteredEmployees = filteredEmployees.filter(emp => emp.department_id === Number(filterDepartment));
+  }
+  if (filterEmploymentType) {
+    filteredEmployees = filteredEmployees.filter(emp => emp.employment_type === filterEmploymentType);
+  }
+  if (filterActiveStatus) {
+    const isActive = filterActiveStatus === "true";
+    filteredEmployees = filteredEmployees.filter(emp => emp.is_active === isActive);
+  }
+  
+  renderTableView(filteredEmployees);
+  renderCardView(filteredEmployees);
+}
+
+function renderTableView(employees) {
+  const tbody = document.getElementById("employeeTableBody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  
+  const employmentTypeLabels = {
+    "full_time": "دوام كامل",
+    "part_time": "دوام جزئي",
+    "contract": "عقد عمل",
+    "internship": "تدريب"
+  };
+
+  employees.forEach((employee) => {
+    const dept = employee.department_id ? departmentCache.get(employee.department_id) : null;
+    const branch = employee.branch_id ? branchCache.get(employee.branch_id) : null;
+    const statusBadge = employee.is_active 
+      ? '<span class="badge bg-success">نشط</span>' 
+      : '<span class="badge bg-secondary">غير نشط</span>';
+    tbody.innerHTML += `
+      <tr>
+        <td>${employee.employee_code}</td>
+        <td>${employee.full_name}</td>
+        <td>${branch ? branch.name : "-"}</td>
+        <td>${dept ? dept.name : "-"}</td>
+        <td>${employee.phone || "-"}</td>
+        <td>${employee.hire_date}</td>
+        <td>${employee.job_title}</td>
+        <td>${employmentTypeLabels[employee.employment_type] || employee.employment_type}</td>
+        <td>${statusBadge}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-success ms-2" onclick="window.location.href='/employees/${employee.id}'">ملف الموظف</button>
+          <button class="btn btn-sm btn-outline-info ms-2" onclick="viewDocuments(${employee.id}, '${employee.full_name}')">مستندات</button>
+          <button class="btn btn-sm btn-outline-primary ms-2" onclick="editEmployee(${employee.id})">تعديل</button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.id})">حذف</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function renderCardView(employees) {
+  const cardContainer = document.getElementById("cardView");
+  if (!cardContainer) return;
+  cardContainer.innerHTML = "";
+  
+  const employmentTypeLabels = {
+    "full_time": "دوام كامل",
+    "part_time": "دوام جزئي",
+    "contract": "عقد عمل",
+    "internship": "تدريب"
+  };
+
+  employees.forEach((employee) => {
+    const dept = employee.department_id ? departmentCache.get(employee.department_id) : null;
+    const branch = employee.branch_id ? branchCache.get(employee.branch_id) : null;
+    const statusBadge = employee.is_active 
+      ? '<span class="badge bg-success">نشط</span>' 
+      : '<span class="badge bg-secondary">غير نشط</span>';
+    cardContainer.innerHTML += `
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              <h5 class="card-title fw-bold mb-0">${employee.full_name}</h5>
+              ${statusBadge}
+            </div>
+            <h6 class="card-subtitle text-muted mb-3">${employee.employee_code}</h6>
+            <div class="mb-2">
+              <i class="bi bi-buildings"></i> <span class="text-muted">الفرع:</span> ${branch ? branch.name : "-"}
+            </div>
+            <div class="mb-2">
+              <i class="bi bi-door-open"></i> <span class="text-muted">القسم:</span> ${dept ? dept.name : "-"}
+            </div>
+            <div class="mb-2">
+              <i class="bi bi-briefcase"></i> <span class="text-muted">الوظيفة:</span> ${employee.job_title}
+            </div>
+            <div class="mb-3">
+              <i class="bi bi-clock"></i> <span class="text-muted">التوظيف:</span> ${employmentTypeLabels[employee.employment_type] || employee.employment_type}
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-success flex-grow-1" onclick="window.location.href='/employees/${employee.id}'">ملف الموظف</button>
+              <button class="btn btn-sm btn-outline-info flex-grow-1" onclick="viewDocuments(${employee.id}, '${employee.full_name}')">مستندات</button>
+              <button class="btn btn-sm btn-outline-primary" onclick="editEmployee(${employee.id})"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.id})"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+}
 
 async function loadEmployeeDocuments(employeeId) {
   const documents = await fetchJSON(`/api/employee-documents/${employeeId}`);
@@ -103,16 +221,16 @@ async function loadEmployeeDocuments(employeeId) {
 
   documents.forEach((doc) => {
     tbody.innerHTML += `
-            <tr>
-                <td>${doc.name}</td>
-                <td>${doc.notes || "-"}</td>
-                <td>${doc.upload_date}</td>
-                <td>
-                    <a href="/api/employee-documents/download/${doc.id}" class="btn btn-sm btn-outline-primary" target="_blank">تحميل</a>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteDocument(${doc.id})">حذف</button>
-                </td>
-            </tr>
-        `;
+      <tr>
+        <td>${doc.name}</td>
+        <td>${doc.notes || "-"}</td>
+        <td>${doc.upload_date}</td>
+        <td>
+          <a href="/api/employee-documents/download/${doc.id}" class="btn btn-sm btn-outline-primary" target="_blank">تحميل</a>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteDocument(${doc.id})">حذف</button>
+        </td>
+      </tr>
+    `;
   });
 }
 
@@ -193,6 +311,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (error) {
         showAlert("employeeAlert", error.message);
     }
+
+    // Search and filters handling
+    document.getElementById("employeeSearch").addEventListener("input", () => {
+      renderEmployees();
+    });
+    document.getElementById("filterBranch").addEventListener("change", () => {
+      renderEmployees();
+    });
+    document.getElementById("filterDepartment").addEventListener("change", () => {
+      renderEmployees();
+    });
+    document.getElementById("filterEmploymentType").addEventListener("change", () => {
+      renderEmployees();
+    });
+    document.getElementById("filterActiveStatus").addEventListener("change", () => {
+      renderEmployees();
+    });
+    
+    // View toggle
+    document.getElementById("tableViewBtn").addEventListener("click", () => {
+      currentView = "table";
+      document.getElementById("tableView").style.display = "block";
+      document.getElementById("cardView").style.display = "none";
+      document.getElementById("tableViewBtn").classList.add("active");
+      document.getElementById("cardViewBtn").classList.remove("active");
+    });
+    document.getElementById("cardViewBtn").addEventListener("click", () => {
+      currentView = "card";
+      document.getElementById("tableView").style.display = "none";
+      document.getElementById("cardView").style.display = "flex";
+      document.getElementById("tableViewBtn").classList.remove("active");
+      document.getElementById("cardViewBtn").classList.add("active");
+    });
 
     const form = document.getElementById("employeeForm");
     if (form) {
