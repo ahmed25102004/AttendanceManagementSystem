@@ -1,0 +1,76 @@
+
+{% extends "partials_layout.html" %}
+{% set title = "لوحة الفروع" %}
+{% set subtitle = "إحصائيات جميع الفروع" %}
+{% block page_content %}
+<!-- Summary Cards for All Branches Combined -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="text-uppercase fw-bold small mb-1">إجمالي الموظفين</div>
+                <div class="fs-3 fw-bold" id="allTotalEmployees">0</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="text-uppercase fw-bold small mb-1">حاضرين اليوم</div>
+                <div class="fs-3 fw-bold" id="allAttendanceToday">0</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="text-uppercase fw-bold small mb-1">سجلات اليوم</div>
+                <div class="fs-3 fw-bold" id="allLogsToday">0</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-white bg-secondary">
+            <div class="card-body">
+                <div class="text-uppercase fw-bold small mb-1">أجهزة متصلة</div>
+                <div class="fs-3 fw-bold" id="allOnlineDevices">0</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Branch Cards Grid -->
+<div class="row g-4" id="branchesGrid">
+    <!-- Will be populated by JS -->
+</div>
+
+<!-- Latest Logs from All Branches -->
+<div class="row g-4 mt-4">
+    <div class="col-xl-12">
+        <div class="card panel-card p-4">
+            <h5 class="fw-bold mb-3">آخر سجلات الحضور من جميع الفروع</h5>
+            <div class="table-responsive">
+                <table class="table align-middle" id="allLatestLogsTable">
+                    <thead>
+                        <tr>
+                            <th>الفرع</th>
+                            <th>كود الموظف</th>
+                            <th>الاسم</th>
+                            <th>الجهاز</th>
+                            <th>الوقت</th>
+                            <th>النوع</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allLatestLogsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/multi_branch_dashboard.js"></script>
+{% endblock %}

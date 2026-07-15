@@ -161,6 +161,26 @@ def devices(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("devices.html", {"request": request, "page": "devices"})
 
 
+@router.get("/multi-branch-dashboard", response_class=HTMLResponse)
+def multi_branch_dashboard(request: Request, db: Session = Depends(get_db)):
+    user = _get_request_user(db)
+    if not user:
+        return RedirectResponse("/", status_code=302)
+    if user.role != "admin":
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse("multi_branch_dashboard.html", {"request": request, "page": "multi-branch-dashboard"})
+
+
+@router.get("/employees/{employee_id}", response_class=HTMLResponse)
+def employee_profile(employee_id: int, request: Request, db: Session = Depends(get_db)):
+    user = _get_request_user(db)
+    if not user:
+        return RedirectResponse("/", status_code=302)
+    if user.role not in ["admin", "branch_manager"]:
+        return RedirectResponse("/my-attendance", status_code=302)
+    return templates.TemplateResponse("employee_profile.html", {"request": request, "page": "employees", "employee_id": employee_id})
+
+
 @router.get("/monitoring", response_class=HTMLResponse)
 def monitoring(request: Request, db: Session = Depends(get_db)):
     user = _get_request_user(db)

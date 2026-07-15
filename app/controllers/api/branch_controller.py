@@ -39,6 +39,11 @@ def get_branch_stats(branch_id: int, db: Session = Depends(get_db)):
     return branch_service.get_stats(db, branch_id)
 
 
+@router.get("/all/stats", dependencies=[Depends(get_admin_user)])
+def get_all_branches_stats(db: Session = Depends(get_db)):
+    return branch_service.get_all_stats(db)
+
+
 @router.put("/{branch_id}", response_model=BranchResponse, dependencies=[Depends(get_admin_user)])
 def update_branch(branch_id: int, payload: BranchUpdate, db: Session = Depends(get_db)):
     return branch_service.update(db, branch_id, payload)

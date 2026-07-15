@@ -260,6 +260,26 @@ async def handle_cdata_post(request: Request, db: Session = Depends(get_db)):
             time_str = parts[1].strip()
             status = parts[2].strip() if len(parts) > 2 else "0"
             verify = parts[3].strip() if len(parts) > 3 else "1"
+            
+            # Map ZKTeco status codes to our attendance types
+            zkteco_status_map = {
+                "0": "check_in",
+                "1": "check_out",
+                "2": "break_out",
+                "3": "break_in",
+                "4": "ot_in",
+                "5": "ot_out"
+            }
+            attendance_type = zkteco_status_map.get(status, status)
+            
+            # Map ZKTeco verify codes to our verify types
+            zkteco_verify_map = {
+                "0": "password",
+                "1": "fingerprint",
+                "2": "card",
+                "15": "face"
+            }
+            verify_type = zkteco_verify_map.get(verify, verify)
 
             try:
                 try:
@@ -278,8 +298,8 @@ async def handle_cdata_post(request: Request, db: Session = Depends(get_db)):
                     device=device,
                     employee_code=pin,
                     check_time=check_time,
-                    attendance_type=str(status),
-                    verify_type=str(verify),
+                    attendance_type=attendance_type,
+                    verify_type=verify_type,
                     raw_data={"raw_line": line},
                     record_id=f"{device.id}-{pin}-{time_str}"
                 )

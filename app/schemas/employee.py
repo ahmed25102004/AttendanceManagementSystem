@@ -41,3 +41,33 @@ class EmployeeResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class EmployeeProfileResponse(EmployeeResponse):
+    branch_name: str | None = None
+    department_name: str | None = None
+    shift_name: str | None = None
+    face_enrolled: bool
+    is_active: bool
+
+
+class AttendanceLogEntry(BaseModel):
+    id: int
+    check_time: datetime
+    attendance_type: str | None = None
+    verify_type: str | None = None
+    device_name: str | None = None
+    branch_name: str | None = None
+    
+    class Config:
+        from_attributes = True
+
+
+class EmployeeStatsResponse(BaseModel):
+    total_hours: float
+    overtime_hours: float
+    attendance_rate: float
+    present_days: int
+    absent_days: int
+    late_days: int
+    early_leave_days: int

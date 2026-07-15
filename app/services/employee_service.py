@@ -1,15 +1,26 @@
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.security import security_manager
 from app.models.attendance import AttendanceRecord
+from app.models.attendance_log import AttendanceLog
+from app.models.branch import Branch
+from app.models.department import Department
 from app.models.employee import Employee
+from app.models.shift import Shift
 from app.models.user import User
-from app.schemas.employee import EmployeeCreate, EmployeeResponse, EmployeeUpdate
+from app.schemas.employee import (
+    EmployeeCreate, 
+    EmployeeResponse, 
+    EmployeeUpdate, 
+    EmployeeProfileResponse, 
+    AttendanceLogEntry,
+    EmployeeStatsResponse
+)
 from app.services.biometric_service import FaceRecognitionMatcher
 
 
@@ -238,3 +249,116 @@ class EmployeeService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="لا يمكن حذف الموظف لوجود سجلات حضور مرتبطة به.",
             ) from exc
+
+    def get_profile(self, db: Session, employee_id: int, branch_id: int | None = None) -> EmployeeProfileResponse:
+        query = db.query(Employee).options(
+            joinedload(Employee.branch),
+            joinedload(Employee.department),
+            joinedload(Employee.shift)
+        ).filter(Employee.id == employee_id)
+        if branch_id:
+            query = query.filter(Employee.branch_id == branch_id)
+        employee = query.first()
+        if not employee:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الموظف غير موجود.")
+        
+        return EmployeeProfileResponse(
+            id=employee.id,
+            full_name=self._compose_full_name(employee.first_name, employee.last_name),
+            role=employee.user.role if getattr(employee, 'user', None) else "employee",
+            employee_code=employee.employee_code,
+            first_name=employee.first_name,
+            last_name=employee.last_name,
+            phone=employee.phone,
+            address=employee.address,
+            job_title=employee.job_title,
+            hire_date=employee.hire_date,
+            department_id=employee.department_id,
+            branch_id=employee.branch_id,
+            employment_type=employee.employment_type,
+            branch_name=employee.branch.name if employee.branch else None,
+            department_name=employee.department.name if employee.department else None,
+            shift_name=employee.shift.name if employee.shift else None,
+            face_enrolled=bool(employee.face_descriptor is not None),
+            is_active=employee.is_active,
+        )
+
+    def get_attendance_logs(
+        self, 
+        db: Session, 
+        employee_id: int, 
+        start_date: date | None = None, 
+        end_date: date | None = None, 
+        branch_id: int | None = None
+    ) -> list[AttendanceLogEntry]:
+        query = db.query(AttendanceLog).options(
+            joinedload(AttendanceLog.device),
+            joinedload(AttendanceLog.branch)
+        ).filter(AttendanceLog.employee_id == employee_id)
+        if branch_id:
+            query = query.filter(AttendanceLog.branch_id == branch_id)
+        if start_date:
+            query = query.filter(func.date(AttendanceLog.check_time) >= start_date)
+        if end_date:
+            query = query.filter(func.date(AttendanceLog.check_time) <= end_date)
+        logs = query.order_by(AttendanceLog.check_time.desc()).all()
+        return [
+            AttendanceLogEntry(
+                id=log.id,
+                check_time=log.check_time,
+                attendance_type=log.attendance_type,
+                verify_type=log.verify_type,
+                device_name=log.device.device_name if log.device else None,
+                branch_name=log.branch.name if log.branch else None
+            )
+            for log in logs
+        ]
+
+    def get_stats(
+        self, 
+        db: Session, 
+        employee_id: int, 
+        start_date: date | None = None, 
+        end_date: date | None = None, 
+        branch_id: int | None = None
+    ) -> EmployeeStatsResponse:
+        # Set default to last 30 days
+        if not start_date:
+            start_date = date.today() - timedelta(days=30)
+        if not end_date:
+            end_date = date.today()
+
+        # Get attendance logs
+        logs_query = db.query(AttendanceLog).filter(
+            AttendanceLog.employee_id == employee_id, func.date(AttendanceLog.check_time) >= start_date, func.date(AttendanceLog.check_time) <= end_date)
+        if branch_id:
+            logs_query = logs_query.filter(AttendanceLog.branch_id == branch_id)
+        
+        # Get attendance records (AttendanceRecord) for stats
+        records_query = db.query(AttendanceRecord).filter(
+            AttendanceRecord.employee_id == employee_id, AttendanceRecord.attendance_date >= start_date, AttendanceRecord.attendance_date <= end_date
+        )
+        if branch_id:
+            records_query = records_query.join(Employee).filter(Employee.branch_id == branch_id)
+
+        total_records = records_query.all()
+        
+        total_hours = sum(r.working_hours for r in total_records)
+        overtime_hours = 0.0
+        present_days = len([r for r in total_records if r.status == "present"])
+        absent_days = len([r for r in total_records if r.status == "absent"])
+        late_days = len([r for r in total_records if r.is_late])
+        early_leave_days = 0
+        
+        total_days = (end_date - start_date).days + 1
+        attendance_rate = (present_days / total_days * 100) if total_days > 0 else 0.0
+        
+        return EmployeeStatsResponse(
+            total_hours=round(total_hours, 2),
+            overtime_hours=round(overtime_hours, 2),
+            attendance_rate=round(attendance_rate, 2),
+            present_days=present_days,
+            absent_days=absent_days,
+            late_days=late_days,
+            early_leave_days=early_leave_days
+        )

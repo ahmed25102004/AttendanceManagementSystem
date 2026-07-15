@@ -1,0 +1,108 @@
+
+{% extends "partials_layout.html" %}
+{% set title = "ملف الموظف" %}
+{% set subtitle = "عرض تفاصيل الموظف وسجلات الحضور" %}
+{% block page_content %}
+<div class="container-fluid">
+    <!-- Employee Info Card -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+            <div class="card panel-card p-4 h-100">
+                <div class="text-center mb-3">
+                    <div class="avatar-xl mx-auto bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fs-1 fw-bold" id="employee-avatar">
+                        NA
+                    </div>
+                </div>
+                <h5 class="fw-bold text-center" id="employee-name">جارِ التحميل...</h5>
+                <p class="text-muted text-center mb-3" id="employee-code"></p>
+                <ul class="list-group list-group-flush" id="employee-details"></ul>
+            </div>
+        </div>
+        
+        <!-- Statistics Cards -->
+        <div class="col-lg-8">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card panel-card p-3 text-center">
+                        <h6 class="text-muted mb-1">ساعات العمل الشهرية</h6>
+                        <h3 class="fw-bold text-primary" id="total-hours">0</h3>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card panel-card p-3 text-center">
+                        <h6 class="text-muted mb-1">ساعات العمل الإضافية</h6>
+                        <h3 class="fw-bold text-success" id="overtime-hours">0</h3>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card panel-card p-3 text-center">
+                        <h6 class="text-muted mb-1">معدل الحضور</h6>
+                        <h3 class="fw-bold text-info" id="attendance-rate">0%</h3>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Date Filter -->
+            <div class="card panel-card p-4 mt-4">
+                <div class="d-flex flex-wrap gap-3 align-items-center justify-content-between">
+                    <h6 class="fw-bold mb-0">فلترة التواريخ</h6>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary" id="btn-today">اليوم</button>
+                        <button type="button" class="btn btn-outline-primary" id="btn-yesterday">أمس</button>
+                        <button type="button" class="btn btn-outline-primary" id="btn-this-week">هذا الأسبوع</button>
+                        <button type="button" class="btn btn-outline-primary" id="btn-last-week">الأسبوع الماضي</button>
+                        <button type="button" class="btn btn-outline-primary" id="btn-this-month">هذا الشهر</button>
+                        <button type="button" class="btn btn-outline-primary" id="btn-last-month">الشهر الماضي</button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <input type="date" id="start-date" class="form-control">
+                        <input type="date" id="end-date" class="form-control">
+                        <button class="btn btn-primary" id="btn-filter">تطبيق</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card panel-card p-4">
+                <h5 class="fw-bold mb-3">تقرير الحضور الأسبوعي</h5>
+                <canvas id="weekly-chart"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card panel-card p-4">
+                <h5 class="fw-bold mb-3">نسبة الحضور والغياب</h5>
+                <canvas id="attendance-pie-chart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Attendance Timeline & Table -->
+    <div class="card panel-card p-4">
+        <h5 class="fw-bold mb-3">سجل الحضور</h5>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>نوع الحضور</th>
+                        <th>الوقت</th>
+                        <th>طريقة التحقق</th>
+                        <th>الجهاز</th>
+                        <th>الفرع</th>
+                    </tr>
+                </thead>
+                <tbody id="attendance-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/js/employee_profile.js"></script>
+{% endblock %}

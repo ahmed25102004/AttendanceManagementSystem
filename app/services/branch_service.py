@@ -89,6 +89,8 @@ class BranchService:
         ).order_by(AttendanceLog.check_time.desc()).limit(10).all()
 
         return {
+            "id": branch_id,
+            "name": self.get(db, branch_id).name,
             "total_employees": total_employees,
             "total_devices": total_devices,
             "online_devices": online_devices,
@@ -116,3 +118,16 @@ class BranchService:
                 for l in latest_logs
             ]
         }
+    
+    def get_all_stats(self, db: Session) -> list[dict]:
+        branches = self.list(db)
+        all_stats = []
+        for branch in branches:
+            if branch.is_active:
+                try:
+                    stats = self.get_stats(db, branch.id)
+                    all_stats.append(stats)
+                except Exception as e:
+                    # Skip branches with errors
+                    continue
+        return all_stats

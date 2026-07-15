@@ -85,6 +85,7 @@ async function loadEmployees() {
                     <td>${employee.job_title}</td>
                     <td>${employmentTypeLabels[employee.employment_type] || employee.employment_type}</td>
                     <td>
+                        <button class="btn btn-sm btn-outline-success ms-2" onclick="window.location.href='/employees/${employee.id}'">ملف الموظف</button>
                         <button class="btn btn-sm btn-outline-info ms-2" onclick="viewDocuments(${employee.id}, '${employee.full_name}')">مستندات</button>
                         <button class="btn btn-sm btn-outline-primary ms-2" onclick="editEmployee(${employee.id})">تعديل</button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.id})">حذف</button>
