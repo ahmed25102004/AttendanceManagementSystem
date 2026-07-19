@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import date, datetime
-from typing import Literal, List
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -15,6 +15,8 @@ class EmployeeWriteBase(BaseModel):
     department_id: int | None = None
     branch_id: int | None = None
     employment_type: str = "full_time"
+    shift_id: int | None = None
+    weekly_rest_day: str | None = Field(default=None, max_length=20)
 
 
 class EmployeeCreate(EmployeeWriteBase):
@@ -39,6 +41,10 @@ class EmployeeResponse(BaseModel):
     department_id: int | None = None
     branch_id: int | None = None
     employment_type: str = "full_time"
+    shift_id: int | None = None
+    weekly_rest_day: str | None = None
+    shift_name: str | None = None
+    is_active: bool = True
     
     class Config:
         from_attributes = True
@@ -72,3 +78,27 @@ class EmployeeStatsResponse(BaseModel):
     absent_days: int
     late_days: int
     early_leave_days: int
+
+
+class EmployeeShiftScheduleEntry(BaseModel):
+    day_of_week: str = Field(min_length=3, max_length=20)
+    shift_type: str = Field(min_length=2, max_length=50)
+    shift_id: int | None = None
+    shift_name: str | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    grace_period_minutes: int | None = None
+
+
+class EmployeeShiftScheduleUpdate(BaseModel):
+    shift_id: int | None = None
+    weekly_rest_day: str | None = Field(default=None, max_length=20)
+    schedules: list[EmployeeShiftScheduleEntry] = Field(default_factory=list)
+
+
+class EmployeeShiftScheduleResponse(BaseModel):
+    employee_id: int
+    shift_id: int | None = None
+    shift_name: str | None = None
+    weekly_rest_day: str | None = None
+    schedules: list[EmployeeShiftScheduleEntry]

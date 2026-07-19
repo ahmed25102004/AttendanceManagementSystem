@@ -34,9 +34,12 @@ class DeviceService:
             query = query.filter(Device.is_active == is_active)
         return query.order_by(Device.id.desc()).all()
 
-    def get(self, db: Session, device_id: int) -> Device:
+    def get(self, db: Session, device_id: int, branch_id: int | None = None) -> Device:
         # Update status for this specific device
-        device = db.query(Device).filter(Device.id == device_id).first()
+        query = db.query(Device).filter(Device.id == device_id)
+        if branch_id:
+            query = query.filter(Device.branch_id == branch_id)
+        device = query.first()
         if not device:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الجهاز غير موجود.")
         
@@ -50,7 +53,10 @@ class DeviceService:
         return db.query(Device).filter(Device.serial_number == serial_number).first()
 
     def create(self, db: Session, payload: DeviceCreate) -> Device:
-        existing = db.query(Device).filter(Device.device_code == payload.device_code).first()
+        existing = db.query(Device).filter(
+            Device.device_code == payload.device_code, 
+            Device.branch_id == payload.branch_id
+        ).first()
         if existing:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="كود الجهاز مستخدم بالفعل.")
         
@@ -61,13 +67,16 @@ class DeviceService:
         logger.info(f"[DeviceService] Created new device: id={device.id}, name={device.device_name}, code={device.device_code}")
         return device
 
-    def update(self, db: Session, device_id: int, payload: DeviceUpdate) -> Device:
-        device = self.get(db, device_id)
+    def update(self, db: Session, device_id: int, payload: DeviceUpdate, branch_id: int | None = None) -> Device:
+        device = self.get(db, device_id, branch_id)
         if payload.device_code:
-            existing = db.query(Device).filter(
+            query = db.query(Device).filter(
                 Device.device_code == payload.device_code, 
                 Device.id != device_id
-            ).first()
+            )
+            if branch_id:
+                query = query.filter(Device.branch_id == branch_id)
+            existing = query.first()
             if existing:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="كود الجهاز مستخدم بالفعل.")
         
@@ -79,8 +88,8 @@ class DeviceService:
         logger.info(f"[DeviceService] Updated device: id={device.id}")
         return device
 
-    def delete(self, db: Session, device_id: int) -> None:
-        device = self.get(db, device_id)
+    def delete(self, db: Session, device_id: int, branch_id: int | None = None) -> None:
+        device = self.get(db, device_id, branch_id)
         logger.info(f"[DeviceService] Deleting device: id={device.id}, name={device.device_name}")
         db.delete(device)
         db.commit()
@@ -121,8 +130,8 @@ class DeviceService:
     def get_log_count(self, db: Session, device_id: int) -> int:
         return db.query(func.count(AttendanceLog.id)).filter(AttendanceLog.device_id == device_id).scalar() or 0
 
-    def test_connection(self, db: Session, device_id: int) -> tuple[bool, str]:
-        device = self.get(db, device_id)
+    def test_connection(self, db: Session, device_id: int, branch_id: int | None = None) -> tuple[bool, str]:
+        device = self.get(db, device_id, branch_id)
         # Update last_seen and status when testing connection
         self.update_last_seen(db, device_id)
         logger.info(f"[DeviceService] Tested connection for device id={device_id}")

@@ -2,12 +2,12 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_admin_user, get_db, get_current_branch_id
+from app.core.dependencies import get_branch_manager_or_admin, get_db, get_current_branch_id
 from app.schemas.attendance_log import AttendanceLogResponse
 from app.services.attendance_log_service import AttendanceLogService
 
 
-router = APIRouter(dependencies=[Depends(get_admin_user)])
+router = APIRouter(dependencies=[Depends(get_branch_manager_or_admin)])
 attendance_log_service = AttendanceLogService()
 
 

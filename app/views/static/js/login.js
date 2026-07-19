@@ -1,4 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // Automatically redirect to dashboard, no login required
-    window.location.href = "/dashboard";
+    // Automatically redirect to employees page, no login required
+    window.location.href = "/employees";
 });

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_admin_user, get_db, get_current_branch_id
+from app.core.dependencies import get_branch_manager_or_admin, get_db, get_current_branch_id
 from app.core.database import SessionLocal
 from app.schemas.setting import CompanySettingResponse, CompanySettingUpdate
 from app.services.backup_service import BackupService
@@ -9,7 +9,7 @@ from app.services.setting_service import SettingService
 from app.services.zkteco_service import ZKTecoService
 
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_branch_manager_or_admin)])
 setting_service = SettingService()
 backup_service = BackupService()
 

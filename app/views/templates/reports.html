@@ -3,6 +3,21 @@
 {% set subtitle = "إنشاء تقارير يومية وأسبوعية وشهرية مع التصدير إلى Excel أو PDF" %}
 {% block page_content %}
 <div id="reportAlert"></div>
+<div class="card panel-card p-4 mb-4">
+    <div class="row g-3 align-items-end">
+        <div class="col-lg-4">
+            <label class="form-label">القسم</label>
+            <select id="reportDepartmentFilter" class="form-select">
+                <option value="">كل الأقسام</option>
+            </select>
+        </div>
+        <div class="col-lg-8">
+            <div class="form-text">
+                عند اختيار قسم الريسبشن يتم احتساب التقرير حسب جدول الشيفت ويوم الإجازة الأسبوعية وأول بصمة دخول وآخر بصمة خروج لكل يوم.
+            </div>
+        </div>
+    </div>
+</div>
 <div class="row g-4 mb-4">
     <div class="col-lg-4">
         <div class="card panel-card p-4">
@@ -56,7 +71,7 @@
 <div class="card panel-card p-4">
     <h5 class="fw-bold">نتائج التقرير</h5>
     <div class="table-responsive">
-        <table class="table align-middle">
+        <table id="reportTable" class="table align-middle">
             <thead>
                 <tr>
                     <th>الكود</th>
@@ -64,11 +79,20 @@
                     <th>القسم</th>
                     <th>المسمى الوظيفي</th>
                     <th>التاريخ</th>
+                                <th>الشيفت</th>
+                                <th>بداية الشيفت</th>
+                                <th>نهاية الشيفت</th>
                     <th>وقت الحضور</th>
                     <th>وقت الانصراف</th>
                     <th>الساعات</th>
+                    <th>ساعات العمل الإضافي</th>
+                    <th>نقص الشيفت</th>
+                                <th>التأخير</th>
                     <th>الحالة</th>
-                    <th>متأخر</th>
+                                <th>عمل في الإجازة</th>
+                                <th>أيام الغياب</th>
+                                <th>الإجازات الأسبوعية</th>
+                                <th>العمل في الإجازة</th>
                 </tr>
             </thead>
             <tbody id="reportTableBody"></tbody>

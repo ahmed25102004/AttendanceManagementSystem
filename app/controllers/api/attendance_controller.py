@@ -7,6 +7,7 @@ from app.core.dependencies import get_admin_user, get_db, get_employee_user, get
 from app.schemas.attendance import (
     AttendanceCheckIn,
     AttendanceCheckOut,
+    AttendanceManualUpdate,
     AttendanceResponse,
     FaceAttendanceRequest,
     FacePortalStatusResponse,
@@ -41,6 +42,11 @@ def check_in(payload: AttendanceCheckIn, _: object = Depends(get_admin_user), db
 @router.post("/check-out", response_model=AttendanceResponse)
 def check_out(payload: AttendanceCheckOut, _: object = Depends(get_admin_user), db: Session = Depends(get_db)):
     return attendance_service.check_out(db, payload)
+
+
+@router.put("/manual", response_model=AttendanceResponse)
+def upsert_manual_attendance(payload: AttendanceManualUpdate, _: object = Depends(get_admin_user), db: Session = Depends(get_db)):
+    return attendance_service.upsert_manual_record(db, payload)
 
 
 @router.get("/self/today", response_model=AttendanceResponse | None)

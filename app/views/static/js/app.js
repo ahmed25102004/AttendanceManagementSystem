@@ -137,8 +137,7 @@ function setCurrentBranchName(branchName) {
 
 async function loadBranchSelector() {
     const branchSelector = document.getElementById("branchSelector");
-    const branchStatusText = document.getElementById("branchStatusText");
-    if (!branchSelector || !branchStatusText) {
+    if (!branchSelector) {
         return;
     }
 
@@ -148,7 +147,6 @@ async function loadBranchSelector() {
 
         if (!branches || !branches.length) {
             branchSelector.innerHTML = `<option value="">لا توجد فروع</option>`;
-            branchStatusText.textContent = "لا توجد فروع مسجلة.";
             return;
         }
 
@@ -171,7 +169,10 @@ async function loadBranchSelector() {
         if (selectedBranch) {
             setCurrentBranchId(selectedBranch.id);
             setCurrentBranchName(selectedBranch.name);
-            branchStatusText.textContent = `الفرع الحالي: ${selectedBranch.name}`;
+            const sidebarBranchNameEl = document.getElementById("sidebarBranchName");
+            if (sidebarBranchNameEl) {
+                sidebarBranchNameEl.textContent = selectedBranch.name;
+            }
         }
 
         branchSelector.addEventListener("change", (event) => {
@@ -182,10 +183,9 @@ async function loadBranchSelector() {
             }
             setCurrentBranchId(branch.id);
             setCurrentBranchName(branch.name);
-            branchStatusText.textContent = `الفرع الحالي: ${branch.name}`;
+            window.location.reload();
         });
     } catch (error) {
-        branchStatusText.textContent = "غير متاح";
         branchSelector.innerHTML = `<option value="">غير متاح</option>`;
     }
 }
@@ -248,9 +248,65 @@ function handleNewAttendanceLog(data) {
     }
 }
 
+async function loadDepartmentsNav() {
+    const departmentsNav = document.getElementById("departmentsNav");
+    if (!departmentsNav) {
+        return;
+    }
+
+    try {
+        const departments = await fetchJSON("/api/departments");
+        departmentsNav.innerHTML = "";
+
+        if (!departments || !departments.length) {
+            departmentsNav.innerHTML += `<div class="text-white-50 small mt-2">لا توجد أقسام</div>`;
+            return;
+        }
+
+        departments.forEach((dept) => {
+            const link = document.createElement("a");
+            link.href = `/departments/${dept.id}`;
+            link.className = "nav-sublink";
+            // Check if current page is this department's page
+            if (window.location.pathname === `/departments/${dept.id}`) {
+                link.classList.add("active");
+            }
+            link.textContent = dept.name;
+            departmentsNav.appendChild(link);
+        });
+    } catch (error) {
+        console.error("Error loading departments nav:", error);
+        departmentsNav.innerHTML = `<div class="text-white-50 small">خطأ في تحميل الأقسام</div>`;
+    }
+}
+
+// Nav toggle functionality
+document.addEventListener("click", (event) => {
+    const toggleBtn = event.target.closest(".nav-toggle");
+    if (toggleBtn) {
+        const targetId = toggleBtn.getAttribute("aria-controls");
+        const target = document.getElementById(targetId);
+        if (target) {
+            const isExpanded = toggleBtn.getAttribute("aria-expanded") === "true";
+            toggleBtn.setAttribute("aria-expanded", !isExpanded);
+            target.hidden = isExpanded;
+            if (!isExpanded) {
+                // Load departments when expanded
+                if (targetId === "departmentsNavContainer" && typeof loadDepartmentsNav === "function") {
+                    loadDepartmentsNav();
+                }
+            }
+        }
+    }
+});
+
 document.addEventListener("DOMContentLoaded", async () => {
     await hydrateUser();
     await loadBranchSelector();
+    const branchNameEl = document.getElementById("sidebarBranchName");
+    if (branchNameEl) {
+        branchNameEl.textContent = getCurrentBranchName() || "غير محدد";
+    }
     connectWebSocket();
 });
 

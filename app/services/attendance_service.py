@@ -13,6 +13,7 @@ from app.models.user import User
 from app.schemas.attendance import (
     AttendanceCheckIn,
     AttendanceCheckOut,
+    AttendanceManualUpdate,
     AttendanceResponse,
     FaceAttendanceRequest,
     FacePortalStatusResponse,
@@ -22,18 +23,53 @@ from app.schemas.attendance import (
     SelfAttendanceRequest,
 )
 from app.services.biometric_service import FaceRecognitionMatcher, VerificationProviderFactory
+from app.services.attendance_policies import AttendancePolicyFactory
 
 
 class AttendanceService:
     def __init__(self) -> None:
         self.provider_factory = VerificationProviderFactory()
         self.face_matcher = FaceRecognitionMatcher()
+        self.policy_factory = AttendancePolicyFactory()
 
-    def _calculate_late_status(self, db: Session, check_in_time: datetime) -> bool:
-        settings = db.query(CompanySetting).first()
-        start_time = datetime.combine(check_in_time.date(), settings.work_start_time)
-        late_threshold = start_time.timestamp() + (settings.late_grace_minutes * 60)
-        return check_in_time.timestamp() > late_threshold
+    def _calculate_late_status(self, db: Session, employee: Employee, check_in_time: datetime) -> bool:
+        policy = self.policy_factory.get_policy_for_employee(db, employee)
+        return policy.calculate_late_status(db, employee, check_in_time)
+
+    def _calculate_late_minutes(self, db: Session, employee: Employee, check_in_time: datetime) -> int:
+        policy = self.policy_factory.get_policy_for_employee(db, employee)
+        return policy.calculate_late_minutes(db, employee, check_in_time)
+
+    def _is_doctors_department(self, employee: Employee) -> bool:
+        return bool(employee.department and employee.department.attendance_policy == "doctors_department")
+    
+    def _is_leather_department(self, employee: Employee) -> bool:
+        return bool(employee.department and employee.department.attendance_policy == "leather_department")
+
+    def _apply_shift_metrics(self, employee: Employee, record: AttendanceRecord) -> None:
+        record.shift_category = None
+        record.shift_units = 0.0
+        
+        # Leather department: no shift metrics
+        if self._is_leather_department(employee):
+            return
+
+        if not self._is_doctors_department(employee) or not record.check_in_time or not record.check_out_time:
+            return
+        
+        # Use doctors department policy to get shift type
+        policy = self.policy_factory.get_policy_for_employee(None, employee)
+        if hasattr(policy, 'get_shift_type'):
+            shift_type = policy.get_shift_type(employee, record.check_in_time, record.check_out_time)
+            record.shift_category = shift_type
+            half_shift_hours = getattr(employee.department, 'shift_hours', employee.department.half_shift_hours) or 7
+            
+            if shift_type == "شفت كامل":
+                record.shift_units = 1.0  # Full shift is one unit
+            elif shift_type == "نصف شيفت":
+                record.shift_units = 0.5  # Half shift is 0.5 units
+            else:
+                record.shift_units = 0.0
 
     def _to_response(self, record: AttendanceRecord) -> AttendanceResponse:
         employee_name = " ".join(
@@ -47,9 +83,16 @@ class AttendanceService:
             check_in_time=record.check_in_time,
             check_out_time=record.check_out_time,
             working_hours=round(record.working_hours, 2),
+            shift_category=record.shift_category,
+            shift_units=record.shift_units,
+            overtime_hours=getattr(record, 'overtime_hours', 0.0),
+            shift_deficit_hours=getattr(record, 'shift_deficit_hours', 0.0),
             is_late=record.is_late,
+            late_minutes=record.late_minutes,
             status=record.status,
             source_type=record.source_type,
+            is_rest_day=record.is_rest_day,
+            worked_on_rest_day=record.worked_on_rest_day,
         )
 
     def _get_company_settings(self, db: Session) -> CompanySetting:
@@ -62,7 +105,7 @@ class AttendanceService:
         return settings
 
     def _get_employee(self, db: Session, employee_id: int) -> Employee:
-        employee = db.query(Employee).filter(Employee.id == employee_id, Employee.is_active.is_(True)).first()
+        employee = db.query(Employee).options(joinedload(Employee.department)).filter(Employee.id == employee_id, Employee.is_active.is_(True)).first()
         if not employee:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الموظف غير موجود.")
         return employee
@@ -347,7 +390,7 @@ class AttendanceService:
         )
 
     def check_in(self, db: Session, payload: AttendanceCheckIn) -> AttendanceResponse:
-        self._get_employee(db, payload.employee_id)
+        employee = self._get_employee(db, payload.employee_id)
         attendance_date = payload.attendance_date or date.today()
         check_in_time = payload.check_in_time or datetime.now()
 
@@ -368,7 +411,12 @@ class AttendanceService:
         record.check_in_time = check_in_time
         record.source_type = payload.source_type
         record.verification_data = verification
-        record.is_late = self._calculate_late_status(db, check_in_time)
+        record.is_rest_day = self.policy_factory.get_policy_for_employee(db, employee).is_rest_day(db, employee, attendance_date)
+        record.worked_on_rest_day = record.is_rest_day
+        record.late_minutes = self._calculate_late_minutes(db, employee, check_in_time)
+        record.is_late = record.late_minutes > 0
+        record.shift_category = None
+        record.shift_units = 0.0
         record.status = "present"
 
         db.add(record)
@@ -383,6 +431,7 @@ class AttendanceService:
         return self._to_response(record)
 
     def check_out(self, db: Session, payload: AttendanceCheckOut) -> AttendanceResponse:
+        employee = self._get_employee(db, payload.employee_id)
         attendance_date = payload.attendance_date or date.today()
         check_out_time = payload.check_out_time or datetime.now()
         record = self._get_record_for_employee_date(db, payload.employee_id, attendance_date)
@@ -395,8 +444,19 @@ class AttendanceService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="لا يمكن أن يكون وقت الانصراف قبل وقت الحضور.")
 
         record.check_out_time = check_out_time
-        seconds = max((record.check_out_time - record.check_in_time).total_seconds(), 0)
-        record.working_hours = round(seconds / 3600, 2)
+        policy = self.policy_factory.get_policy_for_employee(db, employee)
+        record.working_hours = policy.calculate_working_hours(record.check_in_time, record.check_out_time)
+        
+        # Calculate overtime and shift deficit for doctors department
+        if self._is_doctors_department(employee) and hasattr(policy, 'calculate_overtime_hours'):
+            record.overtime_hours = policy.calculate_overtime_hours(employee, record.check_in_time, record.check_out_time)
+            record.shift_deficit_hours = policy.calculate_shift_deficit_hours(employee, record.check_in_time, record.check_out_time)
+        else:
+            record.overtime_hours = 0.0
+            record.shift_deficit_hours = 0.0
+            
+        self._apply_shift_metrics(employee, record)
+        record.worked_on_rest_day = bool(record.is_rest_day and record.check_in_time)
         db.commit()
         db.refresh(record)
         record = (
@@ -441,6 +501,75 @@ class AttendanceService:
                 verification_data=verification_context
             )
         )
+
+    def upsert_manual_record(self, db: Session, payload: AttendanceManualUpdate) -> AttendanceResponse:
+        employee = self._get_employee(db, payload.employee_id)
+        record = self._get_record_for_employee_date(db, payload.employee_id, payload.attendance_date)
+        policy = self.policy_factory.get_policy_for_employee(db, employee)
+
+        if record is None:
+            record = AttendanceRecord(
+                employee_id=payload.employee_id,
+                attendance_date=payload.attendance_date,
+            )
+
+        record.check_in_time = payload.check_in_time
+        record.check_out_time = payload.check_out_time
+        record.source_type = payload.source_type
+        record.is_rest_day = policy.is_rest_day(db, employee, payload.attendance_date)
+        record.worked_on_rest_day = bool(record.is_rest_day and record.check_in_time)
+
+        if record.check_in_time:
+            record.late_minutes = policy.calculate_late_minutes(db, employee, record.check_in_time)
+            record.is_late = record.late_minutes > 0
+        else:
+            record.late_minutes = 0
+            record.is_late = False
+
+        if record.check_in_time and record.check_out_time:
+            if record.check_out_time < record.check_in_time:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="لا يمكن أن يكون وقت الانصراف قبل وقت الحضور.",
+                )
+            record.working_hours = policy.calculate_working_hours(record.check_in_time, record.check_out_time)
+            
+            # Calculate overtime and shift deficit for doctors department
+            if self._is_doctors_department(employee) and hasattr(policy, 'calculate_overtime_hours'):
+                record.overtime_hours = policy.calculate_overtime_hours(employee, record.check_in_time, record.check_out_time)
+                record.shift_deficit_hours = policy.calculate_shift_deficit_hours(employee, record.check_in_time, record.check_out_time)
+            else:
+                record.overtime_hours = 0.0
+                record.shift_deficit_hours = 0.0
+                
+            self._apply_shift_metrics(employee, record)
+        else:
+            record.working_hours = 0.0
+            record.overtime_hours = 0.0
+            record.shift_deficit_hours = 0.0
+            record.shift_category = None
+            record.shift_units = 0.0
+
+        if record.check_in_time:
+            record.status = "present_on_rest_day" if record.worked_on_rest_day else "present"
+        elif record.is_rest_day:
+            record.status = "weekly_rest"
+        else:
+            record.status = "absent"
+
+        if payload.notes:
+            record.verification_data = {**(record.verification_data or {}), "manual_notes": payload.notes}
+
+        db.add(record)
+        db.commit()
+        db.refresh(record)
+        record = (
+            db.query(AttendanceRecord)
+            .options(joinedload(AttendanceRecord.employee))
+            .filter(AttendanceRecord.id == record.id)
+            .first()
+        )
+        return self._to_response(record)
 
     def get_today_record_for_user(self, db: Session, current_user: User) -> AttendanceResponse | None:
         if not current_user.employee_id:

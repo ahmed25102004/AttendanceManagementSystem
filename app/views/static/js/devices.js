@@ -28,6 +28,13 @@ async function loadBranches() {
         option.textContent = branch.name;
         selectEl.appendChild(option);
     });
+
+    // Pre-fill current branch and hide the dropdown
+    const currentBranchId = getCurrentBranchId();
+    if (currentBranchId) {
+        selectEl.value = currentBranchId;
+        selectEl.parentElement.style.display = "none"; // Hide the form group
+    }
 }
 
 async function loadDevices() {
@@ -128,11 +135,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             event.preventDefault();
             const deviceId = el("deviceId").value;
 
+            const currentBranchId = getCurrentBranchId();
             const payload = {
                 device_name: el("deviceName").value.trim(),
                 device_code: el("deviceCode").value.trim(),
                 serial_number: el("serialNumber").value.trim() || null,
-                branch_id: parseInt(el("deviceBranchId").value) || null,
+                branch_id: parseInt(el("deviceBranchId").value) || (currentBranchId ? parseInt(currentBranchId) : null),
                 ip_address: el("ipAddress").value.trim() || null,
                 port: el("devicePort").value ? parseInt(el("devicePort").value) : null,
                 protocol: el("deviceProtocol").value,

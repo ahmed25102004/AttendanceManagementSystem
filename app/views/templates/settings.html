@@ -3,7 +3,40 @@
 {% set subtitle = "تخصيص اسم المركز ومواعيد العمل وعطلة نهاية الأسبوع وقواعد التأخير" %}
 {% block page_content %}
 <div id="settingsAlert"></div>
+
+<!-- Branch Settings -->
+<div class="card panel-card p-4 mb-4">
+    <h5 class="fw-bold mb-3">إعدادات الفرع الحالي</h5>
+    <form id="branchSettingsForm">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">بداية فترة تسجيل الحضور</label>
+                <input id="branch_check_in_open_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">نهاية فترة تسجيل الحضور</label>
+                <input id="branch_check_in_close_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">بداية فترة تسجيل الانصراف</label>
+                <input id="branch_check_out_open_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">نهاية فترة تسجيل الانصراف</label>
+                <input id="branch_check_out_close_time" type="time" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">دقائق السماح للتأخير</label>
+                <input id="branch_allowed_late_minutes" type="number" class="form-control" min="0" max="240" required>
+            </div>
+        </div>
+        <button class="btn btn-success mt-4">حفظ إعدادات الفرع</button>
+    </form>
+</div>
+
+<!-- Global Settings -->
 <div class="card panel-card p-4">
+    <h5 class="fw-bold mb-3">إعدادات المركز العاملة</h5>
     <form id="settingsForm">
         <div class="row g-3">
             <div class="col-md-6">
@@ -27,7 +60,7 @@
                 </div>
             </div>
             <div class="col-md-6">
-                <label class="form-label">دقائق السماح للتأخير</label>
+                <label class="form-label">دقائق السماح للتأخير (إعدادات مركزية)</label>
                 <input id="late_grace_minutes" type="number" class="form-control" min="0" max="240" required>
             </div>
             <div class="col-12"><hr class="my-1"></div>
@@ -48,9 +81,8 @@
                 <label class="form-label">احتفاظ بالنسخ الاحتياطية لعدد أيام</label>
                 <input id="auto_backup_retention_days" type="number" class="form-control" min="1" max="365" required>
             </div>
-
         </div>
-        <button class="btn btn-primary mt-4">حفظ الإعدادات</button>
+        <button class="btn btn-primary mt-4">حفظ إعدادات المركز</button>
     </form>
 </div>
 {% endblock %}

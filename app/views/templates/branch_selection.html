@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="fw-bold mb-3">نظام إدارة الحضور والانصراف</h1>
+        <p class="text-muted">اختر فرع للبدء</p>
+    </div>
+
+    <div id="branchSelectionAlert" class="mb-4"></div>
+
+    <div class="row g-4 mb-5" id="branchCardsContainer"></div>
+
+    <div class="text-center">
+        <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addBranchModal">
+            <i class="bi bi-plus-circle me-2"></i>إضافة فرع جديد
+        </button>
+    </div>
+</div>
+
+<!-- Add/Edit Branch Modal -->
+<div class="modal fade" id="addBranchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="branchModalTitle">إضافة فرع</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modalBranchId">
+                <div class="mb-3">
+                    <label class="form-label">اسم الفرع</label>
+                    <input id="modalBranchName" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">الوصف</label>
+                    <textarea id="modalBranchDescription" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">وقت فتح الحضور</label>
+                        <input id="modalCheckInOpenTime" type="time" class="form-control" value="08:00">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">وقت إغلاق الحضور</label>
+                        <input id="modalCheckInCloseTime" type="time" class="form-control" value="11:00">
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">وقت فتح الانصراف</label>
+                        <input id="modalCheckOutOpenTime" type="time" class="form-control" value="16:00">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">وقت إغلاق الانصراف</label>
+                        <input id="modalCheckOutCloseTime" type="time" class="form-control" value="22:00">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">دقائق التأخير المسموح بها</label>
+                    <input id="modalAllowedLateMinutes" type="number" class="form-control" value="15">
+                </div>
+                <div class="form-check mb-3">
+                    <input id="modalBranchIsActive" type="checkbox" class="form-check-input" checked>
+                    <label class="form-check-label">فعال</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary" id="saveBranchBtn">حفظ</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const branchSelectionCache = new Map();
+
+    function showBranchSelectionAlert(message, type = "danger") {
+        const el = document.getElementById("branchSelectionAlert");
+        if (!el) return;
+        el.innerHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        setTimeout(() => { el.innerHTML = ""; }, 3000);
+    }
+
+    async function loadBranchSelection() {
+        try {
+            const branches = await fetchJSON("/api/branches?all=true");
+            const container = document.getElementById("branchCardsContainer");
+            if (!container) return;
+            container.innerHTML = "";
+            branchSelectionCache.clear();
+
+            if (!branches || !branches.length) {
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <div class="text-muted">لا توجد فروع بعد. قم بإضافة فرع جديد للبدء.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            branches.forEach(branch => {
+                branchSelectionCache.set(branch.id, branch);
+                container.innerHTML += `
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card panel-card p-4 h-100">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h5 class="fw-bold mb-1">${branch.name}</h5>
+                                    <span class="badge bg-${branch.is_active ? 'success' : 'secondary'}">
+                                        ${branch.is_active ? 'فعال' : 'غير فعال'}
+                                    </span>
+                                </div>
+                            </div>
+                            <p class="text-muted mb-4 small">${branch.description || 'لا يوجد وصف'}</p>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary flex-grow-1" onclick="selectBranch(${branch.id})">
+                                    دخول للفرع
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="editBranchModal(${branch.id})">
+                                    تعديل
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteBranchSelection(${branch.id})">
+                                    حذف
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } catch (error) {
+            console.error(error);
+            showBranchSelectionAlert(error.message);
+        }
+    }
+
+    function selectBranch(branchId) {
+        const branch = branchSelectionCache.get(branchId);
+        if (!branch) return;
+        localStorage.setItem("attendance_branch_id", String(branch.id));
+        localStorage.setItem("attendance_branch_name", branch.name);
+        window.location.href = "/branches/" + branchId;
+    }
+
+    function openAddBranchModal() {
+        resetBranchModalForm();
+        document.getElementById("branchModalTitle").textContent = "إضافة فرع";
+        const modal = new bootstrap.Modal(document.getElementById("addBranchModal"));
+        modal.show();
+    }
+
+    function editBranchModal(branchId) {
+        const branch = branchSelectionCache.get(branchId);
+        if (!branch) {
+            showBranchSelectionAlert("تعذر تحميل بيانات الفرع.");
+            return;
+        }
+        document.getElementById("modalBranchId").value = branch.id;
+        document.getElementById("modalBranchName").value = branch.name;
+        document.getElementById("modalBranchDescription").value = branch.description || "";
+        document.getElementById("modalCheckInOpenTime").value = formatTimeForInput(branch.check_in_open_time);
+        document.getElementById("modalCheckInCloseTime").value = formatTimeForInput(branch.check_in_close_time);
+        document.getElementById("modalCheckOutOpenTime").value = formatTimeForInput(branch.check_out_open_time);
+        document.getElementById("modalCheckOutCloseTime").value = formatTimeForInput(branch.check_out_close_time);
+        document.getElementById("modalAllowedLateMinutes").value = branch.allowed_late_minutes;
+        document.getElementById("modalBranchIsActive").checked = branch.is_active;
+        document.getElementById("branchModalTitle").textContent = "تعديل فرع";
+        const modal = new bootstrap.Modal(document.getElementById("addBranchModal"));
+        modal.show();
+    }
+
+    function resetBranchModalForm() {
+        document.getElementById("modalBranchId").value = "";
+        document.getElementById("modalBranchName").value = "";
+        document.getElementById("modalBranchDescription").value = "";
+        document.getElementById("modalCheckInOpenTime").value = "08:00";
+        document.getElementById("modalCheckInCloseTime").value = "11:00";
+        document.getElementById("modalCheckOutOpenTime").value = "16:00";
+        document.getElementById("modalCheckOutCloseTime").value = "22:00";
+        document.getElementById("modalAllowedLateMinutes").value = "15";
+        document.getElementById("modalBranchIsActive").checked = true;
+    }
+
+    function formatTimeForInput(timeStr) {
+        if (!timeStr) return "";
+        const parts = timeStr.split(":");
+        return parts.length >=2 ? `${parts[0]}:${parts[1]}` : timeStr;
+    }
+
+    async function saveBranch() {
+        const branchId = document.getElementById("modalBranchId").value;
+        const payload = {
+            name: document.getElementById("modalBranchName").value.trim(),
+            description: document.getElementById("modalBranchDescription").value.trim() || null,
+            check_in_open_time: document.getElementById("modalCheckInOpenTime").value,
+            check_in_close_time: document.getElementById("modalCheckInCloseTime").value,
+            check_out_open_time: document.getElementById("modalCheckOutOpenTime").value,
+            check_out_close_time: document.getElementById("modalCheckOutCloseTime").value,
+            allowed_late_minutes: parseInt(document.getElementById("modalAllowedLateMinutes").value),
+            is_active: document.getElementById("modalBranchIsActive").checked
+        };
+        const method = branchId ? "PUT" : "POST";
+        const url = branchId ? `/api/branches/${branchId}` : "/api/branches";
+        try {
+            await fetchJSON(url, { method, body: JSON.stringify(payload) });
+            const modal = bootstrap.Modal.getInstance(document.getElementById("addBranchModal"));
+            modal.hide();
+            await loadBranchSelection();
+            showBranchSelectionAlert(branchId ? "تم تحديث الفرع بنجاح." : "تم إضافة الفرع بنجاح.", "success");
+        } catch (error) {
+            console.error(error);
+            showBranchSelectionAlert(error.message);
+        }
+    }
+
+    async function deleteBranchSelection(branchId) {
+        if (!confirm("هل تريد حذف هذا الفرع؟")) return;
+        try {
+            await fetchJSON(`/api/branches/${branchId}`, { method: "DELETE" });
+            await loadBranchSelection();
+            showBranchSelectionAlert("تم حذف الفرع بنجاح.", "success");
+        } catch (error) {
+            console.error(error);
+            showBranchSelectionAlert(error.message);
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        await loadBranchSelection();
+        document.getElementById("saveBranchBtn").addEventListener("click", saveBranch);
+    });
+</script>
+{% endblock %}

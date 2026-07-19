@@ -83,6 +83,63 @@ body {
     margin-left: 0;
 }
 
+.compact-card {
+    border-radius: 14px;
+}
+
+.compact-section-title {
+    font-size: 1.05rem;
+    margin-bottom: 0.75rem !important;
+}
+
+.compact-form .row {
+    --bs-gutter-x: 0.75rem;
+    --bs-gutter-y: 0.75rem;
+}
+
+.compact-form .form-label {
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.compact-form .form-control,
+.compact-form .form-select {
+    min-height: 38px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.95rem;
+}
+
+.compact-form textarea.form-control {
+    min-height: 72px;
+}
+
+.compact-form .form-text {
+    font-size: 0.8rem;
+    margin-bottom: 0;
+}
+
+.compact-toolbar {
+    gap: 0.5rem !important;
+}
+
+.compact-toolbar .form-control,
+.compact-toolbar .form-select {
+    min-height: 38px;
+    padding: 0.35rem 0.65rem;
+}
+
+.compact-table th,
+.compact-table td {
+    padding: 0.55rem 0.6rem;
+    font-size: 0.92rem;
+    vertical-align: middle;
+}
+
+.compact-card .btn {
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+
 .stat-card {
     border-radius: 18px;
     color: #fff;
@@ -165,6 +222,63 @@ body {
     left: 8px;
     z-index: 1;
     padding: 2px 10px;
+}
+
+.sidebar-group {
+    margin-bottom: 0.4rem;
+}
+
+.nav-toggle {
+    width: 100%;
+    text-align: right;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 10px;
+    padding: 0.5rem 1rem;
+}
+
+.nav-toggle:hover,
+.nav-toggle.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.nav-toggle-icon {
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 0.4em solid transparent;
+    border-right: 0.4em solid transparent;
+    border-top: 0.4em solid;
+    transition: transform 0.2s;
+}
+
+.nav-toggle[aria-expanded="true"] .nav-toggle-icon {
+    transform: rotate(180deg);
+}
+
+.nav-submenu {
+    margin-right: 1rem;
+    margin-top: 0.5rem;
+}
+
+.nav-sublink {
+    display: block;
+    padding: 0.3rem 1rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.nav-sublink:hover,
+.nav-sublink.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
 }
 
 @media (max-width: 991.98px) {

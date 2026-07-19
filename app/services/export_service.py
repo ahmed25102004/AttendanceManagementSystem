@@ -16,11 +16,19 @@ class ExportService:
         "القسم",
         "المسمى الوظيفي",
         "تاريخ الحضور",
+        "الشيفت",
+        "بداية الشيفت",
+        "نهاية الشيفت",
         "وقت الحضور",
         "وقت الانصراف",
         "ساعات العمل",
+        "ساعات العمل الإضافي",
+        "دقائق التأخير",
         "الحالة",
-        "متأخر",
+        "عمل في الإجازة",
+        "أيام الغياب",
+        "أيام الإجازة الأسبوعية",
+        "أيام العمل في الإجازة",
     ]
 
     def _status_label(self, status: str) -> str:
@@ -28,6 +36,12 @@ class ExportService:
             return "حاضر"
         if status == "absent":
             return "غائب"
+        if status == "weekly_rest":
+            return "إجازة أسبوعية"
+        if status == "present_on_rest_day":
+            return "حضر في يوم إجازته"
+        if status == "monthly_summary":
+            return "ملخص شهري"
         return status
 
     def export_excel(self, report_title: str, rows: list[ReportRow]) -> BytesIO:
@@ -38,6 +52,7 @@ class ExportService:
         sheet.append(self.headers)
 
         for row in rows:
+            overtime_value = row.total_overtime_hours if row.row_kind == "summary" else row.overtime_hours
             sheet.append(
                 [
                     row.employee_code,
@@ -45,11 +60,19 @@ class ExportService:
                     row.department or "",
                     row.job_title,
                     row.attendance_date,
+                    row.shift_name or "",
+                    row.shift_start_time or "",
+                    row.shift_end_time or "",
                     row.check_in_time or "",
                     row.check_out_time or "",
                     row.working_hours,
+                    overtime_value,
+                    row.late_minutes,
                     self._status_label(row.status),
-                    "نعم" if row.is_late else "لا",
+                    "نعم" if row.worked_on_rest_day else "لا",
+                    row.absent_days_count,
+                    row.weekly_rest_days_count,
+                    row.worked_on_rest_days_count,
                 ]
             )
 
@@ -65,6 +88,7 @@ class ExportService:
 
         table_data = [self.headers]
         for row in rows:
+            overtime_value = row.total_overtime_hours if row.row_kind == "summary" else row.overtime_hours
             table_data.append(
                 [
                     row.employee_code,
@@ -72,11 +96,19 @@ class ExportService:
                     row.department or "",
                     row.job_title,
                     row.attendance_date,
+                    row.shift_name or "",
+                    row.shift_start_time or "",
+                    row.shift_end_time or "",
                     row.check_in_time or "",
                     row.check_out_time or "",
                     f"{row.working_hours:.2f}",
+                    f"{overtime_value:.2f}",
+                    row.late_minutes,
                     self._status_label(row.status),
-                    "نعم" if row.is_late else "لا",
+                    "نعم" if row.worked_on_rest_day else "لا",
+                    row.absent_days_count,
+                    row.weekly_rest_days_count,
+                    row.worked_on_rest_days_count,
                 ]
             )
 

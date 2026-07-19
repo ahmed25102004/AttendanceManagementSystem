@@ -254,7 +254,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (user.role !== "employee") {
-        window.location.href = "/dashboard";
+        window.location.href = "/employees";
         return;
     }
 

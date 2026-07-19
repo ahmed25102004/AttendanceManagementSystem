@@ -1,5 +1,4 @@
 let allLogs = [];
-let currentBranchFilter = "";
 let currentDateFrom = "";
 let currentDateTo = "";
 
@@ -114,18 +113,8 @@ function buildAttendanceSummaries(logs) {
     return Array.from(summaries.values()).sort((a, b) => b.latest_event_time - a.latest_event_time);
 }
 
-async function loadBranches() {
-    const branches = await fetchJSON("/api/branches?all=true");
-    const select = document.getElementById("branchFilter");
-    if (!select) return;
-    select.innerHTML = '<option value="">كل الفروع</option>';
-    branches.forEach((branch) => {
-        select.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
-    });
-}
-
 async function loadAttendanceLogs() {
-    allLogs = await fetchJSON("/api/attendance-logs?all=true");
+    allLogs = await fetchJSON("/api/attendance-logs"); // No all=true, let backend filter by current branch
     // Sort logs by check_time descending (newest at top)
     allLogs.sort((a, b) => new Date(b.check_time) - new Date(a.check_time));
     renderAttendanceLogs();
@@ -139,9 +128,10 @@ function renderAttendanceLogs() {
     // Filter logs
     let filteredLogs = [...allLogs];
     
-    // Branch filter
-    if (currentBranchFilter) {
-        filteredLogs = filteredLogs.filter(log => log.branch_id === Number(currentBranchFilter));
+    // Auto-filter by current branch id (just for redundancy, backend already filters)
+    const currentBranchId = getCurrentBranchId();
+    if (currentBranchId) {
+        filteredLogs = filteredLogs.filter(log => log.branch_id === Number(currentBranchId));
     }
     
     // Date from filter
@@ -267,7 +257,6 @@ function addAttendanceSummaryRow(summary) {
     const sources = Array.from(summary.sources);
 
     row.innerHTML = `
-        <td>${summary.branch_name || "-"}</td>
         <td>${summary.day_name}</td>
         <td>${formatDisplayDate(summary.date_key)}</td>
         <td>${employeeCell}</td>
@@ -286,7 +275,6 @@ function addAttendanceSummaryRow(summary) {
 document.addEventListener("DOMContentLoaded", async () => {
     await hydrateUser();
     try {
-        await loadBranches();
         await loadAttendanceLogs();
         
         // Check if we have WebSocket initialized
@@ -334,11 +322,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         showAlert("attendanceAlert", error.message);
     }
 
-    document.getElementById("branchFilter").addEventListener("change", async (event) => {
-        currentBranchFilter = event.target.value;
-        renderAttendanceLogs();
-    });
-    
     document.getElementById("dateFrom").addEventListener("change", (event) => {
         currentDateFrom = event.target.value;
         renderAttendanceLogs();

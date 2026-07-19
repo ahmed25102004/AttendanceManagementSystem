@@ -14,6 +14,120 @@
                     <input id="departmentName" class="form-control" required>
                 </div>
                 <div class="mb-3">
+                    <label class="form-label">سياسة الحضور</label>
+                    <select id="departmentAttendancePolicy" class="form-select">
+                        <option value="default">سياسة افتراضية (شيفتات + تأخير)</option>
+                        <option value="leather_department">قسم الجلدية (ساعات عمل فقط)</option>
+                        <option value="reception_department">قسم الريسبشن (شيفتات + جدول أسبوعي + إجازة ثابتة)</option>
+                        <option value="doctors_department">الدكاتره (شفت كامل + نصف شفت + اوفر تايم)</option>
+                    </select>
+                </div>
+                
+                <div id="doctorsSettings" class="mb-3" style="display: none;">
+                    <hr class="my-3">
+                    <h6 class="fw-bold mb-3">إعدادات قسم الدكاترة</h6>
+                    
+                    <!-- Basic Shift Settings -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <span class="fw-semibold">إعدادات نصف الشيفت الاول</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label">وقت بداية نصف الشيفت الاول</label>
+                                    <input id="shiftStartTime" type="time" class="form-control">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">وقت نهاية نصف الشيفت الاول</label>
+                                    <input id="shiftEndTime" type="time" class="form-control">
+                                </div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label">عدد ساعات نصف الشيفت الاول</label>
+                                    <input id="shiftHours" type="number" class="form-control" min="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Late & Attendance Settings -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <span class="fw-semibold">إعدادات التأخير والحضور</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <label class="form-label">وقت بداية احتساب التأخير</label>
+                                    <input id="lateStartTime" type="time" class="form-control">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">نهاية فترة تسجيل الحضور</label>
+                                    <input id="attendanceEndTime" type="time" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Overtime Settings -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <span class="fw-semibold">إعدادات العمل الإضافي</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label">وقت بداية العمل الإضافي</label>
+                                    <input id="overtimeStartTime" type="time" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Second Shift (Full Shift) -->
+                    <div class="card mb-3">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">نصف الشيفت الثاني (لإكمال الشفت كامل)</span>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enableEveningShift">
+                                <label class="form-check-label" for="enableEveningShift">تفعيل</label>
+                            </div>
+                        </div>
+                        <div class="card-body" id="eveningShiftSettings" style="display: none;">
+                            <div class="row g-3">
+                                <div class="col-6">
+                                    <label class="form-label">وقت بداية نصف الشيفت الثاني</label>
+                                    <input id="eveningShiftStartTime" type="time" class="form-control">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">وقت نهاية نصف الشيفت الثاني</label>
+                                    <input id="eveningShiftEndTime" type="time" class="form-control">
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-3">
+                                <div class="col-12">
+                                    <label class="form-label">عدد ساعات نصف الشيفت الثاني</label>
+                                    <input id="eveningShiftHours" type="number" class="form-control" min="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Legacy Fields (Hidden) -->
+                    <div style="display: none;">
+                        <input id="halfShiftStartTime" type="time">
+                        <input id="halfShiftEndTime" type="time">
+                        <input id="halfShiftHours" type="number">
+                        <input id="fullShiftStartTime" type="time">
+                        <input id="fullShiftEndTime" type="time">
+                        <input id="fullShiftHours" type="number">
+                        <input id="gracePeriodMinutes" type="number">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
                     <label class="form-label">الوصف</label>
                     <textarea id="departmentDescription" class="form-control" rows="3"></textarea>
                 </div>
@@ -29,6 +143,7 @@
                     <thead>
                         <tr>
                             <th>الاسم</th>
+                            <th>سياسة الحضور</th>
                             <th>الوصف</th>
                             <th>الإجراءات</th>
                         </tr>

@@ -15,6 +15,16 @@ class AttendanceCheckOut(BaseModel):
     employee_id: int
     attendance_date: date | None = None
     check_out_time: datetime | None = None
+    verification_data: dict | None = None
+
+
+class AttendanceManualUpdate(BaseModel):
+    employee_id: int
+    attendance_date: date
+    check_in_time: datetime | None = None
+    check_out_time: datetime | None = None
+    source_type: str = Field(default="manual", max_length=30)
+    notes: str | None = None
 
 
 class SelfAttendanceRequest(BaseModel):
@@ -74,9 +84,16 @@ class AttendanceResponse(BaseModel):
     check_in_time: datetime | None
     check_out_time: datetime | None
     working_hours: float
+    shift_category: str | None = None
+    shift_units: float = 0
+    overtime_hours: float = 0
+    shift_deficit_hours: float = 0
     is_late: bool
+    late_minutes: int = 0
     status: str
     source_type: str
+    is_rest_day: bool = False
+    worked_on_rest_day: bool = False
 
     class Config:
         from_attributes = True

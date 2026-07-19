@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import SessionLocal, engine
 from app.core.security import security_manager
+from app.models.branch import Branch
 from app.models.company_setting import CompanySetting
+from app.models.department import Department
 from app.models.employee import Employee
 from app.models.user import User
 
@@ -133,41 +135,7 @@ def ensure_schema_updates() -> None:
                 )
             """))
 
-        # Create leaves table if not exists
-        if "leaves" not in tables:
-            connection.execute(text("""
-                CREATE TABLE leaves (
-                    id SERIAL PRIMARY KEY,
-                    employee_id INTEGER NOT NULL REFERENCES employees(id),
-                    type VARCHAR(50) NOT NULL,
-                    start_date DATE NOT NULL,
-                    end_date DATE NOT NULL,
-                    reason TEXT,
-                    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-                    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-                )
-            """))
-            connection.execute(text("CREATE INDEX idx_leaves_employee_id ON leaves(employee_id)"))
 
-        # Create tasks table if not exists
-        if "tasks" not in tables:
-            connection.execute(text("""
-                CREATE TABLE tasks (
-                    id SERIAL PRIMARY KEY,
-                    title VARCHAR(255) NOT NULL,
-                    description TEXT,
-                    assigned_to INTEGER NOT NULL REFERENCES employees(id),
-                    created_by INTEGER NOT NULL REFERENCES users(id),
-                    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-                    priority VARCHAR(50) NOT NULL DEFAULT 'medium',
-                    due_date DATE,
-                    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-                )
-            """))
-            connection.execute(text("CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to)"))
-            connection.execute(text("CREATE INDEX idx_tasks_created_by ON tasks(created_by)"))
 
         # Create notifications table if not exists
         if "notifications" not in tables:
@@ -204,9 +172,20 @@ def ensure_schema_updates() -> None:
                 connection.execute(text("ALTER TABLE users ADD COLUMN employee_id INTEGER"))
 
         if "departments" in tables:
-            dept_columns = {column["name"] for column in inspect(engine).get_columns("departments")}
-            if "branch_id" not in dept_columns:
-                connection.execute(text("ALTER TABLE departments ADD COLUMN branch_id INTEGER"))
+            connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS branch_id INTEGER"))
+            connection.execute(
+                text(
+                    "ALTER TABLE departments "
+                    "ADD COLUMN IF NOT EXISTS attendance_policy VARCHAR(50) NOT NULL DEFAULT 'default'"
+                )
+            )
+            connection.execute(
+                text(
+                    "UPDATE departments SET attendance_policy = 'default' "
+                    "WHERE attendance_policy IS NULL OR attendance_policy = ''"
+                )
+            )
+
             # Update unique constraint from name to name + branch_id
             try:
                 connection.execute(text("ALTER TABLE departments DROP CONSTRAINT IF EXISTS departments_name_key"))
@@ -258,10 +237,9 @@ def ensure_schema_updates() -> None:
                 "face_descriptor": "ALTER TABLE employees ADD COLUMN face_descriptor JSON",
                 "face_registered_at": "ALTER TABLE employees ADD COLUMN face_registered_at TIMESTAMP",
                 "face_verification_enabled": "ALTER TABLE employees ADD COLUMN face_verification_enabled BOOLEAN NOT NULL DEFAULT TRUE",
-                "annual_leave_balance": "ALTER TABLE employees ADD COLUMN annual_leave_balance INTEGER NOT NULL DEFAULT 20",
-                "sick_leave_balance": "ALTER TABLE employees ADD COLUMN sick_leave_balance INTEGER NOT NULL DEFAULT 10",
                 "employment_type": "ALTER TABLE employees ADD COLUMN employment_type VARCHAR(50) NOT NULL DEFAULT 'full_time'",
                 "shift_id": "ALTER TABLE employees ADD COLUMN shift_id INTEGER",
+                "weekly_rest_day": "ALTER TABLE employees ADD COLUMN weekly_rest_day VARCHAR(20)",
             }
             for column_name, statement in statements.items():
                 if column_name not in employee_columns:
@@ -269,6 +247,141 @@ def ensure_schema_updates() -> None:
                         connection.execute(text(statement))
                     except:
                         pass
+
+        # Create employee_shift_schedules table if not exists
+        if "employee_shift_schedules" not in tables:
+            connection.execute(text("""
+                CREATE TABLE employee_shift_schedules (
+                    id SERIAL PRIMARY KEY,
+                    employee_id INTEGER NOT NULL REFERENCES employees(id),
+                    day_of_week VARCHAR(20) NOT NULL,
+                    shift_type VARCHAR(50) NOT NULL,
+                    shift_id INTEGER REFERENCES shifts(id)
+                )
+            """))
+            connection.execute(text("CREATE INDEX idx_employee_shift_schedules_employee_id ON employee_shift_schedules(employee_id)"))
+
+        if "attendance_records" in tables:
+            attendance_columns = {column["name"] for column in inspect(engine).get_columns("attendance_records")}
+            attendance_statements = {
+                "late_minutes": "ALTER TABLE attendance_records ADD COLUMN late_minutes INTEGER NOT NULL DEFAULT 0",
+                "is_rest_day": "ALTER TABLE attendance_records ADD COLUMN is_rest_day BOOLEAN NOT NULL DEFAULT FALSE",
+                "worked_on_rest_day": "ALTER TABLE attendance_records ADD COLUMN worked_on_rest_day BOOLEAN NOT NULL DEFAULT FALSE",
+            }
+            for col_name, col_stmt in attendance_statements.items():
+                if col_name not in attendance_columns:
+                    try:
+                        connection.execute(text(col_stmt))
+                    except:
+                        pass
+
+
+def ensure_departments_schema_compatibility() -> None:
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        if "departments" not in inspector.get_table_names():
+            return
+
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS branch_id INTEGER"))
+        connection.execute(
+            text(
+                "ALTER TABLE departments "
+                "ADD COLUMN IF NOT EXISTS attendance_policy VARCHAR(50) NOT NULL DEFAULT 'default'"
+            )
+        )
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE"))
+        connection.execute(
+            text(
+                "UPDATE departments SET attendance_policy = 'default' "
+                "WHERE attendance_policy IS NULL OR attendance_policy = ''"
+            )
+        )
+        
+        # Add old fields for doctors department shift settings (backward compatibility)
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS half_shift_start_time TIME DEFAULT '08:00:00'"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS half_shift_end_time TIME DEFAULT '15:00:00'"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS half_shift_hours INTEGER DEFAULT 7"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS full_shift_start_time TIME DEFAULT '08:00:00'"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS full_shift_end_time TIME DEFAULT '22:00:00'"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS full_shift_hours INTEGER DEFAULT 14"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS overtime_start_time TIME DEFAULT '15:00:00'"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS grace_period_minutes INTEGER DEFAULT 30"))
+        
+        # Add NEW fields for doctors department shift settings
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS shift_start_time TIME DEFAULT '08:00:00'"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS shift_end_time TIME DEFAULT '15:00:00'"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS shift_hours INTEGER DEFAULT 7"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS late_start_time TIME DEFAULT '08:30:00'"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS attendance_end_time TIME DEFAULT '11:00:00'"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS evening_shift_start_time TIME"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS evening_shift_end_time TIME"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS evening_shift_hours INTEGER"))
+
+
+def ensure_employees_schema_compatibility() -> None:
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        if "employees" not in inspector.get_table_names():
+            return
+
+        compatibility_statements = [
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS branch_id INTEGER",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_images JSON",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_descriptor JSON",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_registered_at TIMESTAMP",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS face_verification_enabled BOOLEAN NOT NULL DEFAULT TRUE",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS employment_type VARCHAR(50) NOT NULL DEFAULT 'full_time'",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS shift_id INTEGER",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS weekly_rest_day VARCHAR(20)",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS annual_leave_balance INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS sick_leave_balance INTEGER NOT NULL DEFAULT 0",
+        ]
+        for statement in compatibility_statements:
+            connection.execute(text(statement))
+
+
+def ensure_shifts_schema_compatibility() -> None:
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        if "shifts" not in inspector.get_table_names():
+            return
+
+        compatibility_statements = [
+            "ALTER TABLE shifts ADD COLUMN IF NOT EXISTS branch_id INTEGER",
+        ]
+        for statement in compatibility_statements:
+            connection.execute(text(statement))
+        
+        # Drop old unique constraint on name
+        try:
+            connection.execute(text("ALTER TABLE shifts DROP CONSTRAINT IF EXISTS shifts_name_key"))
+        except:
+            pass
+        
+        # Add new unique constraint on (branch_id, name)
+        try:
+            connection.execute(text("ALTER TABLE shifts ADD CONSTRAINT uq_branch_shift_name UNIQUE (branch_id, name)"))
+        except:
+            pass
+
+
+def ensure_attendance_records_schema_compatibility() -> None:
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        if "attendance_records" not in inspector.get_table_names():
+            return
+
+        compatibility_statements = [
+            "ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS late_minutes INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS is_rest_day BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS worked_on_rest_day BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS shift_category VARCHAR(30)",
+            "ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS shift_units DOUBLE PRECISION NOT NULL DEFAULT 0",
+            "ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS overtime_hours REAL NOT NULL DEFAULT 0.0",
+            "ALTER TABLE attendance_records ADD COLUMN IF NOT EXISTS shift_deficit_hours REAL NOT NULL DEFAULT 0.0",
+        ]
+        for statement in compatibility_statements:
+            connection.execute(text(statement))
 
 
 def _sync_employee_user(db: Session, employee: Employee) -> None:
@@ -293,13 +406,28 @@ def _sync_employee_user(db: Session, employee: Employee) -> None:
 
 def bootstrap_defaults() -> None:
     ensure_schema_updates()
+    ensure_departments_schema_compatibility()
+    ensure_employees_schema_compatibility()
+    ensure_shifts_schema_compatibility()
+    ensure_attendance_records_schema_compatibility()
     db: Session = SessionLocal()
     try:
         company_settings = db.query(CompanySetting).first()
         if not company_settings:
             company_settings = CompanySetting(company_name=settings.company_name)
             db.add(company_settings)
-
+        
+        # Create default branches
+        branch1 = db.query(Branch).filter(Branch.name == "فرع المسله").first()
+        if not branch1:
+            branch1 = Branch(name="فرع المسله")
+            db.add(branch1)
+        branch2 = db.query(Branch).filter(Branch.name == "فرع بني سويف").first()
+        if not branch2:
+            branch2 = Branch(name="فرع بني سويف")
+            db.add(branch2)
+        db.flush()
+        
         admin = db.query(User).filter(User.username == settings.admin_username).first()
         if not admin:
             admin = User(
@@ -310,7 +438,111 @@ def bootstrap_defaults() -> None:
                 is_active=True,
             )
             db.add(admin)
-
+        
+        from app.models.shift import Shift
+        from datetime import time
+        
+        # First, delete any "الدكاتره" departments that are NOT in "فرع المسله"
+        mosque_branch = db.query(Branch).filter(Branch.name == "فرع المسله").first()
+        if mosque_branch:
+            extra_doctors_depts = db.query(Department).filter(
+                Department.name == "الدكاتره",
+                Department.branch_id != mosque_branch.id
+            ).all()
+            for dept in extra_doctors_depts:
+                db.delete(dept)
+        
+        # For each branch, create default departments and shifts
+        branches = db.query(Branch).all()
+        for branch in branches:
+            # Create Leather Department for this branch if it doesn't exist
+            leather_dept = db.query(Department).filter(
+                Department.name == "قسم الجلدية",
+                Department.branch_id == branch.id
+            ).first()
+            if not leather_dept:
+                leather_dept = Department(
+                    name="قسم الجلدية",
+                    description="قسم الجلدية - نظام ساعات عمل فقط بدون شيفتات أو تأخير",
+                    attendance_policy="leather_department",
+                    branch_id=branch.id
+                )
+                db.add(leather_dept)
+                
+            # Create Reception Department for this branch if it doesn't exist
+            reception_dept = db.query(Department).filter(
+                Department.name == "قسم الريسبشن",
+                Department.branch_id == branch.id
+            ).first()
+            if not reception_dept:
+                reception_dept = Department(
+                    name="قسم الريسبشن",
+                    description="قسم الريسبشن - نظام شيفتات وإجازة أسبوعية",
+                    attendance_policy="reception_department",
+                    branch_id=branch.id
+                )
+                db.add(reception_dept)
+                
+            # Create Doctors Department ONLY for "فرع المسله" if it doesn't exist
+            from datetime import time
+            if branch.name == "فرع المسله":
+                doctors_dept = db.query(Department).filter(
+                    Department.name == "الدكاتره",
+                    Department.branch_id == branch.id
+                ).first()
+                if not doctors_dept:
+                    doctors_dept = Department(
+                        name="الدكاتره",
+                        description="قسم الدكاتره - نظام شفت كامل ونصف شفت مع اوفر تايم",
+                        attendance_policy="doctors_department",
+                        branch_id=branch.id,
+                        # New fields
+                        shift_start_time=time(8, 0),
+                        shift_end_time=time(15, 0),
+                        shift_hours=7,
+                        late_start_time=time(8, 30),
+                        attendance_end_time=time(11, 0),
+                        overtime_start_time=time(15, 0),
+                        # Old fields (backward compatibility)
+                        half_shift_start_time=time(8, 0),
+                        half_shift_end_time=time(15, 0),
+                        half_shift_hours=7,
+                        full_shift_start_time=time(8, 0),
+                        full_shift_end_time=time(22, 0),
+                        full_shift_hours=14,
+                        grace_period_minutes=30
+                    )
+                    db.add(doctors_dept)
+                
+            # Create default shifts for this branch if they don't exist
+            morning_shift = db.query(Shift).filter(
+                Shift.name == "صباحي",
+                Shift.branch_id == branch.id
+            ).first()
+            if not morning_shift:
+                morning_shift = Shift(
+                    name="صباحي",
+                    start_time=time(7, 30),
+                    end_time=time(14, 30),
+                    grace_period_minutes=15,
+                    branch_id=branch.id
+                )
+                db.add(morning_shift)
+                
+            evening_shift = db.query(Shift).filter(
+                Shift.name == "مسائي",
+                Shift.branch_id == branch.id
+            ).first()
+            if not evening_shift:
+                evening_shift = Shift(
+                    name="مسائي",
+                    start_time=time(14, 0),
+                    end_time=time(21, 30),
+                    grace_period_minutes=15,
+                    branch_id=branch.id
+                )
+                db.add(evening_shift)
+                
         employees = db.query(Employee).all()
         for employee in employees:
             _sync_employee_user(db, employee)

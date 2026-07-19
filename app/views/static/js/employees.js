@@ -2,6 +2,7 @@
 const employeeCache = new Map();
 const departmentCache = new Map();
 const branchCache = new Map();
+const shiftCache = new Map();
 let selectedEmployeeId = null;
 let allEmployees = [];
 let currentView = "table"; // "table" or "card"
@@ -22,37 +23,11 @@ function showAlert(alertId, message, type = "danger") {
 
 async function loadBranches() {
   const branches = await fetchJSON("/api/branches?all=true");
-  const selectEl = document.getElementById("employee_branch_id");
-  const filterSelectEl = document.getElementById("filterBranch");
-  if (selectEl) {
-    selectEl.innerHTML = '<option value="">-- اختر الفرع --</option>';
-  }
-  if (filterSelectEl) {
-    filterSelectEl.innerHTML = '<option value="">كل الفروع</option>';
-  }
   branchCache.clear();
 
   branches.forEach((branch) => {
     branchCache.set(branch.id, branch);
-    if (selectEl) {
-      const option = document.createElement("option");
-      option.value = branch.id;
-      option.textContent = branch.name;
-      selectEl.appendChild(option);
-    }
-    if (filterSelectEl) {
-      const option = document.createElement("option");
-      option.value = branch.id;
-      option.textContent = branch.name;
-      filterSelectEl.appendChild(option);
-    }
   });
-  
-  // Auto-select current branch
-  const currentBranchId = getCurrentBranchId();
-  if (currentBranchId && branchCache.has(parseInt(currentBranchId)) && selectEl) {
-    selectEl.value = currentBranchId;
-  }
 }
 
 async function loadDepartments() {
@@ -84,6 +59,22 @@ async function loadDepartments() {
   });
 }
 
+async function loadShifts() {
+  const shifts = await fetchJSON("/api/shifts");
+  const selectEl = document.getElementById("shift_id");
+  if (!selectEl) return;
+  selectEl.innerHTML = '<option value="">-- بدون وردية افتراضية --</option>';
+  shiftCache.clear();
+
+  shifts.forEach((shift) => {
+    shiftCache.set(shift.id, shift);
+    const option = document.createElement("option");
+    option.value = shift.id;
+    option.textContent = `${shift.name} (${shift.start_time} - ${shift.end_time})`;
+    selectEl.appendChild(option);
+  });
+}
+
 async function loadEmployees() {
         allEmployees = await fetchJSON("/api/employees?all=true");
         employeeCache.clear();
@@ -92,8 +83,8 @@ async function loadEmployees() {
 }
 
 function renderEmployees() {
+  const currentBranchId = getCurrentBranchId(); // Auto filter by current branch
   const searchTerm = (document.getElementById("employeeSearch").value || "").toLowerCase();
-  const filterBranch = document.getElementById("filterBranch").value;
   const filterDepartment = document.getElementById("filterDepartment").value;
   const filterEmploymentType = document.getElementById("filterEmploymentType").value;
   const filterActiveStatus = document.getElementById("filterActiveStatus").value;
@@ -103,9 +94,11 @@ function renderEmployees() {
     (emp.employee_code && emp.employee_code.toLowerCase().includes(searchTerm))
   );
   
-  if (filterBranch) {
-    filteredEmployees = filteredEmployees.filter(emp => emp.branch_id === Number(filterBranch));
+  // Auto-filter by current branch
+  if (currentBranchId) {
+    filteredEmployees = filteredEmployees.filter(emp => emp.branch_id === Number(currentBranchId));
   }
+  
   if (filterDepartment) {
     filteredEmployees = filteredEmployees.filter(emp => emp.department_id === Number(filterDepartment));
   }
@@ -135,7 +128,7 @@ function renderTableView(employees) {
 
   employees.forEach((employee) => {
     const dept = employee.department_id ? departmentCache.get(employee.department_id) : null;
-    const branch = employee.branch_id ? branchCache.get(employee.branch_id) : null;
+    const shift = employee.shift_id ? shiftCache.get(employee.shift_id) : null;
     const statusBadge = employee.is_active 
       ? '<span class="badge bg-success">نشط</span>' 
       : '<span class="badge bg-secondary">غير نشط</span>';
@@ -143,12 +136,13 @@ function renderTableView(employees) {
       <tr>
         <td>${employee.employee_code}</td>
         <td>${employee.full_name}</td>
-        <td>${branch ? branch.name : "-"}</td>
         <td>${dept ? dept.name : "-"}</td>
         <td>${employee.phone || "-"}</td>
         <td>${employee.hire_date}</td>
         <td>${employee.job_title}</td>
         <td>${employmentTypeLabels[employee.employment_type] || employee.employment_type}</td>
+        <td>${shift ? shift.name : "-"}</td>
+        <td>${employee.weekly_rest_day || "-"}</td>
         <td>${statusBadge}</td>
         <td>
           <button class="btn btn-sm btn-outline-success ms-2" onclick="window.location.href='/employees/${employee.id}'">ملف الموظف</button>
@@ -175,7 +169,7 @@ function renderCardView(employees) {
 
   employees.forEach((employee) => {
     const dept = employee.department_id ? departmentCache.get(employee.department_id) : null;
-    const branch = employee.branch_id ? branchCache.get(employee.branch_id) : null;
+    const shift = employee.shift_id ? shiftCache.get(employee.shift_id) : null;
     const statusBadge = employee.is_active 
       ? '<span class="badge bg-success">نشط</span>' 
       : '<span class="badge bg-secondary">غير نشط</span>';
@@ -189,9 +183,6 @@ function renderCardView(employees) {
             </div>
             <h6 class="card-subtitle text-muted mb-3">${employee.employee_code}</h6>
             <div class="mb-2">
-              <i class="bi bi-buildings"></i> <span class="text-muted">الفرع:</span> ${branch ? branch.name : "-"}
-            </div>
-            <div class="mb-2">
               <i class="bi bi-door-open"></i> <span class="text-muted">القسم:</span> ${dept ? dept.name : "-"}
             </div>
             <div class="mb-2">
@@ -199,6 +190,12 @@ function renderCardView(employees) {
             </div>
             <div class="mb-3">
               <i class="bi bi-clock"></i> <span class="text-muted">التوظيف:</span> ${employmentTypeLabels[employee.employment_type] || employee.employment_type}
+            </div>
+            <div class="mb-2">
+              <i class="bi bi-calendar2-week"></i> <span class="text-muted">الوردية:</span> ${shift ? shift.name : "-"}
+            </div>
+            <div class="mb-3">
+              <i class="bi bi-calendar-day"></i> <span class="text-muted">الإجازة الأسبوعية:</span> ${employee.weekly_rest_day || "-"}
             </div>
             <div class="d-flex gap-2">
               <button class="btn btn-sm btn-outline-success flex-grow-1" onclick="window.location.href='/employees/${employee.id}'">ملف الموظف</button>
@@ -259,7 +256,8 @@ function resetEmployeeForm() {
   if (form) form.reset();
   el("employeeId").value = "";
   el("department_id").value = "";
-  el("employee_branch_id").value = "";
+  el("shift_id").value = "";
+  el("weekly_rest_day").value = "";
 }
 
 function editEmployee(employeeId) {
@@ -277,8 +275,9 @@ function editEmployee(employeeId) {
   el("job_title").value = employee.job_title;
   el("hire_date").value = employee.hire_date;
   el("department_id").value = employee.department_id || "";
-  el("employee_branch_id").value = employee.branch_id || "";
   el("employment_type").value = employee.employment_type || "full_time";
+  el("shift_id").value = employee.shift_id || "";
+  el("weekly_rest_day").value = employee.weekly_rest_day || "";
 }
 
 async function deleteEmployee(employeeId) {
@@ -307,6 +306,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
         await loadBranches();
         await loadDepartments();
+        await loadShifts();
         await loadEmployees();
     } catch (error) {
         showAlert("employeeAlert", error.message);
@@ -314,9 +314,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Search and filters handling
     document.getElementById("employeeSearch").addEventListener("input", () => {
-      renderEmployees();
-    });
-    document.getElementById("filterBranch").addEventListener("change", () => {
       renderEmployees();
     });
     document.getElementById("filterDepartment").addEventListener("change", () => {
@@ -351,6 +348,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           event.preventDefault();
           const employeeId = el("employeeId").value;
 
+          const currentBranchId = getCurrentBranchId();
           const payload = {
                   employee_code: el("employee_code").value.trim(),
                   full_name: el("full_name").value.trim(),
@@ -360,8 +358,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                   job_title: el("job_title").value.trim(),
                   hire_date: el("hire_date").value,
                   department_id: el("department_id").value ? parseInt(el("department_id").value, 10) : null,
-                  branch_id: el("employee_branch_id").value ? parseInt(el("employee_branch_id").value, 10) : null,
+                  branch_id: currentBranchId ? parseInt(currentBranchId, 10) : null, // Auto-set to current branch
                   employment_type: el("employment_type").value || "full_time",
+                  shift_id: el("shift_id").value ? parseInt(el("shift_id").value, 10) : null,
+                  weekly_rest_day: el("weekly_rest_day").value || null,
               };
 
           const method = employeeId ? "PUT" : "POST";
@@ -413,4 +413,3 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
 });
-

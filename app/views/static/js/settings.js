@@ -1,8 +1,10 @@
 document.addEventListener("DOMContentLoaded", async () => {
     // requireAuth();
     await hydrateUser();
+    await loadBranchSelector();
 
     let currentSettings = null;
+    let currentBranch = null;
 
     async function loadSettings() {
         currentSettings = await fetchJSON("/api/settings");
@@ -21,8 +23,54 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
+    async function loadBranchSettings() {
+        const branchId = getCurrentBranchId();
+        if (!branchId) return;
+        try {
+            // Fetch all branches and find our current one
+            const branches = await fetchJSON("/api/branches?all=true");
+            currentBranch = branches.find(b => String(b.id) === String(branchId));
+            if (currentBranch) {
+                el("branch_check_in_open_time").value = currentBranch.check_in_open_time.substring(0, 5);
+                el("branch_check_in_close_time").value = currentBranch.check_in_close_time.substring(0, 5);
+                el("branch_check_out_open_time").value = currentBranch.check_out_open_time.substring(0, 5);
+                el("branch_check_out_close_time").value = currentBranch.check_out_close_time.substring(0, 5);
+                el("branch_allowed_late_minutes").value = currentBranch.allowed_late_minutes;
+            }
+        } catch (error) {
+            console.error("Error loading branch settings:", error);
+        }
+    }
+
+    async function saveBranchSettings(event) {
+        event.preventDefault();
+        const branchId = getCurrentBranchId();
+        if (!branchId) return;
+        
+        const payload = {
+            check_in_open_time: el("branch_check_in_open_time").value + ":00",
+            check_in_close_time: el("branch_check_in_close_time").value + ":00",
+            check_out_open_time: el("branch_check_out_open_time").value + ":00",
+            check_out_close_time: el("branch_check_out_close_time").value + ":00",
+            allowed_late_minutes: Number(el("branch_allowed_late_minutes").value),
+        };
+
+        try {
+            await fetchJSON(`/api/branches/${branchId}`, {
+                method: "PUT",
+                body: JSON.stringify(payload),
+            });
+            await loadBranchSettings();
+            showAlert("settingsAlert", "تم تحديث إعدادات الفرع بنجاح.", "success");
+        } catch (error) {
+            console.error("Error updating branch settings:", error);
+            showAlert("settingsAlert", error.message);
+        }
+    }
+
     try {
         await loadSettings();
+        await loadBranchSettings();
     } catch (error) {
         showAlert("settingsAlert", error.message);
     }
@@ -76,4 +124,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             showAlert("settingsAlert", error.message);
         }
     });
+
+    el("branchSettingsForm").addEventListener("submit", saveBranchSettings);
 });

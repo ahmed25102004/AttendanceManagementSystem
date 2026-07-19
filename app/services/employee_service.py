@@ -13,6 +13,7 @@ from app.models.attendance_log import AttendanceLog
 from app.models.branch import Branch
 from app.models.department import Department
 from app.models.employee import Employee
+from app.models.employee_shift_schedule import EmployeeShiftSchedule
 from app.models.shift import Shift
 from app.models.user import User
 from app.schemas.employee import (
@@ -21,14 +22,21 @@ from app.schemas.employee import (
     EmployeeUpdate, 
     EmployeeProfileResponse, 
     AttendanceLogEntry,
+    EmployeeShiftScheduleEntry,
+    EmployeeShiftScheduleResponse,
+    EmployeeShiftScheduleUpdate,
     EmployeeStatsResponse
 )
 from app.services.biometric_service import FaceRecognitionMatcher
+from app.services.reception_service import ReceptionService
 
 
 class EmployeeService:
+    DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
     def __init__(self) -> None:
         self.face_matcher = FaceRecognitionMatcher()
+        self.reception_service = ReceptionService()
 
     def _normalize_role(self, role: str | None) -> str:
         normalized_role = (role or "employee").strip().lower()
@@ -50,6 +58,46 @@ class EmployeeService:
 
     def _compose_full_name(self, first_name: str, last_name: str | None) -> str:
         return " ".join(part.strip() for part in [first_name, last_name or ""] if part and part.strip())
+
+    def _normalize_weekly_rest_day(self, weekly_rest_day: str | None) -> str | None:
+        if weekly_rest_day is None:
+            return None
+        normalized = weekly_rest_day.strip().lower()
+        if not normalized:
+            return None
+        if normalized not in self.DAY_NAMES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="يوم الإجازة الأسبوعية غير صالح.",
+            )
+        return normalized
+
+    def _employee_query(self, db: Session):
+        return db.query(Employee).options(
+            joinedload(Employee.department),
+            joinedload(Employee.shift),
+            joinedload(Employee.shift_schedules).joinedload(EmployeeShiftSchedule.shift),
+            joinedload(Employee.user),
+        )
+
+    def _schedule_entry_to_response(self, entry: EmployeeShiftSchedule) -> EmployeeShiftScheduleEntry:
+        return EmployeeShiftScheduleEntry(
+            day_of_week=entry.day_of_week,
+            shift_type=entry.shift_type,
+            shift_id=entry.shift_id,
+            shift_name=entry.shift.name if entry.shift else None,
+            start_time=entry.shift.start_time.strftime("%H:%M") if entry.shift and entry.shift.start_time else None,
+            end_time=entry.shift.end_time.strftime("%H:%M") if entry.shift and entry.shift.end_time else None,
+            grace_period_minutes=entry.shift.grace_period_minutes if entry.shift else None,
+        )
+
+    def _validate_shift(self, db: Session, shift_id: int | None) -> Shift | None:
+        if shift_id is None:
+            return None
+        shift = db.query(Shift).filter(Shift.id == shift_id).first()
+        if not shift:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الوردية غير موجودة.")
+        return shift
 
 
 
@@ -119,12 +167,14 @@ class EmployeeService:
             department_id=employee.department_id,
             branch_id=employee.branch_id,
             employment_type=employee.employment_type,
-            annual_leave_balance=employee.annual_leave_balance,
-            sick_leave_balance=employee.sick_leave_balance,
+            shift_id=employee.shift_id,
+            weekly_rest_day=employee.weekly_rest_day,
+            shift_name=employee.shift.name if employee.shift else None,
+            is_active=employee.is_active,
         )
 
     def list(self, db: Session, search: str | None = None, branch_id: int | None = None, department_id: int | None = None, is_active: bool | None = None, employment_type: str | None = None) -> list[EmployeeResponse]:
-        query = db.query(Employee).options(joinedload(Employee.department))
+        query = self._employee_query(db)
         if branch_id:
             query = query.filter(Employee.branch_id == branch_id)
         if department_id:
@@ -175,9 +225,10 @@ class EmployeeService:
             department_id=payload.department_id,
             employment_type=payload.employment_type,
             branch_id=final_branch_id,
-            annual_leave_balance=payload.annual_leave_balance,
-            sick_leave_balance=payload.sick_leave_balance,
+            shift_id=payload.shift_id,
+            weekly_rest_day=self._normalize_weekly_rest_day(payload.weekly_rest_day),
         )
+        self._validate_shift(db, payload.shift_id)
         db.add(employee)
         db.flush()
         # Now we have employee.id, update email
@@ -189,9 +240,7 @@ class EmployeeService:
         )
         db.commit()
         db.refresh(employee)
-        employee = (
-            db.query(Employee).filter(Employee.id == employee.id).first()
-        )
+        employee = self._employee_query(db).filter(Employee.id == employee.id).first()
         return self._to_response(employee)
 
     def update(self, db: Session, employee_id: int, payload: EmployeeUpdate, branch_id: int | None = None) -> EmployeeResponse:
@@ -222,8 +271,9 @@ class EmployeeService:
         employee.department_id = payload.department_id
         employee.branch_id = payload.branch_id or branch_id
         employee.employment_type = payload.employment_type
-        employee.annual_leave_balance = payload.annual_leave_balance
-        employee.sick_leave_balance = payload.sick_leave_balance
+        employee.shift_id = payload.shift_id
+        employee.weekly_rest_day = self._normalize_weekly_rest_day(payload.weekly_rest_day)
+        self._validate_shift(db, payload.shift_id)
 
         self._sync_employee_user(
             db,
@@ -232,9 +282,7 @@ class EmployeeService:
         )
         db.commit()
         db.refresh(employee)
-        employee = (
-            db.query(Employee).filter(Employee.id == employee.id).first()
-        )
+        employee = self._employee_query(db).filter(Employee.id == employee.id).first()
         return self._to_response(employee)
 
     def delete(self, db: Session, employee_id: int, branch_id: int | None = None) -> None:
@@ -259,10 +307,8 @@ class EmployeeService:
             ) from exc
 
     def get_profile(self, db: Session, employee_id: int, branch_id: int | None = None) -> EmployeeProfileResponse:
-        query = db.query(Employee).options(
+        query = self._employee_query(db).options(
             joinedload(Employee.branch),
-            joinedload(Employee.department),
-            joinedload(Employee.shift)
         ).filter(Employee.id == employee_id)
         if branch_id:
             query = query.filter(Employee.branch_id == branch_id)
@@ -284,14 +330,86 @@ class EmployeeService:
             department_id=employee.department_id,
             branch_id=employee.branch_id,
             employment_type=employee.employment_type,
-            annual_leave_balance=employee.annual_leave_balance,
-            sick_leave_balance=employee.sick_leave_balance,
+            shift_id=employee.shift_id,
+            weekly_rest_day=employee.weekly_rest_day,
             branch_name=employee.branch.name if employee.branch else None,
             department_name=employee.department.name if employee.department else None,
             shift_name=employee.shift.name if employee.shift else None,
             face_enrolled=bool(employee.face_descriptor is not None),
             is_active=employee.is_active,
         )
+
+    def get_shift_schedule(
+        self,
+        db: Session,
+        employee_id: int,
+        branch_id: int | None = None,
+    ) -> EmployeeShiftScheduleResponse:
+        query = self._employee_query(db).filter(Employee.id == employee_id)
+        if branch_id:
+            query = query.filter(Employee.branch_id == branch_id)
+        employee = query.first()
+        if not employee:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الموظف غير موجود.")
+
+        schedules = sorted(
+            employee.shift_schedules,
+            key=lambda item: self.DAY_NAMES.index(item.day_of_week.strip().lower()),
+        )
+        return EmployeeShiftScheduleResponse(
+            employee_id=employee.id,
+            shift_id=employee.shift_id,
+            shift_name=employee.shift.name if employee.shift else None,
+            weekly_rest_day=employee.weekly_rest_day,
+            schedules=[self._schedule_entry_to_response(entry) for entry in schedules],
+        )
+
+    def update_shift_schedule(
+        self,
+        db: Session,
+        employee_id: int,
+        payload: EmployeeShiftScheduleUpdate,
+        branch_id: int | None = None,
+    ) -> EmployeeShiftScheduleResponse:
+        query = self._employee_query(db).filter(Employee.id == employee_id)
+        if branch_id:
+            query = query.filter(Employee.branch_id == branch_id)
+        employee = query.first()
+        if not employee:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الموظف غير موجود.")
+
+        self._validate_shift(db, payload.shift_id)
+        employee.shift_id = payload.shift_id
+        employee.weekly_rest_day = self._normalize_weekly_rest_day(payload.weekly_rest_day)
+
+        existing_by_day = {item.day_of_week.strip().lower(): item for item in employee.shift_schedules}
+        incoming_days: set[str] = set()
+
+        for item in payload.schedules:
+            normalized_day = item.day_of_week.strip().lower()
+            if normalized_day not in self.DAY_NAMES:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="اليوم المحدد في جدول الشيفت غير صالح.")
+
+            self._validate_shift(db, item.shift_id)
+            incoming_days.add(normalized_day)
+            schedule = existing_by_day.get(normalized_day)
+            if not schedule:
+                schedule = EmployeeShiftSchedule(
+                    employee_id=employee.id,
+                    day_of_week=normalized_day,
+                )
+                db.add(schedule)
+                employee.shift_schedules.append(schedule)
+
+            schedule.shift_type = item.shift_type.strip().lower()
+            schedule.shift_id = item.shift_id
+
+        for day_name, schedule in list(existing_by_day.items()):
+            if day_name not in incoming_days:
+                db.delete(schedule)
+
+        db.commit()
+        return self.get_shift_schedule(db, employee_id, branch_id)
 
     def get_attendance_logs(
         self, 
@@ -337,6 +455,41 @@ class EmployeeService:
             start_date = date.today() - timedelta(days=30)
         if not end_date:
             end_date = date.today()
+
+        employee = self._employee_query(db).filter(Employee.id == employee_id).first()
+        if not employee:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الموظف غير موجود.")
+        if branch_id and employee.branch_id != branch_id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الموظف غير موجود.")
+
+        if self.reception_service.is_reception_department(employee.department) or self.reception_service.is_leather_department(employee.department):
+            rows = [
+                row
+                for row in self.reception_service.build_report_rows(
+                    db,
+                    employee.department_id,
+                    start_date,
+                    end_date,
+                    branch_id,
+                )
+                if row.employee_code == employee.employee_code
+            ]
+            total_hours = sum(row.working_hours for row in rows)
+            present_days = len([row for row in rows if row.status in {"present", "present_on_rest_day"}])
+            absent_days = len([row for row in rows if row.status == "absent"])
+            late_days = len([row for row in rows if row.late_minutes > 0])
+            total_days = (end_date - start_date).days + 1
+            attendance_rate = (present_days / total_days * 100) if total_days > 0 else 0.0
+
+            return EmployeeStatsResponse(
+                total_hours=round(total_hours, 2),
+                overtime_hours=0.0,
+                attendance_rate=round(attendance_rate, 2),
+                present_days=present_days,
+                absent_days=absent_days,
+                late_days=late_days,
+                early_leave_days=0,
+            )
 
         # Get attendance logs
         logs_query = db.query(AttendanceLog).filter(

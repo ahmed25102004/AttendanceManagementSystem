@@ -3,18 +3,30 @@
 <div class="d-lg-flex main-wrapper">
     <aside class="sidebar p-3">
         <div class="text-white mb-4">
+            <button class="btn btn-outline-light btn-sm mb-3" onclick="window.location.href='/'">
+                <i class="bi bi-arrow-left-circle me-1"></i>الرجوع لاختيار الفرع
+            </button>
             <h4 class="mb-1">نظام الحضور</h4>
-            <small class="text-white-50">نظام مخصص لمركز واحد</small>
+            <small class="text-white-50"><span id="sidebarBranchName"></span></small>
         </div>
         <nav class="nav flex-column">
-            <a class="nav-link {% if page == 'dashboard' %}active{% endif %}" href="/dashboard">لوحة التحكم</a>
-            <a class="nav-link {% if page == 'multi-branch-dashboard' %}active{% endif %}" href="/multi-branch-dashboard">لوحة الفروع</a>
-            <a class="nav-link {% if page == 'branches' %}active{% endif %}" href="/branches">الفروع</a>
-            <a class="nav-link {% if page == 'departments' %}active{% endif %}" href="/departments">الأقسام</a>
+            <div class="sidebar-group">
+                <button
+                    type="button"
+                    class="nav-link nav-toggle {% if page == 'departments' %}active{% endif %}"
+                    id="departmentsNavToggle"
+                    aria-expanded="false"
+                    aria-controls="departmentsNavContainer"
+                >
+                    <span>إدارة الأقسام</span>
+                    <span class="nav-toggle-icon" aria-hidden="true"></span>
+                </button>
+                <div id="departmentsNavContainer" class="nav-submenu" hidden>
+                    <div id="departmentsNav" class="nav flex-column"></div>
+                </div>
+            </div>
             <a class="nav-link {% if page == 'employees' %}active{% endif %}" href="/employees">الموظفين</a>
             <a class="nav-link {% if page == 'devices' %}active{% endif %}" href="/devices">الأجهزة</a>
-            <a class="nav-link {% if page == 'leaves' %}active{% endif %}" href="/leaves">إدارة الأجازات</a>
-            <a class="nav-link {% if page == 'tasks' %}active{% endif %}" href="/tasks">المهام</a>
             <a class="nav-link {% if page == 'shifts' %}active{% endif %}" href="/shifts">الورديات</a>
             <a class="nav-link {% if page == 'attendance' %}active{% endif %}" href="/attendance">الحضور والانصراف</a>
             <a class="nav-link {% if page == 'monitoring' %}active{% endif %}" href="/monitoring">المراقبة</a>
@@ -24,18 +36,21 @@
             <button class="btn btn-outline-light mt-3" data-action="logout">تسجيل الخروج</button>
         </nav>
     </aside>
-    <main class="content-area p-3 p-lg-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+    <main class="content-area p-2 p-lg-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
-                <h2 class="fw-bold mb-1">{{ title }}</h2>
-                <p class="text-muted mb-0">{{ subtitle }}</p>
+                <h2 class="fw-bold mb-0">{{ title }}</h2>
+                <p class="text-muted small mb-0">{{ subtitle }}</p>
             </div>
             <div class="d-flex align-items-center gap-3">
-                <div class="d-none d-md-flex flex-column align-items-end">
-                    <label class="form-label small mb-1">الفرع</label>
-                    <select id="branchSelector" class="form-select form-select-sm"></select>
-                    <div class="small text-muted" id="branchStatusText">جارٍ التحميل...</div>
+                <!-- Branch Selector -->
+                <div class="d-flex align-items-center gap-2">
+                    <label class="text-muted small mb-0">الفرع:</label>
+                    <select id="branchSelector" class="form-select form-select-sm" style="width: 200px;">
+                        <option value="">جارٍ التحميل...</option>
+                    </select>
                 </div>
+                <!-- Notification Dropdown -->
                 <div class="dropdown">
                     <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown" id="notificationDropdown">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -48,6 +63,7 @@
                         <li class="p-3 text-center text-muted">لا توجد إشعارات</li>
                     </ul>
                 </div>
+                <!-- User Info -->
                 <div class="text-start">
                     <div class="small text-muted">مسجل الدخول باسم</div>
                     <div class="fw-semibold" id="currentUserName">مدير النظام</div>
