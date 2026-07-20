@@ -1,6 +1,6 @@
 from datetime import time
 
-from sqlalchemy import Integer, String, ForeignKey, Boolean, Time
+from sqlalchemy import Integer, String, ForeignKey, Boolean, Time, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -8,6 +8,9 @@ from app.core.database import Base
 
 class Department(Base):
     __tablename__ = "departments"
+    __table_args__ = (
+        UniqueConstraint("branch_id", "name", name="uq_departments_branch_id_name"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     branch_id: Mapped[int | None] = mapped_column(ForeignKey("branches.id"), nullable=True, index=True)

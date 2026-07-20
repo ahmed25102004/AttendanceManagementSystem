@@ -91,12 +91,32 @@ class EmployeeService:
             grace_period_minutes=entry.shift.grace_period_minutes if entry.shift else None,
         )
 
-    def _validate_shift(self, db: Session, shift_id: int | None) -> Shift | None:
+    def _validate_department(self, db: Session, department_id: int | None, branch_id: int | None) -> Department | None:
+        if department_id is None:
+            return None
+        query = db.query(Department).filter(Department.id == department_id)
+        if branch_id is not None:
+            query = query.filter(Department.branch_id == branch_id)
+        department = query.first()
+        if not department:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="القسم غير موجود داخل الفرع المحدد.",
+            )
+        return department
+
+    def _validate_shift(self, db: Session, shift_id: int | None, branch_id: int | None = None) -> Shift | None:
         if shift_id is None:
             return None
-        shift = db.query(Shift).filter(Shift.id == shift_id).first()
+        query = db.query(Shift).filter(Shift.id == shift_id)
+        if branch_id is not None:
+            query = query.filter(Shift.branch_id == branch_id)
+        shift = query.first()
         if not shift:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الوردية غير موجودة.")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="الوردية غير موجودة داخل الفرع المحدد.",
+            )
         return shift
 
 
@@ -201,7 +221,7 @@ class EmployeeService:
 
     def create(self, db: Session, payload: EmployeeCreate, branch_id: int | None = None) -> EmployeeResponse:
         # Check if employee_code already exists in the same branch
-        final_branch_id = payload.branch_id or branch_id
+        final_branch_id = branch_id or payload.branch_id
         query = db.query(Employee).filter(Employee.employee_code == payload.employee_code)
         if final_branch_id:
             query = query.filter(Employee.branch_id == final_branch_id)
@@ -212,6 +232,9 @@ class EmployeeService:
                 detail="كود الموظف مستخدم بالفعل في هذا الفرع."
             )
         
+        self._validate_department(db, payload.department_id, final_branch_id)
+        self._validate_shift(db, payload.shift_id, final_branch_id)
+
         employee = Employee(
             first_name=self._normalize_full_name(payload.full_name),
             last_name="",
@@ -228,7 +251,6 @@ class EmployeeService:
             shift_id=payload.shift_id,
             weekly_rest_day=self._normalize_weekly_rest_day(payload.weekly_rest_day),
         )
-        self._validate_shift(db, payload.shift_id)
         db.add(employee)
         db.flush()
         # Now we have employee.id, update email
@@ -249,7 +271,7 @@ class EmployeeService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الموظف غير موجود.")
         
         # Check if employee_code is being changed and if it's already used in the same branch
-        final_branch_id = payload.branch_id or branch_id or employee.branch_id
+        final_branch_id = branch_id or payload.branch_id or employee.branch_id
         if payload.employee_code and payload.employee_code != employee.employee_code:
             query = db.query(Employee).filter(Employee.employee_code == payload.employee_code, Employee.id != employee_id)
             if final_branch_id:
@@ -261,6 +283,9 @@ class EmployeeService:
                     detail="كود الموظف مستخدم بالفعل في هذا الفرع."
                 )
 
+        self._validate_department(db, payload.department_id, final_branch_id)
+        self._validate_shift(db, payload.shift_id, final_branch_id)
+
         employee.first_name = self._normalize_full_name(payload.full_name)
         employee.last_name = ""
         employee.employee_code = payload.employee_code
@@ -269,11 +294,10 @@ class EmployeeService:
         employee.job_title = payload.job_title
         employee.hire_date = payload.hire_date
         employee.department_id = payload.department_id
-        employee.branch_id = payload.branch_id or branch_id
+        employee.branch_id = final_branch_id
         employee.employment_type = payload.employment_type
         employee.shift_id = payload.shift_id
         employee.weekly_rest_day = self._normalize_weekly_rest_day(payload.weekly_rest_day)
-        self._validate_shift(db, payload.shift_id)
 
         self._sync_employee_user(
             db,
@@ -378,7 +402,7 @@ class EmployeeService:
         if not employee:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="الموظف غير موجود.")
 
-        self._validate_shift(db, payload.shift_id)
+        self._validate_shift(db, payload.shift_id, employee.branch_id)
         employee.shift_id = payload.shift_id
         employee.weekly_rest_day = self._normalize_weekly_rest_day(payload.weekly_rest_day)
 
@@ -390,7 +414,7 @@ class EmployeeService:
             if normalized_day not in self.DAY_NAMES:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="اليوم المحدد في جدول الشيفت غير صالح.")
 
-            self._validate_shift(db, item.shift_id)
+            self._validate_shift(db, item.shift_id, employee.branch_id)
             incoming_days.add(normalized_day)
             schedule = existing_by_day.get(normalized_day)
             if not schedule:

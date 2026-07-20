@@ -8,7 +8,7 @@ from app.models.user import User
 from app.models.branch import Branch
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
 def get_db():
@@ -22,17 +22,37 @@ def get_db():
         db.close()
 
 
-def get_current_user(db: Session = Depends(get_db)) -> User:
-    # Always return admin, no auth checks
-    user = db.query(User).filter(User.username == "admin").first()
-    if user:
-        return user
-    # If admin doesn't exist, return first active user
-    user = db.query(User).filter(User.is_active.is_(True)).first()
-    if user:
-        return user
-    # If no users found, create a dummy user? No, just return error (shouldn't happen)
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="لا يوجد مستخدم في النظام")
+def get_current_user(
+    token: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="يجب تسجيل الدخول أولاً.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    username = decode_token_safely(token)
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="رمز الدخول غير صالح أو منتهي الصلاحية.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = (
+        db.query(User)
+        .filter(User.username == username, User.is_active.is_(True))
+        .first()
+    )
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="المستخدم غير موجود أو غير نشط.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
 
 
 def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
@@ -50,21 +70,26 @@ def get_branch_manager_or_admin(current_user: User = Depends(get_current_user)) 
 
 
 def get_employee_user(current_user: User = Depends(get_current_user)) -> User:
-    # Always allow, no checks
     return current_user
 
 
 def get_current_branch_id(x_branch_id: str | None = Header(None), current_user: User = Depends(get_current_user)) -> int | None:
-    # If user is branch manager, return their branch_id
     if current_user.role == "branch_manager" and current_user.branch_id:
         return current_user.branch_id
-    # Otherwise, use header or None
     if x_branch_id:
         try:
             return int(x_branch_id)
         except ValueError:
             return None
     return None
+
+
+def resolve_branch_scope(current_user: User, branch_id: int | None, include_all: bool = False) -> int | None:
+    if current_user.role == "admin":
+        return None if include_all else branch_id
+    if current_user.role == "branch_manager":
+        return current_user.branch_id
+    return branch_id
 
 
 def get_required_branch_id(

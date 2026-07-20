@@ -17,16 +17,24 @@ function el(id) {
     });
 }
 
-// Since we removed all authentication, just use a dummy token
-const DUMMY_TOKEN = "dummy_token_no_auth_needed";
-
 function getToken() {
-    let token = localStorage.getItem("attendance_token");
-    if (!token) {
-        token = DUMMY_TOKEN;
-        setToken(token);
+    const localToken = localStorage.getItem("attendance_token");
+    if (localToken) {
+        return localToken;
     }
-    return token;
+
+    const cookieToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("attendance_token="))
+        ?.split("=")[1];
+
+    if (cookieToken) {
+        const decodedToken = decodeURIComponent(cookieToken);
+        localStorage.setItem("attendance_token", decodedToken);
+        return decodedToken;
+    }
+
+    return null;
 }
 
 function setToken(token) {
@@ -67,7 +75,13 @@ async function fetchJSON(url, options = {}) {
 
     const response = await fetch(url, { ...options, headers });
     
-    // Removed 401 check since we don't use auth anymore
+    if (response.status === 401 && !url.includes("/api/auth/login")) {
+        clearToken();
+        if (!window.location.pathname.startsWith("/login")) {
+            window.location.href = "/login";
+        }
+        throw new Error("انتهت الجلسة أو يلزم تسجيل الدخول.");
+    }
     
     if (response.status === 204) {
         return null;
@@ -83,11 +97,19 @@ async function fetchJSON(url, options = {}) {
 }
 
 function requireAuth() {
-    // No auth required anymore
-    return;
+    if (!getToken()) {
+        window.location.href = "/login";
+    }
 }
 
 async function hydrateUser() {
+    if (!getToken()) {
+        if (!window.location.pathname.startsWith("/login")) {
+            window.location.href = "/login";
+        }
+        return null;
+    }
+
     try {
         const user = await fetchJSON("/api/auth/me");
         setUser(user);
@@ -98,6 +120,10 @@ async function hydrateUser() {
         return user;
     } catch (error) {
         console.error("Error hydrating user:", error);
+        clearToken();
+        if (!window.location.pathname.startsWith("/login")) {
+            window.location.href = "/login";
+        }
         return null;
     }
 }

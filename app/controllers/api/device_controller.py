@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_branch_manager_or_admin, get_db, get_required_branch_id
+from app.core.dependencies import get_branch_manager_or_admin, get_db, get_required_branch_id, resolve_branch_scope
 from app.schemas.device import DeviceCreate, DeviceUpdate, DeviceResponse, DeviceTestResponse
 from app.services.device_service import DeviceService
 
@@ -16,9 +16,11 @@ def list_devices(
     is_active: bool | None = Query(None),
     db: Session = Depends(get_db),
     branch_id: int = Depends(get_required_branch_id),
+    current_user=Depends(get_branch_manager_or_admin),
     all: bool = Query(False, description="Return all devices regardless of current branch selection")
 ):
-    devices = device_service.list(db, None if all else branch_id, search, status, is_active)
+    scoped_branch_id = resolve_branch_scope(current_user, branch_id, all)
+    devices = device_service.list(db, scoped_branch_id, search, status, is_active)
     responses = []
     for device in devices:
         resp = DeviceResponse.model_validate(device)

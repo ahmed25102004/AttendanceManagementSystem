@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_admin_user, get_branch_manager_or_admin, get_db, get_current_branch_id
+from app.core.dependencies import get_admin_user, get_branch_manager_or_admin, get_db, get_current_branch_id, resolve_branch_scope
 from app.schemas.branch import BranchCreate, BranchResponse, BranchUpdate
 from app.services.branch_service import BranchService
 
@@ -15,12 +15,13 @@ from fastapi import Query
 @router.get("", response_model=list[BranchResponse], dependencies=[Depends(get_branch_manager_or_admin)])
 def list_branches(
     db: Session = Depends(get_db), 
+    current_user=Depends(get_branch_manager_or_admin),
     branch_id: int | None = Depends(get_current_branch_id), 
     all: bool = Query(False, description="Return all branches regardless of current branch selection")
 ):
-    if branch_id and not all:
-        # If branch manager or specific branch selected, return only that branch
-        return [branch_service.get(db, branch_id)]
+    scoped_branch_id = resolve_branch_scope(current_user, branch_id, all)
+    if scoped_branch_id:
+        return [branch_service.get(db, scoped_branch_id)]
     return branch_service.list(db)
 
 

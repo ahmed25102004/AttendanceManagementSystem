@@ -7,6 +7,16 @@ let selectedEmployeeId = null;
 let allEmployees = [];
 let currentView = "table"; // "table" or "card"
 
+const WEEKDAY_LABELS = {
+  monday: "الاثنين",
+  tuesday: "الثلاثاء",
+  wednesday: "الأربعاء",
+  thursday: "الخميس",
+  friday: "الجمعة",
+  saturday: "السبت",
+  sunday: "الأحد"
+};
+
 function showAlert(alertId, message, type = "danger") {
   const element = document.getElementById(alertId);
   if (!element) return;
@@ -110,9 +120,7 @@ function renderEmployees() {
     filteredEmployees = filteredEmployees.filter(emp => emp.is_active === isActive);
   }
   
-  // Update table columns based on filtered department policy
-  const dept = filterDepartment ? departmentCache.get(parseInt(filterDepartment)) : null;
-  const requirements = dept ? getPolicyRequirements(dept.attendance_policy) : getPolicyRequirements("default");
+  const requirements = getVisibleFieldRequirements(filteredEmployees, filterDepartment);
   
   const shiftColumn = document.getElementById("shiftColumn");
   const restDayColumn = document.getElementById("restDayColumn");
@@ -126,6 +134,33 @@ function renderEmployees() {
   
   renderTableView(filteredEmployees, requirements);
   renderCardView(filteredEmployees, requirements);
+}
+
+function getRestDayLabel(value) {
+  return WEEKDAY_LABELS[value] || value || "-";
+}
+
+function getEmployeeRequirements(employee) {
+  const dept = employee?.department_id ? departmentCache.get(employee.department_id) : null;
+  return dept ? getPolicyRequirements(dept.attendance_policy) : getPolicyRequirements("default");
+}
+
+function getVisibleFieldRequirements(employees, filterDepartment) {
+  const dept = filterDepartment ? departmentCache.get(parseInt(filterDepartment, 10)) : null;
+  if (dept) {
+    return getPolicyRequirements(dept.attendance_policy);
+  }
+
+  return employees.reduce((acc, employee) => {
+    const requirements = getEmployeeRequirements(employee);
+    return {
+      showShiftField: acc.showShiftField || requirements.showShiftField,
+      showWeeklyRestDayField: acc.showWeeklyRestDayField || requirements.showWeeklyRestDayField
+    };
+  }, {
+    showShiftField: false,
+    showWeeklyRestDayField: false
+  });
 }
 
 function renderTableView(employees, requirements) {
@@ -143,6 +178,7 @@ function renderTableView(employees, requirements) {
   employees.forEach((employee) => {
     const dept = employee.department_id ? departmentCache.get(employee.department_id) : null;
     const shift = employee.shift_id ? shiftCache.get(employee.shift_id) : null;
+    const employeeRequirements = getEmployeeRequirements(employee);
     const statusBadge = employee.is_active 
       ? '<span class="badge bg-success">نشط</span>' 
       : '<span class="badge bg-secondary">غير نشط</span>';
@@ -155,8 +191,8 @@ function renderTableView(employees, requirements) {
         <td>${employee.hire_date}</td>
         <td>${employee.job_title}</td>
         <td>${employmentTypeLabels[employee.employment_type] || employee.employment_type}</td>
-        <td style="display: ${requirements.showShiftField ? '' : 'none'}">${shift ? shift.name : "-"}</td>
-        <td style="display: ${requirements.showWeeklyRestDayField ? '' : 'none'}">${employee.weekly_rest_day || "-"}</td>
+        <td style="display: ${requirements.showShiftField ? '' : 'none'}">${employeeRequirements.showShiftField ? (shift ? shift.name : "-") : "-"}</td>
+        <td style="display: ${requirements.showWeeklyRestDayField ? '' : 'none'}">${employeeRequirements.showWeeklyRestDayField ? getRestDayLabel(employee.weekly_rest_day) : "-"}</td>
         <td>${statusBadge}</td>
         <td>
           <div class="d-flex gap-1 flex-nowrap">
@@ -186,6 +222,7 @@ function renderCardView(employees, requirements) {
   employees.forEach((employee) => {
     const dept = employee.department_id ? departmentCache.get(employee.department_id) : null;
     const shift = employee.shift_id ? shiftCache.get(employee.shift_id) : null;
+    const employeeRequirements = getEmployeeRequirements(employee);
     const statusBadge = employee.is_active 
       ? '<span class="badge bg-success">نشط</span>' 
       : '<span class="badge bg-secondary">غير نشط</span>';
@@ -207,11 +244,11 @@ function renderCardView(employees, requirements) {
             <div class="mb-2">
               <i class="bi bi-clock me-2"></i> <span class="text-muted">التوظيف:</span> ${employmentTypeLabels[employee.employment_type] || employee.employment_type}
             </div>
-            <div class="mb-2" style="display: ${requirements.showShiftField ? '' : 'none'}">
+            <div class="mb-2" style="display: ${requirements.showShiftField && employeeRequirements.showShiftField ? '' : 'none'}">
               <i class="bi bi-calendar2-week me-2"></i> <span class="text-muted">الوردية:</span> ${shift ? shift.name : "-"}
             </div>
-            <div class="mb-3" style="display: ${requirements.showWeeklyRestDayField ? '' : 'none'}">
-              <i class="bi bi-calendar-day me-2"></i> <span class="text-muted">الإجازة الأسبوعية:</span> ${employee.weekly_rest_day || "-"}
+            <div class="mb-3" style="display: ${requirements.showWeeklyRestDayField && employeeRequirements.showWeeklyRestDayField ? '' : 'none'}">
+              <i class="bi bi-calendar-day me-2"></i> <span class="text-muted">الإجازة الأسبوعية:</span> ${getRestDayLabel(employee.weekly_rest_day)}
             </div>
             <div class="d-flex gap-2 pt-2 border-top border-light">
               <button class="btn btn-sm btn-outline-success flex-grow-1" onclick="window.location.href='/employees/${employee.id}'">
@@ -492,29 +529,43 @@ document.addEventListener("DOMContentLoaded", async () => {
       uploadForm.addEventListener("submit", async (event) => {
           event.preventDefault();
           
-          if (!selectedEmployeeId) return;
+          if (!selectedEmployeeId) {
+            showAlert("employeeAlert", "اختر موظفًا أولاً قبل رفع مستند.");
+            return;
+          }
+
+          const fileInput = el("docFile");
+          if (!fileInput.files || !fileInput.files[0]) {
+            showAlert("employeeAlert", "اختر ملفًا قبل رفع المستند.");
+            return;
+          }
           
           const formData = new FormData();
           formData.append("employee_id", selectedEmployeeId);
           formData.append("name", el("docName").value);
           formData.append("notes", el("docNotes").value);
-          formData.append("file", el("docFile").files[0]);
+          formData.append("file", fileInput.files[0]);
           
           try {
               const token = getToken();
-              await fetch(`/api/employee-documents/`, {
+              const response = await fetch(`/api/employee-documents/`, {
                   method: "POST",
                   headers: {
                       "Authorization": `Bearer ${token}`
                   },
                   body: formData
               });
+
+              if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.detail || "حدث خطأ أثناء رفع المستند.");
+              }
               
               uploadForm.reset();
               await loadEmployeeDocuments(selectedEmployeeId);
               showAlert("employeeAlert", "تم رفع المستند بنجاح", "success");
           } catch (error) {
-              showAlert("employeeAlert", "حدث خطأ أثناء رفع المستند");
+              showAlert("employeeAlert", error.message || "حدث خطأ أثناء رفع المستند");
           }
       });
     }

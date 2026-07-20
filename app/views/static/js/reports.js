@@ -45,22 +45,25 @@ function isUnifiedDepartment() {
 
 function updateReportTableColumns() {
     const isLeather = isLeatherDepartment();
-    const allTh = document.querySelectorAll("#reportTable thead tr th");
-    
-    // Column indices:  0:الكود,1:الاسم,2:القسم,3:المسمى الوظيفى,4:التاريخ,5:الشيفت,6:بداية الشيفت,7:نهاية الشيفت,8:وقت الحضور,9:وقت الانصراف,10:الساعات,11:ساعات العمل الإضافية,12:نقص الشيفت,13:التأخير,14:الحالة,15:عمل في الإجازة,16:أيام الغياب,17:الإجازات الأسبوعية,18:العمل في الإجازة
-    let hideIndices = [];
+    let hiddenColumns = [];
     if (isLeather) {
-        hideIndices = [5, 6, 7, 11, 12, 13, 16, 17, 18];
+        hiddenColumns = [
+            "shift_name",
+            "shift_start_time",
+            "shift_end_time",
+            "overtime_hours",
+            "shift_deficit_hours",
+            "late_minutes",
+            "absent_days_count",
+            "weekly_rest_days_count",
+            "worked_on_rest_days_count"
+        ];
     }
-    
-    allTh.forEach((th, index) => {
-        th.style.display = hideIndices.includes(index) ? "none" : "";
-    });
-    
-    const allTd = document.querySelectorAll("#reportTable tbody tr td");
-    allTd.forEach((td, index) => {
-        const colIndex = index % allTh.length;
-        td.style.display = hideIndices.includes(colIndex) ? "none" : "";
+
+    const allColumns = document.querySelectorAll("#reportTable [data-column]");
+    allColumns.forEach((cell) => {
+        const columnName = cell.dataset.column;
+        cell.style.display = hiddenColumns.includes(columnName) ? "none" : "";
     });
 }
 
@@ -75,25 +78,25 @@ async function renderReport(url) {
         const overtimeValue = row.row_kind === "summary" ? row.total_overtime_hours : row.overtime_hours;
         tbody.innerHTML += `
             <tr class="${rowClass}">
-                <td>${row.employee_code}</td>
-                <td>${row.employee_name}</td>
-                <td>${row.department || "-"}</td>
-                <td>${row.job_title}</td>
-                <td>${row.attendance_date}</td>
-                                <td>${row.shift_name || "-"}</td>
-                                <td>${row.shift_start_time || "-"}</td>
-                                <td>${row.shift_end_time || "-"}</td>
-                <td>${row.check_in_time ? new Date(row.check_in_time).toLocaleString("ar-EG") : "-"}</td>
-                <td>${row.check_out_time ? new Date(row.check_out_time).toLocaleString("ar-EG") : "-"}</td>
-                <td>${row.working_hours}</td>
-                <td>${overtimeValue || 0}</td>
-                <td>${row.shift_deficit_hours || 0}</td>
-                                <td>${row.late_minutes || 0}</td>
-                <td>${statusLabel}</td>
-                                <td>${row.worked_on_rest_day ? "نعم" : "لا"}</td>
-                                <td>${row.absent_days_count || 0}</td>
-                                <td>${row.weekly_rest_days_count || 0}</td>
-                                <td>${row.worked_on_rest_days_count || 0}</td>
+                <td data-column="employee_code">${row.employee_code}</td>
+                <td data-column="employee_name">${row.employee_name}</td>
+                <td data-column="department">${row.department || "-"}</td>
+                <td data-column="job_title">${row.job_title}</td>
+                <td data-column="attendance_date">${row.attendance_date}</td>
+                <td data-column="shift_name">${row.shift_name || "-"}</td>
+                <td data-column="shift_start_time">${row.shift_start_time || "-"}</td>
+                <td data-column="shift_end_time">${row.shift_end_time || "-"}</td>
+                <td data-column="check_in_time">${row.check_in_time ? new Date(row.check_in_time).toLocaleString("ar-EG") : "-"}</td>
+                <td data-column="check_out_time">${row.check_out_time ? new Date(row.check_out_time).toLocaleString("ar-EG") : "-"}</td>
+                <td data-column="working_hours">${row.working_hours}</td>
+                <td data-column="overtime_hours">${overtimeValue || 0}</td>
+                <td data-column="shift_deficit_hours">${row.shift_deficit_hours || 0}</td>
+                <td data-column="late_minutes">${row.late_minutes || 0}</td>
+                <td data-column="status">${statusLabel}</td>
+                <td data-column="worked_on_rest_day">${row.worked_on_rest_day ? "نعم" : "لا"}</td>
+                <td data-column="absent_days_count">${row.absent_days_count || 0}</td>
+                <td data-column="weekly_rest_days_count">${row.weekly_rest_days_count || 0}</td>
+                <td data-column="worked_on_rest_days_count">${row.worked_on_rest_days_count || 0}</td>
             </tr>
         `;
     });

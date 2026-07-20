@@ -2,7 +2,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_branch_manager_or_admin, get_db, get_current_branch_id
+from app.core.dependencies import get_branch_manager_or_admin, get_db, get_current_branch_id, resolve_branch_scope
 from app.schemas.attendance_log import AttendanceLogResponse
 from app.services.attendance_log_service import AttendanceLogService
 
@@ -21,6 +21,8 @@ def list_attendance_logs(
     verify_type: str | None = Query(None),
     db: Session = Depends(get_db),
     branch_id: int | None = Depends(get_current_branch_id),
+    current_user=Depends(get_branch_manager_or_admin),
     all: bool = Query(False, description="Return all attendance logs regardless of current branch selection")
 ):
-    return attendance_log_service.list(db, None if all else branch_id, device_id, start_date, end_date, employee_code, attendance_type, verify_type)
+    scoped_branch_id = resolve_branch_scope(current_user, branch_id, all)
+    return attendance_log_service.list(db, scoped_branch_id, device_id, start_date, end_date, employee_code, attendance_type, verify_type)

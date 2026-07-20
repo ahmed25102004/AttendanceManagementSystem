@@ -60,13 +60,18 @@ class AttendanceService:
         # Use doctors department policy to get shift type
         policy = self.policy_factory.get_policy_for_employee(None, employee)
         if hasattr(policy, 'get_shift_type'):
-            shift_type = policy.get_shift_type(employee, record.check_in_time, record.check_out_time)
+            raw_shift_type = policy.get_shift_type(employee, record.check_in_time, record.check_out_time)
+            shift_type_map = {
+                "شفت كامل": "full_shift",
+                "نصف شيفت": "half_shift",
+                "نقص في الشفت": "incomplete",
+            }
+            shift_type = shift_type_map.get(raw_shift_type, raw_shift_type)
             record.shift_category = shift_type
-            half_shift_hours = getattr(employee.department, 'shift_hours', employee.department.half_shift_hours) or 7
-            
-            if shift_type == "شفت كامل":
+
+            if shift_type == "full_shift":
                 record.shift_units = 1.0  # Full shift is one unit
-            elif shift_type == "نصف شيفت":
+            elif shift_type == "half_shift":
                 record.shift_units = 0.5  # Half shift is 0.5 units
             else:
                 record.shift_units = 0.0

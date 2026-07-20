@@ -74,25 +74,25 @@
         <table id="reportTable" class="table align-middle">
             <thead>
                 <tr>
-                    <th>الكود</th>
-                    <th>الاسم</th>
-                    <th>القسم</th>
-                    <th>المسمى الوظيفي</th>
-                    <th>التاريخ</th>
-                                <th>الشيفت</th>
-                                <th>بداية الشيفت</th>
-                                <th>نهاية الشيفت</th>
-                    <th>وقت الحضور</th>
-                    <th>وقت الانصراف</th>
-                    <th>الساعات</th>
-                    <th>ساعات العمل الإضافي</th>
-                    <th>نقص الشيفت</th>
-                                <th>التأخير</th>
-                    <th>الحالة</th>
-                                <th>عمل في الإجازة</th>
-                                <th>أيام الغياب</th>
-                                <th>الإجازات الأسبوعية</th>
-                                <th>العمل في الإجازة</th>
+                    <th data-column="employee_code">الكود</th>
+                    <th data-column="employee_name">الاسم</th>
+                    <th data-column="department">القسم</th>
+                    <th data-column="job_title">المسمى الوظيفي</th>
+                    <th data-column="attendance_date">التاريخ</th>
+                    <th data-column="shift_name">الشيفت</th>
+                    <th data-column="shift_start_time">بداية الشيفت</th>
+                    <th data-column="shift_end_time">نهاية الشيفت</th>
+                    <th data-column="check_in_time">وقت الحضور</th>
+                    <th data-column="check_out_time">وقت الانصراف</th>
+                    <th data-column="working_hours">الساعات</th>
+                    <th data-column="overtime_hours">ساعات العمل الإضافي</th>
+                    <th data-column="shift_deficit_hours">نقص الشيفت</th>
+                    <th data-column="late_minutes">التأخير</th>
+                    <th data-column="status">الحالة</th>
+                    <th data-column="worked_on_rest_day">عمل في الإجازة</th>
+                    <th data-column="absent_days_count">أيام الغياب</th>
+                    <th data-column="weekly_rest_days_count">الإجازات الأسبوعية</th>
+                    <th data-column="worked_on_rest_days_count">عدد العمل في الإجازة</th>
                 </tr>
             </thead>
             <tbody id="reportTableBody"></tbody>
@@ -101,5 +101,5 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="/static/js/reports.js"></script>
+<script src="/static/js/reports.js?v=2"></script>
 {% endblock %}

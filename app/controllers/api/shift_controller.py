@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_branch_manager_or_admin, get_db, get_required_branch_id
+from app.core.dependencies import get_branch_manager_or_admin, get_db, get_required_branch_id, resolve_branch_scope
 from app.schemas.shift import ShiftCreate, ShiftUpdate, ShiftResponse
 from app.services.shift_service import ShiftService
 
@@ -14,9 +14,11 @@ shift_service = ShiftService()
 def list_shifts(
     db: Session = Depends(get_db),
     branch_id: int = Depends(get_required_branch_id),
+    current_user=Depends(get_branch_manager_or_admin),
     all: bool = Query(False, description="Return all shifts regardless of current branch selection")
 ):
-    return shift_service.list(db, None if all else branch_id)
+    scoped_branch_id = resolve_branch_scope(current_user, branch_id, all)
+    return shift_service.list(db, scoped_branch_id)
 
 
 @router.post("", response_model=ShiftResponse, status_code=201)
@@ -33,9 +35,11 @@ def get_shift(
     shift_id: int,
     db: Session = Depends(get_db),
     branch_id: int = Depends(get_required_branch_id),
+    current_user=Depends(get_branch_manager_or_admin),
     all: bool = Query(False, description="Return shift regardless of branch")
 ):
-    return shift_service.get(db, shift_id, None if all else branch_id)
+    scoped_branch_id = resolve_branch_scope(current_user, branch_id, all)
+    return shift_service.get(db, shift_id, scoped_branch_id)
 
 
 @router.put("/{shift_id}", response_model=ShiftResponse)

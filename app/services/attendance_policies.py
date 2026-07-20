@@ -299,17 +299,17 @@ class DoctorsDepartmentPolicy(AttendancePolicy):
     
     def get_shift_type(self, employee: Employee, check_in_time: datetime, check_out_time: datetime) -> str:
         if not employee.department:
-            return "نصف شيفت"
+            return "half_shift"
         
         working_hours = self.calculate_working_hours(check_in_time, check_out_time)
         half_shift_hours = getattr(employee.department, 'shift_hours', employee.department.half_shift_hours) or 7
         full_shift_hours = half_shift_hours * 2
         
         if working_hours >= full_shift_hours:
-            return "شفت كامل"
+            return "full_shift"
         elif working_hours >= half_shift_hours:
-            return "نصف شيفت"
-        return "نقص في الشفت"
+            return "half_shift"
+        return "incomplete"
 
     def supports_shift_system(self) -> bool:
         return True

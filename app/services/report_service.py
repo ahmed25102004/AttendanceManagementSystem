@@ -24,6 +24,15 @@ class ReportService:
                                     department.attendance_policy == "workers_department" or 
                                     department.attendance_policy == "leather_department"))
 
+    def _normalize_shift_category(self, shift_category: str | None) -> str | None:
+        mapping = {
+            "شفت كامل": "full_shift",
+            "نصف شيفت": "half_shift",
+            "نصف شيفت + اوفرتايم": "half_shift_plus_overtime",
+            "نقص في الشفت": "incomplete",
+        }
+        return mapping.get(shift_category, shift_category)
+
     def _calculate_overtime_hours(self, record: AttendanceRecord) -> float:
         if not record.employee.department or not record.check_in_time or not record.check_out_time:
             return 0
@@ -60,25 +69,26 @@ class ReportService:
     def _resolve_shift_details(self, record: AttendanceRecord) -> tuple[str | None, str | None, str | None]:
         if self._is_doctors_department(record):
             department = record.employee.department
-            if record.shift_category == "full_shift":
+            shift_category = self._normalize_shift_category(record.shift_category)
+            if shift_category == "full_shift":
                 return (
                     "شفت كامل",
                     self._format_time(department.full_shift_start_time),
                     self._format_time(department.full_shift_end_time),
                 )
-            if record.shift_category == "half_shift":
+            if shift_category == "half_shift":
                 return (
                     "نصف شفت",
                     self._format_time(department.half_shift_start_time),
                     self._format_time(department.half_shift_end_time),
                 )
-            if record.shift_category == "half_shift_plus_overtime":
+            if shift_category == "half_shift_plus_overtime":
                 return (
                     "نصف شفت + اوفرتايم",
                     self._format_time(department.half_shift_start_time),
                     self._format_time(department.full_shift_end_time),
                 )
-            if record.shift_category == "incomplete":
+            if shift_category == "incomplete":
                 return (
                     "غير مكتمل",
                     self._format_time(department.half_shift_start_time),
@@ -105,8 +115,14 @@ class ReportService:
             full_name = " ".join(
                 part.strip() for part in [employee.first_name, employee.last_name] if part and part.strip()
             )
-            full_shift_count = sum(1 for record in employee_records if record.shift_category == "full_shift")
-            half_shift_count = sum(1 for record in employee_records if record.shift_category in ["half_shift", "half_shift_plus_overtime"])
+            full_shift_count = sum(
+                1 for record in employee_records if self._normalize_shift_category(record.shift_category) == "full_shift"
+            )
+            half_shift_count = sum(
+                1
+                for record in employee_records
+                if self._normalize_shift_category(record.shift_category) in ["half_shift", "half_shift_plus_overtime"]
+            )
             total_shift_units = sum(record.shift_units or 0 for record in employee_records)
             total_late_minutes = sum(record.late_minutes or 0 for record in employee_records)
             total_working_hours = round(sum(record.working_hours or 0 for record in employee_records), 2)
@@ -150,6 +166,7 @@ class ReportService:
             shift_name, shift_start_time, shift_end_time = self._resolve_shift_details(record)
             overtime_hours = getattr(record, 'overtime_hours', self._calculate_overtime_hours(record))
             shift_deficit_hours = getattr(record, 'shift_deficit_hours', 0.0)
+            normalized_shift_category = self._normalize_shift_category(record.shift_category)
             rows.append(
                 ReportRow(
                     employee_code=record.employee.employee_code,
@@ -159,7 +176,7 @@ class ReportService:
                     attendance_date=record.attendance_date.isoformat(),
                     row_kind="daily",
                     shift_name=shift_name,
-                    shift_type=record.shift_category,
+                    shift_type=normalized_shift_category,
                     shift_start_time=shift_start_time,
                     shift_end_time=shift_end_time,
                     check_in_time=record.check_in_time.isoformat() if record.check_in_time else None,

@@ -191,6 +191,21 @@ def ensure_schema_updates() -> None:
                 connection.execute(text("ALTER TABLE departments DROP CONSTRAINT IF EXISTS departments_name_key"))
             except:
                 pass
+            try:
+                department_constraints = {
+                    constraint["name"]
+                    for constraint in inspect(connection).get_unique_constraints("departments")
+                    if constraint.get("name")
+                }
+                if "uq_departments_branch_id_name" not in department_constraints:
+                    connection.execute(
+                        text(
+                            "ALTER TABLE departments "
+                            "ADD CONSTRAINT uq_departments_branch_id_name UNIQUE (branch_id, name)"
+                        )
+                    )
+            except:
+                pass
 
         if "company_settings" in tables:
             setting_columns = {column["name"] for column in inspect(engine).get_columns("company_settings")}
@@ -484,7 +499,7 @@ def bootstrap_defaults() -> None:
                     overtime_start_time=time(16, 0),
                     # Default evening shift settings
                     evening_shift_start_time=time(16, 0),
-                    evening_shift_end_time=time(24, 0),
+                    evening_shift_end_time=time(23, 59),
                     evening_shift_hours=8,
                     evening_shift_late_start_time=time(16, 15),
                     # Old fields (backward compatibility)

@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_admin_user, get_db, get_employee_user, get_current_branch_id
+from app.core.dependencies import get_admin_user, get_db, get_employee_user, get_current_branch_id, resolve_branch_scope
 from app.schemas.attendance import (
     AttendanceCheckIn,
     AttendanceCheckOut,
@@ -26,12 +26,13 @@ attendance_service = AttendanceService()
 @router.get("", response_model=list[AttendanceResponse])
 def list_attendance(
     attendance_date: date | None = Query(default=None),
-    _: object = Depends(get_admin_user),
+    current_user=Depends(get_admin_user),
     db: Session = Depends(get_db),
     branch_id: int | None = Depends(get_current_branch_id),
     all: bool = Query(False, description="Return all attendance records regardless of current branch selection")
 ):
-    return attendance_service.list_records(db, attendance_date, None if all else branch_id)
+    scoped_branch_id = resolve_branch_scope(current_user, branch_id, all)
+    return attendance_service.list_records(db, attendance_date, scoped_branch_id)
 
 
 @router.post("/check-in", response_model=AttendanceResponse)
