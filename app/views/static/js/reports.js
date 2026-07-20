@@ -37,21 +37,20 @@ async function loadDepartments() {
     });
 }
 
-function isDoctorsDepartment() {
+function isUnifiedDepartment() {
     if (!currentSelectedDepartment) return false;
     const dept = departmentsCache.find(d => d.id === parseInt(currentSelectedDepartment));
-    return dept && dept.attendance_policy === "doctors_department";
+    return dept && (dept.attendance_policy === "reception_department" || dept.attendance_policy === "workers_department" || dept.attendance_policy === "doctors_department" || dept.attendance_policy === "leather_department");
 }
 
 function updateReportTableColumns() {
     const isLeather = isLeatherDepartment();
-    const isDoctors = isDoctorsDepartment();
     const allTh = document.querySelectorAll("#reportTable thead tr th");
     
     // Column indices:  0:الكود,1:الاسم,2:القسم,3:المسمى الوظيفى,4:التاريخ,5:الشيفت,6:بداية الشيفت,7:نهاية الشيفت,8:وقت الحضور,9:وقت الانصراف,10:الساعات,11:ساعات العمل الإضافية,12:نقص الشيفت,13:التأخير,14:الحالة,15:عمل في الإجازة,16:أيام الغياب,17:الإجازات الأسبوعية,18:العمل في الإجازة
     let hideIndices = [];
     if (isLeather) {
-        hideIndices = [5, 6, 7, 11, 12, 13, 15, 16, 17, 18];
+        hideIndices = [5, 6, 7, 11, 12, 13, 16, 17, 18];
     }
     
     allTh.forEach((th, index) => {

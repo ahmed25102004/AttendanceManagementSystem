@@ -110,11 +110,25 @@ function renderEmployees() {
     filteredEmployees = filteredEmployees.filter(emp => emp.is_active === isActive);
   }
   
-  renderTableView(filteredEmployees);
-  renderCardView(filteredEmployees);
+  // Update table columns based on filtered department policy
+  const dept = filterDepartment ? departmentCache.get(parseInt(filterDepartment)) : null;
+  const requirements = dept ? getPolicyRequirements(dept.attendance_policy) : getPolicyRequirements("default");
+  
+  const shiftColumn = document.getElementById("shiftColumn");
+  const restDayColumn = document.getElementById("restDayColumn");
+  
+  if (shiftColumn) {
+    shiftColumn.style.display = requirements.showShiftField ? "" : "none";
+  }
+  if (restDayColumn) {
+    restDayColumn.style.display = requirements.showWeeklyRestDayField ? "" : "none";
+  }
+  
+  renderTableView(filteredEmployees, requirements);
+  renderCardView(filteredEmployees, requirements);
 }
 
-function renderTableView(employees) {
+function renderTableView(employees, requirements) {
   const tbody = document.getElementById("employeeTableBody");
   if (!tbody) return;
   tbody.innerHTML = "";
@@ -134,28 +148,30 @@ function renderTableView(employees) {
       : '<span class="badge bg-secondary">غير نشط</span>';
     tbody.innerHTML += `
       <tr>
-        <td>${employee.employee_code}</td>
-        <td>${employee.full_name}</td>
+        <td><span class="fw-medium">${employee.employee_code}</span></td>
+        <td><span class="fw-medium">${employee.full_name}</span></td>
         <td>${dept ? dept.name : "-"}</td>
         <td>${employee.phone || "-"}</td>
         <td>${employee.hire_date}</td>
         <td>${employee.job_title}</td>
         <td>${employmentTypeLabels[employee.employment_type] || employee.employment_type}</td>
-        <td>${shift ? shift.name : "-"}</td>
-        <td>${employee.weekly_rest_day || "-"}</td>
+        <td style="display: ${requirements.showShiftField ? '' : 'none'}">${shift ? shift.name : "-"}</td>
+        <td style="display: ${requirements.showWeeklyRestDayField ? '' : 'none'}">${employee.weekly_rest_day || "-"}</td>
         <td>${statusBadge}</td>
         <td>
-          <button class="btn btn-sm btn-outline-success ms-2" onclick="window.location.href='/employees/${employee.id}'">ملف الموظف</button>
-          <button class="btn btn-sm btn-outline-info ms-2" onclick="viewDocuments(${employee.id}, '${employee.full_name}')">مستندات</button>
-          <button class="btn btn-sm btn-outline-primary ms-2" onclick="editEmployee(${employee.id})">تعديل</button>
-          <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.id})">حذف</button>
+          <div class="d-flex gap-1 flex-nowrap">
+            <button class="btn btn-sm btn-outline-success" onclick="window.location.href='/employees/${employee.id}'"><i class="bi bi-person"></i></button>
+            <button class="btn btn-sm btn-outline-info" onclick="viewDocuments(${employee.id}, '${employee.full_name}')"><i class="bi bi-file-earmark-text"></i></button>
+            <button class="btn btn-sm btn-outline-primary" onclick="editEmployee(${employee.id})"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.id})"><i class="bi bi-trash"></i></button>
+          </div>
         </td>
       </tr>
     `;
   });
 }
 
-function renderCardView(employees) {
+function renderCardView(employees, requirements) {
   const cardContainer = document.getElementById("cardView");
   if (!cardContainer) return;
   cardContainer.innerHTML = "";
@@ -174,34 +190,42 @@ function renderCardView(employees) {
       ? '<span class="badge bg-success">نشط</span>' 
       : '<span class="badge bg-secondary">غير نشط</span>';
     cardContainer.innerHTML += `
-      <div class="col-lg-6">
-        <div class="card h-100">
+      <div class="col-lg-4 col-md-6">
+        <div class="card h-100 shadow-sm border-0">
           <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-1">
-              <h5 class="card-title fw-bold mb-0">${employee.full_name}</h5>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <h5 class="card-title fw-bold mb-0 text-truncate">${employee.full_name}</h5>
               ${statusBadge}
             </div>
-            <h6 class="card-subtitle text-muted mb-3">${employee.employee_code}</h6>
+            <h6 class="card-subtitle text-muted mb-3"><i class="bi bi-person-badge me-1"></i>${employee.employee_code}</h6>
             <div class="mb-2">
-              <i class="bi bi-door-open"></i> <span class="text-muted">القسم:</span> ${dept ? dept.name : "-"}
-            </div>
-            <div class="mb-2">
-              <i class="bi bi-briefcase"></i> <span class="text-muted">الوظيفة:</span> ${employee.job_title}
-            </div>
-            <div class="mb-3">
-              <i class="bi bi-clock"></i> <span class="text-muted">التوظيف:</span> ${employmentTypeLabels[employee.employment_type] || employee.employment_type}
+              <i class="bi bi-door-open me-2"></i> <span class="text-muted">القسم:</span> ${dept ? dept.name : "-"}
             </div>
             <div class="mb-2">
-              <i class="bi bi-calendar2-week"></i> <span class="text-muted">الوردية:</span> ${shift ? shift.name : "-"}
+              <i class="bi bi-briefcase me-2"></i> <span class="text-muted">الوظيفة:</span> ${employee.job_title}
             </div>
-            <div class="mb-3">
-              <i class="bi bi-calendar-day"></i> <span class="text-muted">الإجازة الأسبوعية:</span> ${employee.weekly_rest_day || "-"}
+            <div class="mb-2">
+              <i class="bi bi-clock me-2"></i> <span class="text-muted">التوظيف:</span> ${employmentTypeLabels[employee.employment_type] || employee.employment_type}
             </div>
-            <div class="d-flex gap-2">
-              <button class="btn btn-sm btn-outline-success flex-grow-1" onclick="window.location.href='/employees/${employee.id}'">ملف الموظف</button>
-              <button class="btn btn-sm btn-outline-info flex-grow-1" onclick="viewDocuments(${employee.id}, '${employee.full_name}')">مستندات</button>
-              <button class="btn btn-sm btn-outline-primary" onclick="editEmployee(${employee.id})"><i class="bi bi-pencil"></i></button>
-              <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.id})"><i class="bi bi-trash"></i></button>
+            <div class="mb-2" style="display: ${requirements.showShiftField ? '' : 'none'}">
+              <i class="bi bi-calendar2-week me-2"></i> <span class="text-muted">الوردية:</span> ${shift ? shift.name : "-"}
+            </div>
+            <div class="mb-3" style="display: ${requirements.showWeeklyRestDayField ? '' : 'none'}">
+              <i class="bi bi-calendar-day me-2"></i> <span class="text-muted">الإجازة الأسبوعية:</span> ${employee.weekly_rest_day || "-"}
+            </div>
+            <div class="d-flex gap-2 pt-2 border-top border-light">
+              <button class="btn btn-sm btn-outline-success flex-grow-1" onclick="window.location.href='/employees/${employee.id}'">
+                <i class="bi bi-person"></i> ملف الموظف
+              </button>
+              <button class="btn btn-sm btn-outline-info" onclick="viewDocuments(${employee.id}, '${employee.full_name}')">
+                <i class="bi bi-file-earmark-text"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-primary" onclick="editEmployee(${employee.id})">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.id})">
+                <i class="bi bi-trash"></i>
+              </button>
             </div>
           </div>
         </div>
@@ -251,6 +275,64 @@ async function deleteDocument(docId) {
   }
 }
 
+function getPolicyRequirements(attendancePolicy) {
+  // Define which fields are required for each policy
+  const requirements = {
+    // Default policy: show all fields
+    "default": {
+      showShiftField: true,
+      showWeeklyRestDayField: false
+    },
+    // Leather policy: show minimal fields
+    "leather_department": {
+      showShiftField: false,
+      showWeeklyRestDayField: false
+    },
+    // Reception policy: show both shift and weekly rest day
+    "reception_department": {
+      showShiftField: true,
+      showWeeklyRestDayField: true
+    },
+    // Workers policy: same as reception
+    "workers_department": {
+      showShiftField: true,
+      showWeeklyRestDayField: true
+    },
+    // Doctors policy: show shift field
+    "doctors_department": {
+      showShiftField: true,
+      showWeeklyRestDayField: false
+    }
+  };
+  
+  return requirements[attendancePolicy] || requirements["default"];
+}
+
+function updateDepartmentSpecificFields() {
+  const departmentId = el("department_id").value;
+  const dept = departmentId ? departmentCache.get(parseInt(departmentId)) : null;
+  
+  const requirements = dept ? getPolicyRequirements(dept.attendance_policy) : getPolicyRequirements("default");
+  
+  // Update visibility and clear value of shift field
+  const shiftField = document.getElementById("shiftField");
+  if (shiftField) {
+    shiftField.style.display = requirements.showShiftField ? "block" : "none";
+    if (!requirements.showShiftField) {
+      el("shift_id").value = "";
+    }
+  }
+  
+  // Update visibility and clear value of weekly rest day field
+  const weeklyRestDayField = document.getElementById("weeklyRestDayField");
+  if (weeklyRestDayField) {
+    weeklyRestDayField.style.display = requirements.showWeeklyRestDayField ? "block" : "none";
+    if (!requirements.showWeeklyRestDayField) {
+      el("weekly_rest_day").value = "";
+    }
+  }
+}
+
 function resetEmployeeForm() {
   const form = document.getElementById("employeeForm");
   if (form) form.reset();
@@ -258,6 +340,7 @@ function resetEmployeeForm() {
   el("department_id").value = "";
   el("shift_id").value = "";
   el("weekly_rest_day").value = "";
+  updateDepartmentSpecificFields();
 }
 
 function editEmployee(employeeId) {
@@ -278,6 +361,7 @@ function editEmployee(employeeId) {
   el("employment_type").value = employee.employment_type || "full_time";
   el("shift_id").value = employee.shift_id || "";
   el("weekly_rest_day").value = employee.weekly_rest_day || "";
+  updateDepartmentSpecificFields();
 }
 
 async function deleteEmployee(employeeId) {
@@ -308,6 +392,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         await loadDepartments();
         await loadShifts();
         await loadEmployees();
+        // Initialize fields visibility
+        updateDepartmentSpecificFields();
     } catch (error) {
         showAlert("employeeAlert", error.message);
     }
@@ -342,6 +428,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       document.getElementById("cardViewBtn").classList.add("active");
     });
 
+    // Update fields when department is selected
+    const departmentSelect = document.getElementById("department_id");
+    if (departmentSelect) {
+      departmentSelect.addEventListener("change", () => {
+        updateDepartmentSpecificFields();
+      });
+    }
+
     const form = document.getElementById("employeeForm");
     if (form) {
       form.addEventListener("submit", async (event) => {
@@ -349,6 +443,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           const employeeId = el("employeeId").value;
 
           const currentBranchId = getCurrentBranchId();
+          const departmentId = el("department_id").value ? parseInt(el("department_id").value, 10) : null;
+          const dept = departmentId ? departmentCache.get(departmentId) : null;
+          const requirements = dept ? getPolicyRequirements(dept.attendance_policy) : getPolicyRequirements("default");
+          
           const payload = {
                   employee_code: el("employee_code").value.trim(),
                   full_name: el("full_name").value.trim(),
@@ -357,12 +455,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                   address: el("address").value.trim() || null,
                   job_title: el("job_title").value.trim(),
                   hire_date: el("hire_date").value,
-                  department_id: el("department_id").value ? parseInt(el("department_id").value, 10) : null,
+                  department_id: departmentId,
                   branch_id: currentBranchId ? parseInt(currentBranchId, 10) : null, // Auto-set to current branch
                   employment_type: el("employment_type").value || "full_time",
-                  shift_id: el("shift_id").value ? parseInt(el("shift_id").value, 10) : null,
-                  weekly_rest_day: el("weekly_rest_day").value || null,
               };
+          
+          // Add shift field only if it's required by the policy
+          if (requirements.showShiftField) {
+            payload.shift_id = el("shift_id").value ? parseInt(el("shift_id").value, 10) : null;
+          }
+          
+          // Add weekly rest day field only if it's required by the policy
+          if (requirements.showWeeklyRestDayField) {
+            payload.weekly_rest_day = el("weekly_rest_day").value || null;
+          }
 
           const method = employeeId ? "PUT" : "POST";
           const url = employeeId ? `/api/employees/${employeeId}` : "/api/employees";

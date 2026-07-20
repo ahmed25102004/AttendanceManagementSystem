@@ -307,15 +307,18 @@ def ensure_departments_schema_compatibility() -> None:
         connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS overtime_start_time TIME DEFAULT '15:00:00'"))
         connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS grace_period_minutes INTEGER DEFAULT 30"))
         
-        # Add NEW fields for doctors department shift settings
+        # Add NEW fields for unified department shift settings
         connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS shift_start_time TIME DEFAULT '08:00:00'"))
         connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS shift_end_time TIME DEFAULT '15:00:00'"))
         connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS shift_hours INTEGER DEFAULT 7"))
         connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS late_start_time TIME DEFAULT '08:30:00'"))
         connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS attendance_end_time TIME DEFAULT '11:00:00'"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS overtime_enabled BOOLEAN NOT NULL DEFAULT TRUE"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS overtime_start_time TIME DEFAULT '15:00:00'"))
         connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS evening_shift_start_time TIME"))
         connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS evening_shift_end_time TIME"))
         connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS evening_shift_hours INTEGER"))
+        connection.execute(text("ALTER TABLE departments ADD COLUMN IF NOT EXISTS evening_shift_late_start_time TIME"))
 
 
 def ensure_employees_schema_compatibility() -> None:
@@ -442,16 +445,6 @@ def bootstrap_defaults() -> None:
         from app.models.shift import Shift
         from datetime import time
         
-        # First, delete any "الدكاتره" departments that are NOT in "فرع المسله"
-        mosque_branch = db.query(Branch).filter(Branch.name == "فرع المسله").first()
-        if mosque_branch:
-            extra_doctors_depts = db.query(Department).filter(
-                Department.name == "الدكاتره",
-                Department.branch_id != mosque_branch.id
-            ).all()
-            for dept in extra_doctors_depts:
-                db.delete(dept)
-        
         # For each branch, create default departments and shifts
         branches = db.query(Branch).all()
         for branch in branches:
@@ -475,44 +468,102 @@ def bootstrap_defaults() -> None:
                 Department.branch_id == branch.id
             ).first()
             if not reception_dept:
+                from datetime import time
                 reception_dept = Department(
                     name="قسم الريسبشن",
                     description="قسم الريسبشن - نظام شيفتات وإجازة أسبوعية",
                     attendance_policy="reception_department",
-                    branch_id=branch.id
+                    branch_id=branch.id,
+                    # Unified shift settings
+                    shift_start_time=time(8, 0),
+                    shift_end_time=time(16, 0),
+                    shift_hours=8,
+                    late_start_time=time(8, 15),
+                    attendance_end_time=time(10, 0),
+                    overtime_enabled=True,
+                    overtime_start_time=time(16, 0),
+                    # Default evening shift settings
+                    evening_shift_start_time=time(16, 0),
+                    evening_shift_end_time=time(24, 0),
+                    evening_shift_hours=8,
+                    evening_shift_late_start_time=time(16, 15),
+                    # Old fields (backward compatibility)
+                    half_shift_start_time=time(8, 0),
+                    half_shift_end_time=time(15, 0),
+                    half_shift_hours=7,
+                    full_shift_start_time=time(8, 0),
+                    full_shift_end_time=time(22, 0),
+                    full_shift_hours=14,
+                    grace_period_minutes=15
                 )
                 db.add(reception_dept)
                 
-            # Create Doctors Department ONLY for "فرع المسله" if it doesn't exist
+            # Create Workers Department for this branch if it doesn't exist
+            workers_dept = db.query(Department).filter(
+                Department.name == "قسم العمال",
+                Department.branch_id == branch.id
+            ).first()
+            if not workers_dept:
+                from datetime import time
+                workers_dept = Department(
+                    name="قسم العمال",
+                    description="قسم العمال - نظام شيفتات وإجازة أسبوعية",
+                    attendance_policy="workers_department",
+                    branch_id=branch.id,
+                    # Unified shift settings
+                    shift_start_time=time(7, 0),
+                    shift_end_time=time(15, 0),
+                    shift_hours=8,
+                    late_start_time=time(7, 15),
+                    attendance_end_time=time(9, 0),
+                    overtime_enabled=True,
+                    overtime_start_time=time(15, 0),
+                    # Default evening shift settings
+                    evening_shift_start_time=time(15, 0),
+                    evening_shift_end_time=time(23, 0),
+                    evening_shift_hours=8,
+                    evening_shift_late_start_time=time(15, 15),
+                    # Old fields (backward compatibility)
+                    half_shift_start_time=time(8, 0),
+                    half_shift_end_time=time(15, 0),
+                    half_shift_hours=7,
+                    full_shift_start_time=time(8, 0),
+                    full_shift_end_time=time(22, 0),
+                    full_shift_hours=14,
+                    grace_period_minutes=15
+                )
+                db.add(workers_dept)
+                
+            # Create Doctors Department for this branch if it doesn't exist
             from datetime import time
-            if branch.name == "فرع المسله":
-                doctors_dept = db.query(Department).filter(
-                    Department.name == "الدكاتره",
-                    Department.branch_id == branch.id
-                ).first()
-                if not doctors_dept:
-                    doctors_dept = Department(
-                        name="الدكاتره",
-                        description="قسم الدكاتره - نظام شفت كامل ونصف شفت مع اوفر تايم",
-                        attendance_policy="doctors_department",
-                        branch_id=branch.id,
-                        # New fields
-                        shift_start_time=time(8, 0),
-                        shift_end_time=time(15, 0),
-                        shift_hours=7,
-                        late_start_time=time(8, 30),
-                        attendance_end_time=time(11, 0),
-                        overtime_start_time=time(15, 0),
-                        # Old fields (backward compatibility)
-                        half_shift_start_time=time(8, 0),
-                        half_shift_end_time=time(15, 0),
-                        half_shift_hours=7,
-                        full_shift_start_time=time(8, 0),
-                        full_shift_end_time=time(22, 0),
-                        full_shift_hours=14,
-                        grace_period_minutes=30
-                    )
-                    db.add(doctors_dept)
+            doctors_dept = db.query(Department).filter(
+                Department.name == "الدكاتره",
+                Department.branch_id == branch.id
+            ).first()
+            if not doctors_dept:
+                doctors_dept = Department(
+                    name="الدكاتره",
+                    description="قسم الدكاتره - نظام شفت كامل ونصف شفت مع اوفر تايم",
+                    attendance_policy="doctors_department",
+                    branch_id=branch.id,
+                    # New fields
+                    shift_start_time=time(8, 0),
+                    shift_end_time=time(15, 0),
+                    shift_hours=7,
+                    late_start_time=time(8, 30),
+                    attendance_end_time=time(11, 0),
+                    overtime_enabled=True,
+                    overtime_start_time=time(15, 0),
+                    # Old fields (backward compatibility)
+                    half_shift_start_time=time(8, 0),
+                    half_shift_end_time=time(15, 0),
+                    half_shift_hours=7,
+                    full_shift_start_time=time(8, 0),
+                    full_shift_end_time=time(22, 0),
+                    full_shift_hours=14,
+                    grace_period_minutes=30
+                )
+                db.add(doctors_dept)
                 
             # Create default shifts for this branch if they don't exist
             morning_shift = db.query(Shift).filter(

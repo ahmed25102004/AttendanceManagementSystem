@@ -19,21 +19,43 @@ class ReportService:
     def _is_doctors_department(self, record: AttendanceRecord) -> bool:
         return bool(record.employee.department and record.employee.department.attendance_policy == "doctors_department")
 
+    def _is_unified_department(self, department: Department | None) -> bool:
+        return bool(department and (department.attendance_policy == "reception_department" or 
+                                    department.attendance_policy == "workers_department" or 
+                                    department.attendance_policy == "leather_department"))
+
     def _calculate_overtime_hours(self, record: AttendanceRecord) -> float:
-        if not self._is_doctors_department(record) or not record.check_in_time or not record.check_out_time:
+        if not record.employee.department or not record.check_in_time or not record.check_out_time:
             return 0
         department = record.employee.department
-        # Create a datetime for overtime start on the same day as check-in
-        overtime_start = datetime.combine(
-            record.check_in_time.date(),
-            department.overtime_start_time
-        )
-        if record.check_out_time <= overtime_start:
-            return 0
-        # Calculate overtime duration from overtime_start to check_out_time
-        overtime_duration = record.check_out_time - overtime_start
-        overtime_hours = overtime_duration.total_seconds() / 3600
-        return round(overtime_hours, 2)
+        
+        # For unified departments (reception, workers), calculate overtime based on department settings
+        if self._is_unified_department(department):
+            if not getattr(department, 'overtime_enabled', True):
+                return 0
+            overtime_start = datetime.combine(
+                record.check_in_time.date(),
+                department.overtime_start_time
+            )
+            if record.check_out_time <= overtime_start:
+                return 0
+            overtime_duration = record.check_out_time - overtime_start
+            overtime_hours = overtime_duration.total_seconds() / 3600
+            return round(overtime_hours, 2)
+        
+        # For doctors department
+        if self._is_doctors_department(record):
+            overtime_start = datetime.combine(
+                record.check_in_time.date(),
+                department.overtime_start_time
+            )
+            if record.check_out_time <= overtime_start:
+                return 0
+            overtime_duration = record.check_out_time - overtime_start
+            overtime_hours = overtime_duration.total_seconds() / 3600
+            return round(overtime_hours, 2)
+            
+        return 0
 
     def _resolve_shift_details(self, record: AttendanceRecord) -> tuple[str | None, str | None, str | None]:
         if self._is_doctors_department(record):
@@ -160,7 +182,7 @@ class ReportService:
         if not department_id:
             return False
         department = db.query(Department).filter(Department.id == department_id).first()
-        return self.reception_service.is_reception_department(department) or self.reception_service.is_leather_department(department)
+        return self._is_unified_department(department)
 
     def daily_report(self, db: Session, report_date: date, branch_id: int | None = None, department_id: int | None = None) -> list[ReportRow]:
         if self._use_reception_rows(db, department_id):

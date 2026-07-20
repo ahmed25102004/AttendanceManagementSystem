@@ -16,7 +16,7 @@ class Department(Base):
     attendance_policy: Mapped[str] = mapped_column(String(50), default="default", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     
-    # Doctors department shift settings
+    # Unified shift settings (for doctors, reception, and workers departments)
     # Basic shift settings
     shift_start_time: Mapped[time] = mapped_column(Time, default=time(8, 0), nullable=False)
     shift_end_time: Mapped[time] = mapped_column(Time, default=time(15, 0), nullable=False)
@@ -27,12 +27,14 @@ class Department(Base):
     attendance_end_time: Mapped[time] = mapped_column(Time, default=time(11, 0), nullable=False)
     
     # Overtime settings
+    overtime_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     overtime_start_time: Mapped[time] = mapped_column(Time, default=time(15, 0), nullable=False)
     
     # Evening shift (optional)
     evening_shift_start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     evening_shift_end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     evening_shift_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    evening_shift_late_start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     
     # Keep old fields for backward compatibility
     half_shift_start_time: Mapped[time] = mapped_column(Time, default=time(8, 0), nullable=False)

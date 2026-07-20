@@ -19,33 +19,34 @@
                         <option value="default">سياسة افتراضية (شيفتات + تأخير)</option>
                         <option value="leather_department">قسم الجلدية (ساعات عمل فقط)</option>
                         <option value="reception_department">قسم الريسبشن (شيفتات + جدول أسبوعي + إجازة ثابتة)</option>
+                        <option value="workers_department">قسم العمال (شيفتات + جدول أسبوعي + إجازة ثابتة)</option>
                         <option value="doctors_department">الدكاتره (شفت كامل + نصف شفت + اوفر تايم)</option>
                     </select>
                 </div>
                 
-                <div id="doctorsSettings" class="mb-3" style="display: none;">
+                <div id="unifiedSettings" class="mb-3" style="display: none;">
                     <hr class="my-3">
-                    <h6 class="fw-bold mb-3">إعدادات قسم الدكاترة</h6>
+                    <h6 class="fw-bold mb-3">إعدادات القسم</h6>
                     
                     <!-- Basic Shift Settings -->
                     <div class="card mb-3">
                         <div class="card-header bg-light">
-                            <span class="fw-semibold">إعدادات نصف الشيفت الاول</span>
+                            <span class="fw-semibold">إعدادات الشيفت</span>
                         </div>
                         <div class="card-body">
                             <div class="row g-3 mb-3">
                                 <div class="col-6">
-                                    <label class="form-label">وقت بداية نصف الشيفت الاول</label>
+                                    <label class="form-label">وقت بداية الشيفت</label>
                                     <input id="shiftStartTime" type="time" class="form-control">
                                 </div>
                                 <div class="col-6">
-                                    <label class="form-label">وقت نهاية نصف الشيفت الاول</label>
+                                    <label class="form-label">وقت نهاية الشيفت</label>
                                     <input id="shiftEndTime" type="time" class="form-control">
                                 </div>
                             </div>
                             <div class="row g-3">
                                 <div class="col-12">
-                                    <label class="form-label">عدد ساعات نصف الشيفت الاول</label>
+                                    <label class="form-label">عدد ساعات الشيفت</label>
                                     <input id="shiftHours" type="number" class="form-control" min="1">
                                 </div>
                             </div>
@@ -73,8 +74,12 @@
                     
                     <!-- Overtime Settings -->
                     <div class="card mb-3">
-                        <div class="card-header bg-light">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
                             <span class="fw-semibold">إعدادات العمل الإضافي</span>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="overtimeEnabled">
+                                <label class="form-check-label" for="overtimeEnabled">تفعيل العمل الإضافي</label>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
@@ -86,10 +91,10 @@
                         </div>
                     </div>
                     
-                    <!-- Second Shift (Full Shift) -->
+                    <!-- Second Shift (Evening Shift) -->
                     <div class="card mb-3">
                         <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                            <span class="fw-semibold">نصف الشيفت الثاني (لإكمال الشفت كامل)</span>
+                            <span class="fw-semibold">الشيفت المسائي (اختياري)</span>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="enableEveningShift">
                                 <label class="form-check-label" for="enableEveningShift">تفعيل</label>
@@ -98,18 +103,22 @@
                         <div class="card-body" id="eveningShiftSettings" style="display: none;">
                             <div class="row g-3">
                                 <div class="col-6">
-                                    <label class="form-label">وقت بداية نصف الشيفت الثاني</label>
+                                    <label class="form-label">وقت بداية الشيفت المسائي</label>
                                     <input id="eveningShiftStartTime" type="time" class="form-control">
                                 </div>
                                 <div class="col-6">
-                                    <label class="form-label">وقت نهاية نصف الشيفت الثاني</label>
+                                    <label class="form-label">وقت نهاية الشيفت المسائي</label>
                                     <input id="eveningShiftEndTime" type="time" class="form-control">
                                 </div>
                             </div>
                             <div class="row g-3 mt-3">
-                                <div class="col-12">
-                                    <label class="form-label">عدد ساعات نصف الشيفت الثاني</label>
+                                <div class="col-6">
+                                    <label class="form-label">عدد ساعات الشيفت المسائي</label>
                                     <input id="eveningShiftHours" type="number" class="form-control" min="1">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">وقت بداية احتساب التأخير للشيفت المسائي</label>
+                                    <input id="eveningShiftLateStartTime" type="time" class="form-control">
                                 </div>
                             </div>
                         </div>

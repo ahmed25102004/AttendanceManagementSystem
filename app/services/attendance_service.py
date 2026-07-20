@@ -447,8 +447,8 @@ class AttendanceService:
         policy = self.policy_factory.get_policy_for_employee(db, employee)
         record.working_hours = policy.calculate_working_hours(record.check_in_time, record.check_out_time)
         
-        # Calculate overtime and shift deficit for doctors department
-        if self._is_doctors_department(employee) and hasattr(policy, 'calculate_overtime_hours'):
+        # Calculate overtime and shift deficit for departments that support it
+        if hasattr(policy, 'calculate_overtime_hours') and hasattr(policy, 'calculate_shift_deficit_hours'):
             record.overtime_hours = policy.calculate_overtime_hours(employee, record.check_in_time, record.check_out_time)
             record.shift_deficit_hours = policy.calculate_shift_deficit_hours(employee, record.check_in_time, record.check_out_time)
         else:
@@ -534,8 +534,8 @@ class AttendanceService:
                 )
             record.working_hours = policy.calculate_working_hours(record.check_in_time, record.check_out_time)
             
-            # Calculate overtime and shift deficit for doctors department
-            if self._is_doctors_department(employee) and hasattr(policy, 'calculate_overtime_hours'):
+            # Calculate overtime and shift deficit for departments that support it
+            if hasattr(policy, 'calculate_overtime_hours') and hasattr(policy, 'calculate_shift_deficit_hours'):
                 record.overtime_hours = policy.calculate_overtime_hours(employee, record.check_in_time, record.check_out_time)
                 record.shift_deficit_hours = policy.calculate_shift_deficit_hours(employee, record.check_in_time, record.check_out_time)
             else:

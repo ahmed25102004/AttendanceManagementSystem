@@ -8,17 +8,21 @@ function getPolicyDisplayName(policy) {
     if (policy === "reception_department") {
         return "قسم الريسبشن";
     }
+    if (policy === "workers_department") {
+        return "قسم العمال";
+    }
     if (policy === "doctors_department") {
         return "الدكاتره";
     }
     return "سياسة افتراضية";
 }
 
-function toggleDoctorsSettings() {
+function toggleUnifiedSettings() {
     const policy = el("departmentAttendancePolicy").value;
-    const doctorsSettings = document.getElementById("doctorsSettings");
-    if (doctorsSettings) {
-        doctorsSettings.style.display = policy === "doctors_department" ? "block" : "none";
+    const unifiedSettings = document.getElementById("unifiedSettings");
+    if (unifiedSettings) {
+        unifiedSettings.style.display = 
+            (policy === "reception_department" || policy === "workers_department" || policy === "doctors_department") ? "block" : "none";
     }
 }
 
@@ -72,7 +76,9 @@ function resetDepartmentForm() {
     const form = document.getElementById("departmentForm");
     if (form) form.reset();
     el("departmentId").value = "";
-    toggleDoctorsSettings();
+    el("overtimeEnabled").checked = true;
+    el("overtimeStartTime").disabled = false;
+    toggleUnifiedSettings();
 }
 
 function editDepartment(departmentId) {
@@ -87,13 +93,15 @@ function editDepartment(departmentId) {
     el("departmentAttendancePolicy").value = department.attendance_policy || "default";
     el("departmentDescription").value = department.description || "";
     
-    // Set new doctors shift settings
+    // Set shift settings
     el("shiftStartTime").value = formatTimeForInput(department.shift_start_time || department.half_shift_start_time);
     el("shiftEndTime").value = formatTimeForInput(department.shift_end_time || department.half_shift_end_time);
     el("shiftHours").value = department.shift_hours || department.half_shift_hours;
     el("lateStartTime").value = formatTimeForInput(department.late_start_time || department.half_shift_start_time);
     el("attendanceEndTime").value = formatTimeForInput(department.attendance_end_time);
     el("overtimeStartTime").value = formatTimeForInput(department.overtime_start_time);
+    el("overtimeEnabled").checked = department.overtime_enabled !== false;
+    el("overtimeStartTime").disabled = !(department.overtime_enabled !== false);
     
     // Set evening shift settings
     const hasEveningShift = !!(department.evening_shift_start_time || department.evening_shift_end_time);
@@ -102,6 +110,7 @@ function editDepartment(departmentId) {
     el("eveningShiftStartTime").value = formatTimeForInput(department.evening_shift_start_time);
     el("eveningShiftEndTime").value = formatTimeForInput(department.evening_shift_end_time);
     el("eveningShiftHours").value = department.evening_shift_hours || "";
+    el("eveningShiftLateStartTime").value = formatTimeForInput(department.evening_shift_late_start_time);
     
     // Set legacy fields (for backward compatibility)
     el("halfShiftStartTime").value = formatTimeForInput(department.shift_start_time || department.half_shift_start_time);
@@ -112,7 +121,7 @@ function editDepartment(departmentId) {
     el("fullShiftHours").value = department.shift_hours || department.half_shift_hours;
     el("gracePeriodMinutes").value = 30;
     
-    toggleDoctorsSettings();
+    toggleUnifiedSettings();
 }
 
 async function deleteDepartment(departmentId) {
@@ -139,10 +148,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         showDepartmentAlert(error.message);
     }
     
-    // Add listener for policy change to toggle doctors settings
+    // Add listener for policy change to toggle settings
     const policySelect = el("departmentAttendancePolicy");
     if (policySelect) {
-        policySelect.addEventListener("change", toggleDoctorsSettings);
+        policySelect.addEventListener("change", toggleUnifiedSettings);
+    }
+    
+    // Add listener for overtime toggle
+    const overtimeToggle = el("overtimeEnabled");
+    if (overtimeToggle) {
+        overtimeToggle.addEventListener("change", (e) => {
+            el("overtimeStartTime").disabled = !e.target.checked;
+        });
     }
     
     // Add listener for evening shift toggle
@@ -166,13 +183,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 description: el("departmentDescription").value.trim() || null,
             };
             
-            if (policy === "doctors_department") {
-                // New fields
+            if (policy === "reception_department" || policy === "workers_department" || policy === "doctors_department") {
+                // Unified fields
                 payload.shift_start_time = el("shiftStartTime").value + ":00";
                 payload.shift_end_time = el("shiftEndTime").value + ":00";
                 payload.shift_hours = parseInt(el("shiftHours").value);
                 payload.late_start_time = el("lateStartTime").value + ":00";
                 payload.attendance_end_time = el("attendanceEndTime").value + ":00";
+                payload.overtime_enabled = el("overtimeEnabled").checked;
                 payload.overtime_start_time = el("overtimeStartTime").value + ":00";
                 
                 // Evening shift settings
@@ -181,10 +199,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     payload.evening_shift_start_time = el("eveningShiftStartTime").value ? el("eveningShiftStartTime").value + ":00" : null;
                     payload.evening_shift_end_time = el("eveningShiftEndTime").value ? el("eveningShiftEndTime").value + ":00" : null;
                     payload.evening_shift_hours = el("eveningShiftHours").value ? parseInt(el("eveningShiftHours").value) : null;
+                    payload.evening_shift_late_start_time = el("eveningShiftLateStartTime").value ? el("eveningShiftLateStartTime").value + ":00" : null;
                 } else {
                     payload.evening_shift_start_time = null;
                     payload.evening_shift_end_time = null;
                     payload.evening_shift_hours = null;
+                    payload.evening_shift_late_start_time = null;
                 }
                 
                 // Legacy fields (for backward compatibility)

@@ -33,10 +33,15 @@ class DepartmentService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="القسم غير موجود.")
         return department
 
+    def _is_unified_department(self, department: Department | None) -> bool:
+        return bool(department and (department.attendance_policy == "reception_department" or 
+                                    department.attendance_policy == "workers_department" or 
+                                    department.attendance_policy == "leather_department"))
+
     def get_stats(self, db: Session, department_id: int, branch_id: int | None = None) -> dict:
         # Check department exists
         department = self.get(db, department_id, branch_id)
-        if self.reception_service.is_reception_department(department) or self.reception_service.is_leather_department(department):
+        if self._is_unified_department(department):
             reception_stats = self.reception_service.get_department_today_stats(db, department_id)
             return {
                 "id": department_id,
@@ -50,10 +55,12 @@ class DepartmentService:
                 "shift_hours": getattr(department, "shift_hours", department.half_shift_hours),
                 "late_start_time": getattr(department, "late_start_time", department.half_shift_start_time),
                 "attendance_end_time": getattr(department, "attendance_end_time", None),
+                "overtime_enabled": getattr(department, "overtime_enabled", True),
                 "overtime_start_time": department.overtime_start_time,
                 "evening_shift_start_time": getattr(department, "evening_shift_start_time", None),
                 "evening_shift_end_time": getattr(department, "evening_shift_end_time", None),
                 "evening_shift_hours": getattr(department, "evening_shift_hours", None),
+                "evening_shift_late_start_time": getattr(department, "evening_shift_late_start_time", None),
                 # Old fields (backward compatibility)
                 "half_shift_start_time": department.half_shift_start_time,
                 "half_shift_end_time": department.half_shift_end_time,
@@ -106,10 +113,12 @@ class DepartmentService:
             "shift_hours": getattr(department, "shift_hours", department.half_shift_hours),
             "late_start_time": getattr(department, "late_start_time", department.half_shift_start_time),
             "attendance_end_time": getattr(department, "attendance_end_time", None),
+            "overtime_enabled": getattr(department, "overtime_enabled", True),
             "overtime_start_time": department.overtime_start_time,
             "evening_shift_start_time": getattr(department, "evening_shift_start_time", None),
             "evening_shift_end_time": getattr(department, "evening_shift_end_time", None),
             "evening_shift_hours": getattr(department, "evening_shift_hours", None),
+            "evening_shift_late_start_time": getattr(department, "evening_shift_late_start_time", None),
             # Old fields (backward compatibility)
             "half_shift_start_time": department.half_shift_start_time,
             "half_shift_end_time": department.half_shift_end_time,
