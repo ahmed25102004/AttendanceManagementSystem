@@ -5,10 +5,6 @@ from pydantic import BaseModel, Field
 
 class CompanySettingUpdate(BaseModel):
     company_name: str = Field(min_length=2, max_length=150)
-    work_start_time: time
-    work_end_time: time
-    weekend_days: list[str]
-    late_grace_minutes: int = Field(ge=0, le=240)
     workplace_latitude: float | None = Field(default=None, ge=-90, le=90)
     workplace_longitude: float | None = Field(default=None, ge=-180, le=180)
     workplace_radius_meters: int = Field(default=150, ge=20, le=5000)
@@ -34,10 +30,6 @@ class CompanySettingUpdate(BaseModel):
 class CompanySettingResponse(BaseModel):
     id: int
     company_name: str
-    work_start_time: time
-    work_end_time: time
-    weekend_days: list[str]
-    late_grace_minutes: int
     workplace_latitude: float | None
     workplace_longitude: float | None
     workplace_radius_meters: int

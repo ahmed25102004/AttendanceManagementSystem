@@ -9,8 +9,6 @@ from app.schemas.employee import (
     EmployeeUpdate, 
     EmployeeProfileResponse,
     AttendanceLogEntry,
-    EmployeeShiftScheduleResponse,
-    EmployeeShiftScheduleUpdate,
     EmployeeStatsResponse
 )
 from app.services.employee_service import EmployeeService
@@ -73,31 +71,6 @@ def get_employee_stats(
 ):
     scoped_branch_id = resolve_branch_scope(current_user, branch_id, all)
     return employee_service.get_stats(db, employee_id, start_date, end_date, scoped_branch_id)
-
-
-@router.get("/{employee_id}/shift-schedule", response_model=EmployeeShiftScheduleResponse)
-def get_employee_shift_schedule(
-    employee_id: int,
-    db: Session = Depends(get_db),
-    branch_id: int = Depends(get_required_branch_id),
-    current_user=Depends(get_branch_manager_or_admin),
-    all: bool = Query(False, description="Return employee schedule regardless of branch")
-):
-    scoped_branch_id = resolve_branch_scope(current_user, branch_id, all)
-    return employee_service.get_shift_schedule(db, employee_id, scoped_branch_id)
-
-
-@router.put("/{employee_id}/shift-schedule", response_model=EmployeeShiftScheduleResponse)
-def update_employee_shift_schedule(
-    employee_id: int,
-    payload: EmployeeShiftScheduleUpdate,
-    db: Session = Depends(get_db),
-    branch_id: int = Depends(get_required_branch_id),
-    current_user=Depends(get_branch_manager_or_admin),
-    all: bool = Query(False, description="Update employee schedule regardless of branch")
-):
-    scoped_branch_id = resolve_branch_scope(current_user, branch_id, all)
-    return employee_service.update_shift_schedule(db, employee_id, payload, scoped_branch_id)
 
 
 @router.post("", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)

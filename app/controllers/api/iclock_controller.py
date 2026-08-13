@@ -9,7 +9,6 @@ import logging
 from app.core.dependencies import get_db
 from app.models.device import Device
 from app.models.employee import Employee
-from app.models.shift import Shift
 from app.models.attendance_log import AttendanceLog
 from app.services.device_service import DeviceService
 from app.services.attendance_log_service import AttendanceLogService
@@ -290,24 +289,8 @@ async def handle_cdata_post(request: Request, db: Session = Depends(get_db)):
                 ).first()
                 
                 if employee:
-                    # Get check in/out windows from branch or shift
-                    check_in_open = None
-                    check_in_close = None
-                    check_out_open = None
-                    check_out_close = None
-                    
-                    if employee.shift_id:
-                        shift = db.query(Shift).filter(Shift.id == employee.shift_id).first()
-                        if shift:
-                            check_in_open = shift.start_time
-                            check_out_close = shift.end_time
-                            # For simplicity, use 3 hours after start as check-in close time
-                            check_in_close = (datetime.combine(date.today(), shift.start_time) + timedelta(hours=3)).time()
-                            # For simplicity, use 3 hours before end as check-out open time
-                            check_out_open = (datetime.combine(date.today(), shift.end_time) - timedelta(hours=3)).time()
-                    
-                    # If no shift or shift doesn't have times, use branch settings
-                    if not check_in_open and device.branch:
+                    # Use branch settings
+                    if device.branch:
                         check_in_open = datetime.strptime(device.branch.check_in_open_time, "%H:%M:%S").time()
                         check_in_close = datetime.strptime(device.branch.check_in_close_time, "%H:%M:%S").time()
                         check_out_open = datetime.strptime(device.branch.check_out_open_time, "%H:%M:%S").time()

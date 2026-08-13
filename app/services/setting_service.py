@@ -9,16 +9,6 @@ from app.schemas.setting import CompanySettingResponse, CompanySettingUpdate
 
 
 class SettingService:
-    _VALID_WEEKEND_DAYS = {
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday",
-    }
-
     def _validate_ip_rule(self, rule: str) -> str:
         normalized_rule = rule.strip()
         if not normalized_rule:
@@ -48,10 +38,6 @@ class SettingService:
                 settings = CompanySetting(
                     branch_id=branch_id,
                     company_name=global_settings.company_name if global_settings else "شركة",
-                    work_start_time=global_settings.work_start_time if global_settings else time(9, 0),
-                    work_end_time=global_settings.work_end_time if global_settings else time(17, 0),
-                    weekend_days=global_settings.weekend_days if global_settings else "Saturday,Sunday",
-                    late_grace_minutes=global_settings.late_grace_minutes if global_settings else 15,
                     workplace_latitude=global_settings.workplace_latitude if global_settings else None,
                     workplace_longitude=global_settings.workplace_longitude if global_settings else None,
                     workplace_radius_meters=global_settings.workplace_radius_meters if global_settings else 150,
@@ -89,10 +75,6 @@ class SettingService:
         return CompanySettingResponse(
             id=settings.id,
             company_name=settings.company_name,
-            work_start_time=settings.work_start_time,
-            work_end_time=settings.work_end_time,
-            weekend_days=[day.strip() for day in settings.weekend_days.split(",") if day.strip()],
-            late_grace_minutes=settings.late_grace_minutes,
             workplace_latitude=settings.workplace_latitude,
             workplace_longitude=settings.workplace_longitude,
             workplace_radius_meters=settings.workplace_radius_meters,
@@ -116,23 +98,6 @@ class SettingService:
         )
 
     def update_settings(self, db: Session, payload: CompanySettingUpdate, branch_id: int | None = None) -> CompanySettingResponse:
-        if payload.work_end_time <= payload.work_start_time:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="وقت نهاية العمل يجب أن يكون بعد وقت بداية العمل.",
-            )
-        if len(set(payload.weekend_days)) != len(payload.weekend_days):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="لا يمكن تكرار نفس يوم العطلة الأسبوعية أكثر من مرة.",
-            )
-        invalid_days = [day for day in payload.weekend_days if day not in self._VALID_WEEKEND_DAYS]
-        if invalid_days:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="تتضمن أيام العطلة الأسبوعية قيمة غير مدعومة.",
-            )
-
         if branch_id:
             settings = db.query(CompanySetting).filter(CompanySetting.branch_id == branch_id).first()
             if not settings:
@@ -146,10 +111,6 @@ class SettingService:
                 db.add(settings)
 
         settings.company_name = payload.company_name
-        settings.work_start_time = payload.work_start_time
-        settings.work_end_time = payload.work_end_time
-        settings.weekend_days = ",".join(payload.weekend_days)
-        settings.late_grace_minutes = payload.late_grace_minutes
         settings.auto_backup_enabled = payload.auto_backup_enabled
         settings.auto_backup_time = payload.auto_backup_time
         settings.auto_backup_retention_days = payload.auto_backup_retention_days

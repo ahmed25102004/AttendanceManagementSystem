@@ -21,6 +21,7 @@
                         <option value="reception_department">قسم الريسبشن (شيفتات + جدول أسبوعي + إجازة ثابتة)</option>
                         <option value="workers_department">قسم العمال (شيفتات + جدول أسبوعي + إجازة ثابتة)</option>
                         <option value="doctors_department">الدكاتره (شفت كامل + نصف شفت + اوفر تايم)</option>
+                        <option value="call_center_department">قسم الكول سنتر (شيفتين تلقائيًا)</option>
                     </select>
                 </div>
                 
@@ -133,6 +134,55 @@
                         <input id="fullShiftEndTime" type="time">
                         <input id="fullShiftHours" type="number">
                         <input id="gracePeriodMinutes" type="number">
+                    </div>
+                </div>
+
+                <div id="callCenterSettings" class="mb-3" style="display: none;">
+                    <hr class="my-3">
+                    <h6 class="fw-bold mb-3">إعدادات قسم الكول سنتر</h6>
+
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <span class="fw-semibold">الشيفت الأول</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">وقت بداية الشيفت</label>
+                                    <input id="callCenterShift1StartTime" type="time" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">نهاية فترة السماح للتأخير</label>
+                                    <input id="callCenterShift1GraceEndTime" type="time" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">وقت نهاية الشيفت</label>
+                                    <input id="callCenterShift1EndTime" type="time" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <span class="fw-semibold">الشيفت الثاني</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">وقت بداية الشيفت</label>
+                                    <input id="callCenterShift2StartTime" type="time" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">نهاية فترة السماح للتأخير</label>
+                                    <input id="callCenterShift2GraceEndTime" type="time" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">وقت نهاية الشيفت</label>
+                                    <input id="callCenterShift2EndTime" type="time" class="form-control">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 

@@ -7,9 +7,7 @@ from app.models.department import Department
 from app.models.device import Device
 from app.models.employee import Employee
 from app.models.employee_document import EmployeeDocument
-from app.models.employee_shift_schedule import EmployeeShiftSchedule
 from app.models.notification import Notification
-from app.models.shift import Shift
 from app.models.user import User
 
 __all__ = [
@@ -21,8 +19,6 @@ __all__ = [
     "Device",
     "Employee",
     "EmployeeDocument",
-    "EmployeeShiftSchedule",
     "Notification",
-    "Shift",
     "User",
 ]

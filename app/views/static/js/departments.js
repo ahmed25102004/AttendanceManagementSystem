@@ -14,15 +14,27 @@ function getPolicyDisplayName(policy) {
     if (policy === "doctors_department") {
         return "الدكاتره";
     }
+    if (policy === "call_center_department") {
+        return "قسم الكول سنتر";
+    }
     return "سياسة افتراضية";
 }
 
 function toggleUnifiedSettings() {
     const policy = el("departmentAttendancePolicy").value;
     const unifiedSettings = document.getElementById("unifiedSettings");
+    const callCenterSettings = document.getElementById("callCenterSettings");
+    const workersSettings = document.getElementById("workersSettingsSection");
+    
     if (unifiedSettings) {
         unifiedSettings.style.display = 
-            (policy === "reception_department" || policy === "workers_department" || policy === "doctors_department") ? "block" : "none";
+            (policy === "reception_department" || policy === "doctors_department") ? "block" : "none";
+    }
+    if (callCenterSettings) {
+        callCenterSettings.style.display = policy === "call_center_department" ? "block" : "none";
+    }
+    if (workersSettings) {
+        workersSettings.style.display = policy === "workers_department" ? "block" : "none";
     }
 }
 
@@ -120,6 +132,26 @@ function editDepartment(departmentId) {
     el("fullShiftEndTime").value = formatTimeForInput(department.shift_end_time || department.full_shift_end_time);
     el("fullShiftHours").value = department.shift_hours || department.half_shift_hours;
     el("gracePeriodMinutes").value = 30;
+
+    const callCenterShift1Start = document.getElementById("editCallCenterShift1StartTime");
+    if (callCenterShift1Start) {
+        callCenterShift1Start.value = formatTimeForInput(department.shift_start_time);
+        el("editCallCenterShift1GraceEndTime").value = formatTimeForInput(department.late_start_time);
+        el("editCallCenterShift1EndTime").value = formatTimeForInput(department.shift_end_time);
+        el("editCallCenterShift2StartTime").value = formatTimeForInput(department.evening_shift_start_time);
+        el("editCallCenterShift2GraceEndTime").value = formatTimeForInput(department.evening_shift_late_start_time);
+        el("editCallCenterShift2EndTime").value = formatTimeForInput(department.evening_shift_end_time);
+    }
+    
+    const workersShift1Start = document.getElementById("editWorkersShift1StartTime");
+    if (workersShift1Start) {
+        workersShift1Start.value = formatTimeForInput(department.shift_start_time);
+        el("editWorkersShift1GraceEndTime").value = formatTimeForInput(department.late_start_time);
+        el("editWorkersShift1EndTime").value = formatTimeForInput(department.shift_end_time);
+        el("editWorkersShift2StartTime").value = formatTimeForInput(department.evening_shift_start_time);
+        el("editWorkersShift2GraceEndTime").value = formatTimeForInput(department.evening_shift_late_start_time);
+        el("editWorkersShift2EndTime").value = formatTimeForInput(department.evening_shift_end_time);
+    }
     
     toggleUnifiedSettings();
 }
@@ -183,7 +215,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 description: el("departmentDescription").value.trim() || null,
             };
             
-            if (policy === "reception_department" || policy === "workers_department" || policy === "doctors_department") {
+            if (policy === "reception_department" || policy === "doctors_department") {
                 // Unified fields
                 payload.shift_start_time = el("shiftStartTime").value + ":00";
                 payload.shift_end_time = el("shiftEndTime").value + ":00";
@@ -215,6 +247,50 @@ document.addEventListener("DOMContentLoaded", async () => {
                 payload.full_shift_end_time = el("shiftEndTime").value + ":00";
                 payload.full_shift_hours = parseInt(el("shiftHours").value);
                 payload.grace_period_minutes = 30;
+            }
+            
+            if (policy === "call_center_department") {
+                const shift1Start = el("editCallCenterShift1StartTime").value;
+                const shift1GraceEnd = el("editCallCenterShift1GraceEndTime").value;
+                const shift1End = el("editCallCenterShift1EndTime").value;
+                const shift2Start = el("editCallCenterShift2StartTime").value;
+                const shift2GraceEnd = el("editCallCenterShift2GraceEndTime").value;
+                const shift2End = el("editCallCenterShift2EndTime").value;
+                
+                if (!shift1Start || !shift1GraceEnd || !shift1End || !shift2Start || !shift2GraceEnd || !shift2End) {
+                    showDepartmentAlert("يرجى إدخال جميع مواعيد الشيفت الأول والثاني لقسم الكول سنتر.");
+                    return;
+                }
+                
+                payload.shift_start_time = shift1Start + ":00";
+                payload.late_start_time = shift1GraceEnd + ":00";
+                payload.shift_end_time = shift1End + ":00";
+                payload.evening_shift_start_time = shift2Start + ":00";
+                payload.evening_shift_late_start_time = shift2GraceEnd + ":00";
+                payload.evening_shift_end_time = shift2End + ":00";
+                payload.evening_shift_hours = null;
+            }
+            
+            if (policy === "workers_department") {
+                const shift1Start = el("editWorkersShift1StartTime").value;
+                const shift1GraceEnd = el("editWorkersShift1GraceEndTime").value;
+                const shift1End = el("editWorkersShift1EndTime").value;
+                const shift2Start = el("editWorkersShift2StartTime").value;
+                const shift2GraceEnd = el("editWorkersShift2GraceEndTime").value;
+                const shift2End = el("editWorkersShift2EndTime").value;
+                
+                if (!shift1Start || !shift1GraceEnd || !shift1End || !shift2Start || !shift2GraceEnd || !shift2End) {
+                    showDepartmentAlert("يرجى إدخال جميع مواعيد الشيفت الأول والثاني لقسم العمال.");
+                    return;
+                }
+                
+                payload.shift_start_time = shift1Start + ":00";
+                payload.late_start_time = shift1GraceEnd + ":00";
+                payload.shift_end_time = shift1End + ":00";
+                payload.evening_shift_start_time = shift2Start + ":00";
+                payload.evening_shift_late_start_time = shift2GraceEnd + ":00";
+                payload.evening_shift_end_time = shift2End + ":00";
+                payload.evening_shift_hours = null;
             }
 
             const method = departmentId ? "PUT" : "POST";

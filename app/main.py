@@ -29,7 +29,6 @@ from app.controllers.api import (
     notification_controller,
     report_controller,
     setting_controller,
-    shift_controller,
     ws,
 )
 from app.controllers.web import page_controller
@@ -44,7 +43,6 @@ from app.models import (
     Employee,
     EmployeeDocument,
     Notification,
-    Shift,
     User,
 )
 
@@ -80,7 +78,7 @@ app.include_router(employee_controller.router, prefix="/api/employees", tags=["E
 app.include_router(employee_document_controller.router, prefix="/api/employee-documents", tags=["Employee Documents"])
 app.include_router(monitoring_controller.router, prefix="/api/monitoring", tags=["Monitoring"])
 app.include_router(notification_controller.router, prefix="/api/notifications", tags=["Notifications"])
-app.include_router(shift_controller.router, prefix="/api/shifts", tags=["Shifts"])
+
 app.include_router(attendance_controller.router, prefix="/api/attendance", tags=["Attendance"])
 app.include_router(attendance_log_controller.router, prefix="/api/attendance-logs", tags=["Attendance Logs"])
 app.include_router(report_controller.router, prefix="/api/reports", tags=["Reports"])

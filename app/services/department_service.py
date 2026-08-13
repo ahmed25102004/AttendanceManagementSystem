@@ -1,4 +1,3 @@
-
 from datetime import date, datetime, timedelta
 from typing import List, Dict
 from fastapi import HTTPException, status
@@ -9,11 +8,13 @@ from app.models.department import Department
 from app.models.employee import Employee
 from app.models.attendance import AttendanceRecord
 from app.services.reception_service import ReceptionService
+from app.services.workers_service import WorkersService
 
 
 class DepartmentService:
     def __init__(self) -> None:
         self.reception_service = ReceptionService()
+        self.workers_service = WorkersService()
 
     def _employee_full_name(self, employee: Employee) -> str:
         return " ".join(part.strip() for part in [employee.first_name, employee.last_name] if part and part.strip())
@@ -33,16 +34,25 @@ class DepartmentService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="القسم غير موجود.")
         return department
 
-    def _is_unified_department(self, department: Department | None) -> bool:
-        return bool(department and (department.attendance_policy == "reception_department" or 
-                                    department.attendance_policy == "workers_department" or 
+    def _is_workers_department(self, department: Department | None) -> bool:
+        return bool(department and department.attendance_policy == "workers_department")
+
+    def _is_reception_or_leather_department(self, department: Department | None) -> bool:
+        return bool(department and (department.attendance_policy == "reception_department" or
                                     department.attendance_policy == "leather_department"))
+
+    def _is_unified_department(self, department: Department | None) -> bool:
+        return self._is_workers_department(department) or self._is_reception_or_leather_department(department)
 
     def get_stats(self, db: Session, department_id: int, branch_id: int | None = None) -> dict:
         # Check department exists
         department = self.get(db, department_id, branch_id)
         if self._is_unified_department(department):
-            reception_stats = self.reception_service.get_department_today_stats(db, department_id)
+            # Route to correct service based on policy
+            if self._is_workers_department(department):
+                today_stats = self.workers_service.get_department_today_stats(db, department_id, branch_id)
+            else:
+                today_stats = self.reception_service.get_department_today_stats(db, department_id)
             return {
                 "id": department_id,
                 "name": department.name,
@@ -69,10 +79,10 @@ class DepartmentService:
                 "full_shift_end_time": department.full_shift_end_time,
                 "full_shift_hours": department.full_shift_hours,
                 "grace_period_minutes": department.grace_period_minutes,
-                "total_employees": len(reception_stats["employees"]),
-                "attendance_today": reception_stats["attendance_today"],
-                "employees": reception_stats["employees"],
-                "latest_attendance": reception_stats["latest_attendance"],
+                "total_employees": len(today_stats["employees"]),
+                "attendance_today": today_stats["attendance_today"],
+                "employees": today_stats["employees"],
+                "latest_attendance": today_stats["latest_attendance"],
             }
 
         today = date.today()

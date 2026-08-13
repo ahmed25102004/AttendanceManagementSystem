@@ -1,105 +1,252 @@
 {% extends "partials_layout.html" %}
 {% set title = "التقارير" %}
-{% set subtitle = "إنشاء تقارير يومية وأسبوعية وشهرية مع التصدير إلى Excel أو PDF" %}
+{% set subtitle = "إنشاء تقارير الحضور والانصراف بسهولة مع الإحصائيات المباشرة" %}
 {% block page_content %}
 <div id="reportAlert"></div>
-<div class="card panel-card p-4 mb-4">
+
+<div class="card panel-card p-4 mb-4 shadow-sm border-0 rounded-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold text-primary mb-0"><i class="bi bi-funnel-fill ms-2"></i>إعدادات التقرير</h5>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" id="quickTodayBtn">هذا اليوم</button>
+            <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3" id="quickWeekBtn">هذا الأسبوع</button>
+            <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3" id="quickMonthBtn">هذا الشهر</button>
+        </div>
+    </div>
     <div class="row g-3 align-items-end">
         <div class="col-lg-4">
-            <label class="form-label">القسم</label>
-            <select id="reportDepartmentFilter" class="form-select">
-                <option value="">كل الأقسام</option>
+            <label class="form-label text-muted small fw-bold">القسم</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-0"><i class="bi bi-building text-secondary"></i></span>
+                <select id="reportDepartmentFilter" class="form-select border-0 bg-light">
+                    <option value="">— كل الأقسام —</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-lg-4" style="display: none;">
+            <label class="form-label text-muted small fw-bold">نوع السياسة</label>
+            <select id="reportPolicyFilter" class="form-select border-0 bg-light">
+                <option value="">— كل السياسات —</option>
+                <option value="reception_department">الريسبشن</option>
+                <option value="workers_department">قسم العمال</option>
+                <option value="doctors_department">الدكاترة</option>
+                <option value="call_center_department">الكول سنتر</option>
+                <option value="leather_department">قسم الجلدية</option>
+                <option value="default">الافتراضي</option>
             </select>
         </div>
-        <div class="col-lg-8">
-            <div class="form-text">
-                عند اختيار قسم الريسبشن يتم احتساب التقرير حسب جدول الشيفت ويوم الإجازة الأسبوعية وأول بصمة دخول وآخر بصمة خروج لكل يوم.
+        <div class="col-lg-4">
+            <label class="form-label text-muted small fw-bold">بحث سريع في النتائج</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-0"><i class="bi bi-search text-secondary"></i></span>
+                <input id="reportSearchBox" type="text" class="form-control border-0 bg-light" placeholder="اسم الموظف أو الكود...">
+                <button type="button" class="btn btn-light" id="clearReportSearchBtn" title="مسح البحث">
+                    <i class="bi bi-x"></i>
+                </button>
             </div>
         </div>
     </div>
 </div>
-<div class="row g-4 mb-4">
-    <div class="col-lg-4">
-        <div class="card panel-card p-4">
-            <h5 class="fw-bold">التقرير اليومي</h5>
-            <form id="dailyReportForm" class="row g-3">
-                <div class="col-12">
-                    <label class="form-label">التاريخ</label>
-                    <input id="daily_report_date" type="date" class="form-control" required>
+
+<div class="card panel-card p-0 mb-4 overflow-hidden">
+    <ul class="nav nav-tabs nav-tabs-lg p-2 pe-4 ps-4" id="reportTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily-tab-pane" type="button" role="tab">
+                <i class="bi bi-sun-fill text-warning ms-1"></i>التقرير اليومي
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="weekly-tab" data-bs-toggle="tab" data-bs-target="#weekly-tab-pane" type="button" role="tab">
+                <i class="bi bi-calendar3 text-primary ms-1"></i>التقرير الأسبوعي
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="monthly-tab" data-bs-toggle="tab" data-bs-target="#monthly-tab-pane" type="button" role="tab">
+                <i class="bi bi-calendar2-range text-success ms-1"></i>التقرير الشهري
+            </button>
+        </li>
+        <li class="nav-item me-auto ms-4 d-flex align-items-center">
+            <div id="reportStatusHint" class="small text-muted">
+                <i class="bi bi-info-circle ms-1"></i>اختر القسم واضغط على أحد الأزرار السريعة أو اختر تاريخًا يدويًا
+            </div>
+        </li>
+    </ul>
+    <div class="tab-content p-4" id="reportTabsContent">
+        <div class="tab-pane fade show active" id="daily-tab-pane" role="tabpanel">
+            <form id="dailyReportForm" class="row g-3 align-items-end">
+                <div class="col-lg-5">
+                    <label class="form-label fw-semibold">التاريخ</label>
+                    <input id="daily_report_date" type="date" class="form-control form-control-lg" required>
                 </div>
-                <div class="col-12 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill">عرض التقرير اليومي</button>
-                    <button type="button" class="btn btn-outline-success" id="exportDailyExcel">Excel</button>
-                    <button type="button" class="btn btn-outline-danger" id="exportDailyPdf">PDF</button>
+                <div class="col-lg-7 d-flex gap-2">
+                    <button class="btn btn-primary flex-fill btn-lg">
+                        <i class="bi bi-table ms-1"></i>عرض التقرير اليومي
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-lg" id="exportDailyExcel">
+                        <i class="bi bi-file-earmark-excel ms-1"></i>Excel
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-lg" id="exportDailyPdf">
+                        <i class="bi bi-file-earmark-pdf ms-1"></i>PDF
+                    </button>
                 </div>
             </form>
         </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card panel-card p-4">
-            <h5 class="fw-bold">التقرير الأسبوعي</h5>
-            <form id="weeklyReportForm" class="row g-3">
-                <div class="col-12">
-                    <label class="form-label">التاريخ (عرض الأسبوع)</label>
-                    <input id="weekly_report_date" type="date" class="form-control" required>
+        <div class="tab-pane fade" id="weekly-tab-pane" role="tabpanel">
+            <form id="weeklyReportForm" class="row g-3 align-items-end">
+                <div class="col-lg-5">
+                    <label class="form-label fw-semibold">التاريخ (اختر أي يوم ضمن الأسبوع المطلوب)</label>
+                    <input id="weekly_report_date" type="date" class="form-control form-control-lg" required>
                 </div>
-                <div class="col-12 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill">عرض التقرير الأسبوعي</button>
-                    <button type="button" class="btn btn-outline-success" id="exportWeeklyExcel">Excel</button>
-                    <button type="button" class="btn btn-outline-danger" id="exportWeeklyPdf">PDF</button>
+                <div class="col-lg-7 d-flex gap-2">
+                    <button class="btn btn-primary flex-fill btn-lg">
+                        <i class="bi bi-table ms-1"></i>عرض التقرير الأسبوعي
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-lg" id="exportWeeklyExcel">
+                        <i class="bi bi-file-earmark-excel ms-1"></i>Excel
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-lg" id="exportWeeklyPdf">
+                        <i class="bi bi-file-earmark-pdf ms-1"></i>PDF
+                    </button>
                 </div>
             </form>
         </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card panel-card p-4">
-            <h5 class="fw-bold">التقرير الشهري</h5>
-            <form id="monthlyReportForm" class="row g-3">
-                <div class="col-12">
-                    <label class="form-label">الشهر</label>
-                    <input id="monthly_report_month" type="month" class="form-control" required>
+        <div class="tab-pane fade" id="monthly-tab-pane" role="tabpanel">
+            <form id="monthlyReportForm" class="row g-3 align-items-end">
+                <div class="col-lg-5">
+                    <label class="form-label fw-semibold">الشهر</label>
+                    <input id="monthly_report_month" type="month" class="form-control form-control-lg" required>
                 </div>
-                <div class="col-12 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill">عرض التقرير الشهري</button>
-                    <button type="button" class="btn btn-outline-success" id="exportMonthlyExcel">Excel</button>
-                    <button type="button" class="btn btn-outline-danger" id="exportMonthlyPdf">PDF</button>
+                <div class="col-lg-7 d-flex gap-2">
+                    <button class="btn btn-primary flex-fill btn-lg">
+                        <i class="bi bi-table ms-1"></i>عرض التقرير الشهري
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-lg" id="exportMonthlyExcel">
+                        <i class="bi bi-file-earmark-excel ms-1"></i>Excel
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-lg" id="exportMonthlyPdf">
+                        <i class="bi bi-file-earmark-pdf ms-1"></i>PDF
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<div id="summaryCards" class="card panel-card p-3 mb-4 shadow-sm border-0 bg-white rounded-4" style="display:none;">
+    <div class="row g-2 text-center align-items-center justify-content-center">
+        <!-- Total -->
+        <div class="col-6 col-md-2">
+            <div class="p-2 rounded-3 bg-light text-dark h-100">
+                <i class="bi bi-list-ul fs-4 mb-1 text-primary"></i>
+                <div class="fs-5 fw-bold" id="statTotalRows">0</div>
+                <div class="small fw-semibold">السجلات</div>
+            </div>
+        </div>
+        <!-- Present -->
+        <div class="col-6 col-md-2">
+            <div class="p-2 rounded-3 bg-success bg-opacity-10 text-success h-100">
+                <i class="bi bi-check-circle-fill fs-4 mb-1"></i>
+                <div class="fs-5 fw-bold" id="statPresent">0</div>
+                <div class="small fw-semibold">حاضر</div>
+            </div>
+        </div>
+        <!-- Absent -->
+        <div class="col-6 col-md-2">
+            <div class="p-2 rounded-3 bg-danger bg-opacity-10 text-danger h-100">
+                <i class="bi bi-x-circle-fill fs-4 mb-1"></i>
+                <div class="fs-5 fw-bold" id="statAbsent">0</div>
+                <div class="small fw-semibold">غائب</div>
+            </div>
+        </div>
+        <!-- Late -->
+        <div class="col-6 col-md-2">
+            <div class="p-2 rounded-3 bg-warning bg-opacity-10 text-warning-emphasis h-100">
+                <i class="bi bi-clock-history fs-4 mb-1"></i>
+                <div class="fs-5 fw-bold" id="statLateCount">0</div>
+                <div class="small fw-semibold">تأخير <span class="fw-normal opacity-75" id="statLateMinutes" style="font-size: 0.75rem;">(0 دقيقة)</span></div>
+            </div>
+        </div>
+        <!-- Overtime -->
+        <div class="col-6 col-md-2">
+            <div class="p-2 rounded-3 bg-info bg-opacity-10 text-info h-100">
+                <i class="bi bi-lightning-charge-fill fs-4 mb-1"></i>
+                <div class="fs-5 fw-bold" id="statOvertime">0</div>
+                <div class="small fw-semibold">عمل إضافي</div>
+            </div>
+        </div>
+        <!-- Rest day work -->
+        <div class="col-6 col-md-2">
+            <div class="p-2 rounded-3 bg-secondary bg-opacity-10 text-secondary h-100">
+                <i class="bi bi-calendar-x-fill fs-4 mb-1"></i>
+                <div class="fs-5 fw-bold" id="statRestDay">0</div>
+                <div class="small fw-semibold">عمل في إجازة</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card panel-card p-4">
-    <h5 class="fw-bold">نتائج التقرير</h5>
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h5 class="fw-bold mb-0 d-flex align-items-center">
+                <i class="bi bi-file-earmark-text text-primary ms-2"></i>
+                <span id="reportTitleSection">نتائج التقرير</span>
+                <button id="btnBackToSummary" class="btn btn-sm btn-outline-primary ms-3" style="display: none;">
+                    <i class="bi bi-arrow-right ms-1"></i>العودة إلى الملخص
+                </button>
+            </h5>
+            <small class="text-muted" id="reportMetaInfo"></small>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-eye ms-1"></i>إخفاء / إظهار الأعمدة
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end p-2" style="min-width:240px;" id="columnVisibilityMenu">
+                </ul>
+            </div>
+        </div>
+    </div>
     <div class="table-responsive">
-        <table id="reportTable" class="table align-middle">
-            <thead>
+        <table id="reportTable" class="table align-middle table-hover table-striped align-middle">
+            <thead class="table-light">
                 <tr>
-                    <th data-column="employee_code">الكود</th>
-                    <th data-column="employee_name">الاسم</th>
-                    <th data-column="department">القسم</th>
-                    <th data-column="job_title">المسمى الوظيفي</th>
-                    <th data-column="attendance_date">التاريخ</th>
-                    <th data-column="shift_name">الشيفت</th>
-                    <th data-column="shift_start_time">بداية الشيفت</th>
-                    <th data-column="shift_end_time">نهاية الشيفت</th>
-                    <th data-column="check_in_time">وقت الحضور</th>
-                    <th data-column="check_out_time">وقت الانصراف</th>
-                    <th data-column="working_hours">الساعات</th>
-                    <th data-column="overtime_hours">ساعات العمل الإضافي</th>
-                    <th data-column="shift_deficit_hours">نقص الشيفت</th>
-                    <th data-column="late_minutes">التأخير</th>
-                    <th data-column="status">الحالة</th>
-                    <th data-column="worked_on_rest_day">عمل في الإجازة</th>
-                    <th data-column="absent_days_count">أيام الغياب</th>
-                    <th data-column="weekly_rest_days_count">الإجازات الأسبوعية</th>
-                    <th data-column="worked_on_rest_days_count">عدد العمل في الإجازة</th>
+                    <th data-column="employee_code" data-label="الكود">الكود</th>
+                    <th data-column="employee_name" data-label="الاسم">الاسم</th>
+                    <th data-column="department" data-label="القسم">القسم</th>
+                    <th data-column="job_title" data-label="المسمى">المسمى الوظيفي</th>
+                    <th data-column="attendance_date" data-label="التاريخ">التاريخ</th>
+                    <th data-column="shift_name" data-label="الشيفت">الشيفت</th>
+                    <th data-column="shift_start_time" data-label="بداية الشيفت">بداية الشيفت</th>
+                    <th data-column="shift_end_time" data-label="نهاية الشيفت">نهاية الشيفت</th>
+                    <th data-column="check_in_time" data-label="وقت الحضور">وقت الحضور</th>
+                    <th data-column="check_out_time" data-label="وقت الانصراف">وقت الانصراف</th>
+                    <th data-column="working_hours" data-label="الساعات">الساعات</th>
+                    <th data-column="overtime_hours" data-label="العمل الإضافي">ساعات العمل الإضافي</th>
+                    <th data-column="shift_deficit_hours" data-label="نقص الشيفت">نقص الشيفت</th>
+                    <th data-column="late_minutes" data-label="التأخير">التأخير</th>
+                    <th data-column="status" data-label="الحالة">الحالة</th>
+                    <th data-column="worked_on_rest_day" data-label="عمل في الإجازة">عمل في الإجازة</th>
+                    <th data-column="absent_days_count" data-label="أيام الغياب">أيام الغياب</th>
+                    <th data-column="weekly_rest_days_count" data-label="الإجازات الأسبوعية">الإجازات الأسبوعية</th>
+                    <th data-column="shift_1_count" data-label="صباحي">صباحي</th>
+                    <th data-column="shift_2_count" data-label="مسائي">مسائي</th>
+                    <th data-column="worked_on_rest_days_count" data-label="عدد العمل في الإجازة">عدد العمل في الإجازة</th>
                 </tr>
             </thead>
-            <tbody id="reportTableBody"></tbody>
+            <tbody id="reportTableBody">
+                <tr id="emptyRowTr">
+                    <td colspan="19" class="text-center py-5 text-muted">
+                        <i class="bi bi-cloud-arrow-down fs-1 d-block mb-2 opacity-50"></i>
+                        <strong>لا توجد بيانات بعد</strong><br>
+                        <small class="text-muted">اختر القسم والتاريخ واضغط على عرض التقرير لعرض النتائج</small>
+                    </td>
+                </tr>
+            </tbody>
         </table>
     </div>
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="/static/js/reports.js?v=2"></script>
+<script src="/static/js/reports.js?v=3"></script>
 {% endblock %}

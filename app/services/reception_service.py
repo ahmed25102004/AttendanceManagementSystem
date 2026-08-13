@@ -9,7 +9,6 @@ from app.models.attendance import AttendanceRecord
 from app.models.attendance_log import AttendanceLog
 from app.models.department import Department
 from app.models.employee import Employee
-from app.models.employee_shift_schedule import EmployeeShiftSchedule
 from app.schemas.report import ReportRow
 
 
@@ -61,44 +60,6 @@ class ReceptionService:
             return False
         return employee.weekly_rest_day.strip().lower() == self._day_name(target_date)
 
-    def _shift_label(self, shift_type: str | None, shift_name: str | None) -> str | None:
-        if shift_name:
-            return shift_name
-        if not shift_type:
-            return None
-        return self.SHIFT_TYPE_LABELS.get(shift_type.strip().lower(), shift_type)
-
-    def _resolve_shift_info(self, employee: Employee, target_date: date) -> dict | None:
-        day_name = self._day_name(target_date)
-        schedule: EmployeeShiftSchedule | None = next(
-            (
-                item
-                for item in employee.shift_schedules
-                if item.day_of_week and item.day_of_week.strip().lower() == day_name
-            ),
-            None,
-        )
-
-        shift = None
-        shift_type = None
-        if schedule:
-            shift = schedule.shift or employee.shift
-            shift_type = schedule.shift_type
-        elif employee.shift:
-            shift = employee.shift
-
-        if not shift:
-            return None
-
-        return {
-            "id": shift.id,
-            "name": shift.name,
-            "shift_type": shift_type,
-            "label": self._shift_label(shift_type, shift.name),
-            "start_time": shift.start_time,
-            "end_time": shift.end_time,
-            "grace_period_minutes": shift.grace_period_minutes,
-        }
 
     def _late_minutes(self, shift_info: dict | None, check_in_time: datetime | None, is_rest_day: bool) -> int:
         if not shift_info or not check_in_time or is_rest_day:
@@ -190,8 +151,6 @@ class ReceptionService:
             db.query(Employee)
             .options(
                 joinedload(Employee.department),
-                joinedload(Employee.shift),
-                joinedload(Employee.shift_schedules).joinedload(EmployeeShiftSchedule.shift),
             )
             .filter(Employee.department_id == department_id, Employee.is_active.is_(True))
         )
@@ -223,7 +182,7 @@ class ReceptionService:
             worked_on_rest_days_count = 0
 
             for current_date in self._iter_dates(start_date, end_date):
-                shift_info = self._resolve_shift_info(employee, current_date) if not is_leather else None
+                shift_info = None
                 is_rest_day = self._is_rest_day(employee, current_date) if not is_leather else False
                 record = record_map.get((employee.id, current_date))
                 day_logs = log_map.get((employee.id, current_date))
@@ -299,6 +258,19 @@ class ReceptionService:
 
         rows.sort(key=lambda row: (row.attendance_date, row.employee_name))
         return rows
+
+    def _resolve_shift_info(self, employee: Employee, target_date: date) -> dict | None:
+        if not employee or not employee.department:
+            return None
+            
+        dept = employee.department
+        return {
+            "label": self.SHIFT_TYPE_LABELS.get("morning", "شيفت صباحي"),
+            "shift_type": "morning",
+            "start_time": dept.shift_start_time,
+            "end_time": dept.shift_end_time,
+            "grace_period_minutes": dept.grace_period_minutes or 0,
+        }
 
     def get_department_today_stats(
         self,

@@ -1,180 +1,226 @@
 {% extends "partials_layout.html" %}
 {% set title = "إدارة الموظفين" %}
-{% set subtitle = "تسجيل الموظف والوجه من نفس الشاشة" %}
+{% set subtitle = "إضافة، تعديل، وعرض بيانات الموظفين" %}
 {% block page_content %}
 <div id="employeeAlert"></div>
+
 <div class="row g-4">
-    <!-- Employee Form Card -->
+    <!-- Header Actions & Filters -->
     <div class="col-12">
-        <div class="card panel-card compact-card p-4 mb-4">
-            <h5 class="fw-bold compact-section-title mb-4 pb-2 border-bottom border-secondary-subtle">بيانات الموظف</h5>
-            <input type="hidden" id="employeeId">
-            <form id="employeeForm" class="compact-form">
-                <div class="row g-3">
-                    <div class="col-lg-4 col-md-6">
-                        <label class="form-label fw-medium">كود الموظف (على جهاز البصمة)</label>
-                        <input id="employee_code" class="form-control" required placeholder="مثال: 101">
-                    </div>
-                    <div class="col-lg-4 col-md-6">
-                        <label class="form-label fw-medium">الاسم</label>
-                        <input id="full_name" class="form-control" required>
-                    </div>
-                    <div class="col-lg-4 col-md-6">
-                        <label class="form-label fw-medium">القسم</label>
-                        <select id="department_id" class="form-select">
-                            <option value="">-- اختر القسم --</option>
-                        </select>
-                    </div>
-                    <div class="col-lg-4 col-md-6">
-                        <label class="form-label fw-medium">نوع التوظيف</label>
-                        <select id="employment_type" class="form-select">
-                            <option value="full_time">دوام كامل</option>
-                            <option value="part_time">دوام جزئي</option>
-                            <option value="contract">عقد عمل</option>
-                            <option value="internship">تدريب</option>
-                        </select>
-                    </div>
-                    <div class="col-lg-4 col-md-6">
-                        <label class="form-label fw-medium">رقم الهاتف</label>
-                        <input id="phone" class="form-control" placeholder="01xxxxxxxxx">
-                    </div>
-                    <div class="col-lg-4 col-md-6">
-                        <label class="form-label fw-medium">تاريخ التعيين</label>
-                        <input id="hire_date" type="date" class="form-control" required>
-                    </div>
-                    <div class="col-lg-4 col-md-6">
-                        <label class="form-label fw-medium">المسمى الوظيفي</label>
-                        <input id="job_title" class="form-control" required>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label fw-medium">العنوان</label>
-                        <textarea id="address" class="form-control" rows="3"></textarea>
+        <div class="card shadow-sm border-0 bg-white p-3 rounded-4">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex flex-wrap gap-2 align-items-center flex-grow-1">
+                    <div class="input-group" style="max-width: 280px;">
+                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input id="employeeSearch" type="search" class="form-control border-start-0 bg-light" placeholder="بحث بالاسم أو الكود...">
                     </div>
                     
-                    <!-- Shift field (for departments with shift system) -->
-                    <div class="col-lg-6 col-md-6" id="shiftField">
-                        <label class="form-label fw-medium">الوردية الافتراضية</label>
-                        <select id="shift_id" class="form-select">
-                            <option value="">-- بدون وردية افتراضية --</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Weekly rest day field (for departments with rest day system) -->
-                    <div class="col-lg-6 col-md-6" id="weeklyRestDayField">
-                        <label class="form-label fw-medium">يوم الإجازة الأسبوعية</label>
-                        <select id="weekly_rest_day" class="form-select">
-                            <option value="">-- بدون تحديد --</option>
-                            <option value="monday">الاثنين</option>
-                            <option value="tuesday">الثلاثاء</option>
-                            <option value="wednesday">الأربعاء</option>
-                            <option value="thursday">الخميس</option>
-                            <option value="friday">الجمعة</option>
-                            <option value="saturday">السبت</option>
-                            <option value="sunday">الأحد</option>
-                        </select>
-                    </div>
-                    <div class="col-12 d-flex align-items-center">
-                        <div class="form-text text-muted bg-light p-2 rounded">
-                            <i class="bi bi-info-circle me-1"></i>
-                            في قسم الريسبشن يمكن تعديل جدول الشيفت الأسبوعي التفصيلي من صفحة القسم بعد حفظ الموظف.
-                        </div>
-                    </div>
-                </div>
-                <button class="btn btn-primary w-100 mt-4 py-3 fw-medium">حفظ الموظف</button>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Employees List Card -->
-    <div class="col-12">
-        <div class="card panel-card compact-card p-4 mb-4">
-            <div class="d-flex flex-column gap-3 mb-4 pb-2 border-bottom border-secondary-subtle">
-                <h5 class="fw-bold compact-section-title mb-0">الموظفون</h5>
-                <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <input id="employeeSearch" type="search" class="form-control" style="min-width: 220px;" placeholder="بحث بالاسم أو الكود">
-                    <select id="filterDepartment" class="form-select" style="min-width: 160px;">
+                    <select id="filterDepartment" class="form-select bg-light border-0" style="width: 160px;">
                         <option value="">كل الأقسام</option>
                     </select>
-                    <select id="filterEmploymentType" class="form-select" style="min-width: 160px;">
+                    
+                    <select id="filterEmploymentType" class="form-select bg-light border-0" style="width: 140px;">
                         <option value="">كل الأنواع</option>
                         <option value="full_time">دوام كامل</option>
                         <option value="part_time">دوام جزئي</option>
                         <option value="contract">عقد عمل</option>
                         <option value="internship">تدريب</option>
                     </select>
-                    <select id="filterActiveStatus" class="form-select" style="min-width: 130px;">
+                    
+                    <select id="filterActiveStatus" class="form-select bg-light border-0" style="width: 130px;">
                         <option value="">كل الحالات</option>
                         <option value="true">نشط</option>
                         <option value="false">غير نشط</option>
                     </select>
-                    <div class="btn-group ms-auto" role="group">
-                        <button id="tableViewBtn" class="btn btn-sm btn-outline-primary active px-3"><i class="bi bi-table me-1"></i> جدول</button>
-                        <button id="cardViewBtn" class="btn btn-sm btn-outline-primary px-3"><i class="bi bi-grid me-1"></i> بطاقات</button>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <div class="btn-group bg-light rounded-3 p-1" role="group">
+                        <button id="tableViewBtn" class="btn btn-sm btn-white active rounded-2 shadow-none"><i class="bi bi-list-task me-1"></i></button>
+                        <button id="cardViewBtn" class="btn btn-sm btn-white rounded-2 shadow-none"><i class="bi bi-grid-fill me-1"></i></button>
                     </div>
+                    <button class="btn btn-primary shadow-sm px-4 rounded-3" type="button" data-bs-toggle="collapse" data-bs-target="#employeeFormCollapse" aria-expanded="false" aria-controls="employeeFormCollapse" id="toggleFormBtn">
+                        <i class="bi bi-person-plus-fill me-2"></i>إضافة موظف
+                    </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Collapsible Employee Form -->
+    <div class="col-12 collapse" id="employeeFormCollapse">
+        <div class="card shadow-sm border-0 rounded-4 p-4 position-relative">
+            <button type="button" class="btn-close position-absolute top-0 end-0 m-4" data-bs-toggle="collapse" data-bs-target="#employeeFormCollapse" aria-label="Close" onclick="resetEmployeeForm()"></button>
+            <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-person-lines-fill me-2"></i>بيانات الموظف</h5>
             
+            <input type="hidden" id="employeeId">
+            <form id="employeeForm">
+                <div class="row g-4">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label text-muted small fw-bold">كود الموظف (جهاز البصمة)</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-upc-scan text-secondary"></i></span>
+                            <input id="employee_code" class="form-control border-0 bg-light" required placeholder="مثال: 101">
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label text-muted small fw-bold">الاسم الرباعي</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-person text-secondary"></i></span>
+                            <input id="full_name" class="form-control border-0 bg-light" required>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label text-muted small fw-bold">القسم</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-building text-secondary"></i></span>
+                            <select id="department_id" class="form-select border-0 bg-light">
+                                <option value="">-- اختر القسم --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label text-muted small fw-bold">المسمى الوظيفي</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-briefcase text-secondary"></i></span>
+                            <input id="job_title" class="form-control border-0 bg-light" required>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label text-muted small fw-bold">نوع التوظيف</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-clock-history text-secondary"></i></span>
+                            <select id="employment_type" class="form-select border-0 bg-light">
+                                <option value="full_time">دوام كامل</option>
+                                <option value="part_time">دوام جزئي</option>
+                                <option value="contract">عقد عمل</option>
+                                <option value="internship">تدريب</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label text-muted small fw-bold">رقم الهاتف</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-telephone text-secondary"></i></span>
+                            <input id="phone" class="form-control border-0 bg-light" placeholder="01xxxxxxxxx">
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label text-muted small fw-bold">تاريخ التعيين</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-check text-secondary"></i></span>
+                            <input id="hire_date" type="date" class="form-control border-0 bg-light" required>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6" id="weeklyRestDayField">
+                        <label class="form-label text-muted small fw-bold">يوم الإجازة الأسبوعية</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-x text-secondary"></i></span>
+                            <select id="weekly_rest_day" class="form-select border-0 bg-light">
+                                <option value="">-- بدون تحديد --</option>
+                                <option value="monday">الاثنين</option>
+                                <option value="tuesday">الثلاثاء</option>
+                                <option value="wednesday">الأربعاء</option>
+                                <option value="thursday">الخميس</option>
+                                <option value="friday">الجمعة</option>
+                                <option value="saturday">السبت</option>
+                                <option value="sunday">الأحد</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label class="form-label text-muted small fw-bold">العنوان</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-geo-alt text-secondary"></i></span>
+                            <textarea id="address" class="form-control border-0 bg-light" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-flex align-items-center">
+                        <div class="alert alert-info border-0 bg-info bg-opacity-10 text-info-emphasis d-flex align-items-center w-100 mb-0 py-2">
+                            <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+                            <div>في قسم الريسبشن يمكن تعديل جدول الشيفت الأسبوعي التفصيلي من صفحة القسم بعد حفظ الموظف.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end mt-4 pt-3 border-top">
+                    <button type="button" class="btn btn-light px-4 me-2" data-bs-toggle="collapse" data-bs-target="#employeeFormCollapse" onclick="resetEmployeeForm()">إلغاء</button>
+                    <button class="btn btn-primary px-5 rounded-3 fw-bold"><i class="bi bi-check2-circle me-2"></i>حفظ الموظف</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Employees List Card -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0 rounded-4 p-0 overflow-hidden">
             <!-- Table View -->
             <div id="tableView">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle compact-table">
+                    <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>كود الموظف</th>
-                                <th>الاسم</th>
-                                <th>القسم</th>
-                                <th>رقم الهاتف</th>
-                                <th>تاريخ التعيين</th>
-                                <th>المسمى الوظيفى</th>
-                                <th>نوع التوظيف</th>
-                                <th id="shiftColumn">الوردية</th>
-                                <th id="restDayColumn">الإجازة الأسبوعية</th>
-                                <th>الحالة</th>
-                                <th>الإجراءات</th>
+                                <th class="py-3 px-4 border-bottom-0 text-muted small fw-bold">كود</th>
+                                <th class="py-3 border-bottom-0 text-muted small fw-bold">الاسم</th>
+                                <th class="py-3 border-bottom-0 text-muted small fw-bold">القسم</th>
+                                <th class="py-3 border-bottom-0 text-muted small fw-bold">المسمى الوظيفي</th>
+                                <th class="py-3 border-bottom-0 text-muted small fw-bold">تاريخ التعيين</th>
+                                <th class="py-3 border-bottom-0 text-muted small fw-bold">الهاتف</th>
+                                <th id="restDayColumn" class="py-3 border-bottom-0 text-muted small fw-bold">الإجازة</th>
+                                <th class="py-3 border-bottom-0 text-muted small fw-bold">الحالة</th>
+                                <th class="py-3 px-4 border-bottom-0 text-muted small fw-bold text-end">الإجراءات</th>
                             </tr>
                         </thead>
-                        <tbody id="employeeTableBody"></tbody>
+                        <tbody id="employeeTableBody" class="border-top-0">
+                            <!-- Populated by JS -->
+                        </tbody>
                     </table>
                 </div>
             </div>
             
             <!-- Card View -->
-            <div id="cardView" class="row g-3" style="display: none;">
+            <div id="cardView" class="row g-4 p-4" style="display: none;">
+                <!-- Populated by JS -->
             </div>
         </div>
         
         <!-- Documents Section -->
-        <div id="documentsSection" class="card panel-card compact-card p-4" style="display: none;">
-            <h5 class="fw-bold compact-section-title mb-4 pb-2 border-bottom border-secondary-subtle">
-                مستندات الموظف: <span id="documentEmployeeName"></span>
-            </h5>
+        <div id="documentsSection" class="card shadow-sm border-0 rounded-4 p-4 mt-4" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+                <h5 class="fw-bold mb-0 text-primary">
+                    <i class="bi bi-folder2-open me-2"></i>مستندات الموظف: <span id="documentEmployeeName" class="text-dark"></span>
+                </h5>
+                <button type="button" class="btn-close" onclick="document.getElementById('documentsSection').style.display='none'"></button>
+            </div>
             
-            <form id="uploadDocumentForm" class="row g-3 mb-4 compact-form">
-                <div class="col-lg-5">
-                    <label class="form-label fw-medium">اسم المستند</label>
-                    <input type="text" id="docName" class="form-control" required placeholder="مثال: بطاقة شخصية">
+            <form id="uploadDocumentForm" class="row g-3 mb-4 align-items-end">
+                <div class="col-lg-4">
+                    <label class="form-label text-muted small fw-bold">اسم المستند</label>
+                    <input type="text" id="docName" class="form-control bg-light border-0" required placeholder="مثال: بطاقة شخصية">
                 </div>
-                <div class="col-lg-5">
-                    <label class="form-label fw-medium">ملاحظات</label>
-                    <input type="text" id="docNotes" class="form-control" placeholder="ملاحظات إختيارية">
+                <div class="col-lg-4">
+                    <label class="form-label text-muted small fw-bold">ملاحظات</label>
+                    <input type="text" id="docNotes" class="form-control bg-light border-0" placeholder="ملاحظات إختيارية">
                 </div>
-                <div class="col-lg-2">
-                    <label class="form-label fw-medium">الملف</label>
-                    <input type="file" id="docFile" class="form-control" required>
+                <div class="col-lg-3">
+                    <label class="form-label text-muted small fw-bold">الملف</label>
+                    <input type="file" id="docFile" class="form-control bg-light border-0" required>
                 </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary px-5">رفع المستند</button>
+                <div class="col-lg-1 text-end">
+                    <button type="submit" class="btn btn-primary w-100 rounded-3"><i class="bi bi-cloud-arrow-up"></i></button>
                 </div>
             </form>
             
-            <div class="table-responsive">
-                <table class="table table-hover align-middle compact-table">
-                    <thead class="table-light">
+            <div class="table-responsive bg-light rounded-3 p-2">
+                <table class="table table-borderless align-middle mb-0">
+                    <thead class="border-bottom">
                         <tr>
-                            <th>اسم المستند</th>
-                            <th>الملاحظات</th>
-                            <th>تاريخ الرفع</th>
-                            <th>الإجراءات</th>
+                            <th class="text-muted small py-3 px-3">اسم المستند</th>
+                            <th class="text-muted small py-3 px-3">الملاحظات</th>
+                            <th class="text-muted small py-3 px-3">تاريخ الرفع</th>
+                            <th class="text-muted small py-3 px-3 text-end">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody id="documentsTableBody"></tbody>
@@ -186,5 +232,5 @@
 {% endblock %}
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-<script src="/static/js/employees.js?v=5"></script>
+<script src="/static/js/employees.js?v=6"></script>
 {% endblock %}

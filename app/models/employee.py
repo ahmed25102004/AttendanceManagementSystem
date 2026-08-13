@@ -26,7 +26,6 @@ class Employee(Base):
     face_registered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     face_verification_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     employment_type: Mapped[str] = mapped_column(String(50), default="full_time", nullable=False)
-    shift_id: Mapped[int | None] = mapped_column(ForeignKey("shifts.id"), nullable=True)
     weekly_rest_day: Mapped[str | None] = mapped_column(String(20), nullable=True)  # e.g., "friday", "saturday"
     annual_leave_balance: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     sick_leave_balance: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -40,5 +39,3 @@ class Employee(Base):
     attendance_records = relationship("AttendanceRecord", back_populates="employee")
     attendance_logs = relationship("AttendanceLog", back_populates="employee", cascade="all, delete-orphan")
     user = relationship("User", back_populates="employee", uselist=False)
-    shift = relationship("Shift", back_populates="employees")
-    shift_schedules = relationship("EmployeeShiftSchedule", back_populates="employee", cascade="all, delete-orphan")

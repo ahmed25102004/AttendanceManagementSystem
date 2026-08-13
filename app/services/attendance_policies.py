@@ -4,9 +4,6 @@ from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.models.employee import Employee
-from app.models.employee_shift_schedule import EmployeeShiftSchedule
-from app.models.shift import Shift
-
 
 class AttendancePolicy(ABC):
     @abstractmethod
@@ -33,25 +30,24 @@ class AttendancePolicy(ABC):
     def get_shift_for_day(self, db: Session, employee: Employee, check_date: date) -> Optional[Dict[str, Any]]:
         pass
 
+    def apply_shift_metrics(self, record: Any) -> None:
+        """Apply shift metrics (units/category) to the attendance record if applicable."""
+        record.shift_category = None
+        record.shift_units = 0.0
+
 
 class DefaultAttendancePolicy(AttendancePolicy):
     def __init__(self):
-        from app.models.company_setting import CompanySetting
-        self.CompanySetting = CompanySetting
+        self.default_start_time = time(9, 0)
+        self.default_late_grace_minutes = 15
 
     def calculate_late_status(self, db: Session, employee: Employee, check_in_time: datetime) -> bool:
-        settings = db.query(self.CompanySetting).first()
-        if not settings or not settings.work_start_time:
-            return False
-        start_time = datetime.combine(check_in_time.date(), settings.work_start_time)
-        late_threshold = start_time.timestamp() + (settings.late_grace_minutes * 60)
+        start_time = datetime.combine(check_in_time.date(), self.default_start_time)
+        late_threshold = start_time.timestamp() + (self.default_late_grace_minutes * 60)
         return check_in_time.timestamp() > late_threshold
 
     def calculate_late_minutes(self, db: Session, employee: Employee, check_in_time: datetime) -> int:
-        settings = db.query(self.CompanySetting).first()
-        if not settings or not settings.work_start_time:
-            return 0
-        start_time = datetime.combine(check_in_time.date(), settings.work_start_time)
+        start_time = datetime.combine(check_in_time.date(), self.default_start_time)
         if check_in_time > start_time:
             return int((check_in_time - start_time).total_seconds() / 60)
         return 0
@@ -67,14 +63,6 @@ class DefaultAttendancePolicy(AttendancePolicy):
         return False
 
     def get_shift_for_day(self, db: Session, employee: Employee, check_date: date) -> Optional[Dict[str, Any]]:
-        if employee.shift:
-            return {
-                "id": employee.shift.id,
-                "name": employee.shift.name,
-                "start_time": employee.shift.start_time,
-                "end_time": employee.shift.end_time,
-                "grace_period_minutes": employee.shift.grace_period_minutes,
-            }
         return None
 
 
@@ -181,54 +169,9 @@ class UnifiedDepartmentPolicy(AttendancePolicy):
         return check_day.lower() == employee.weekly_rest_day.lower()
 
     def get_shift_for_day(self, db: Session, employee: Employee, check_date: date) -> Optional[Dict[str, Any]]:
-        """
-        Get shift information for a specific day.
-        Priority:
-        1. Employee shift schedule for the specific day
-        2. Employee default shift
-        3. Department default settings
-        """
         if not employee.department:
             return None
-        
-        # Check employee shift schedule first
-        check_day = self.DAY_NAMES[check_date.weekday()]
-        schedule = db.query(EmployeeShiftSchedule).filter(
-            EmployeeShiftSchedule.employee_id == employee.id,
-            EmployeeShiftSchedule.day_of_week == check_day.lower()
-        ).first()
-        
-        shift = None
-        shift_type = None
-        
-        if schedule:
-            if schedule.shift_id:
-                shift = db.query(Shift).filter(Shift.id == schedule.shift_id).first()
-            shift_type = schedule.shift_type
             
-            # Fallback to default shifts by name if shift not found
-            if not shift:
-                if shift_type in ["morning", "صباحي"]:
-                    shift = db.query(Shift).filter(Shift.name == "صباحي").first()
-                elif shift_type in ["evening", "مسائي"]:
-                    shift = db.query(Shift).filter(Shift.name == "مسائي").first()
-        
-        # Fallback to employee's default shift
-        if not shift and employee.shift:
-            shift = employee.shift
-        
-        # Return shift info
-        if shift:
-            return {
-                "id": shift.id,
-                "name": shift.name,
-                "type": shift_type,
-                "start_time": shift.start_time,
-                "end_time": shift.end_time,
-                "grace_period_minutes": shift.grace_period_minutes,
-            }
-        
-        # Fallback to department default settings
         return {
             "shift_start": employee.department.shift_start_time,
             "shift_end": employee.department.shift_end_time,
@@ -247,9 +190,122 @@ class ReceptionDepartmentPolicy(UnifiedDepartmentPolicy):
     pass
 
 
-class WorkersDepartmentPolicy(UnifiedDepartmentPolicy):
-    """Workers department policy - same as unified policy"""
-    pass
+class WorkersDepartmentPolicy(AttendancePolicy):
+    """Workers department policy - Independent policy with:
+    - Auto-shift detection based on first check-in time
+    - Grace-period-based late calculation (delay counted AFTER grace end)
+    - Shift end based deficit/overtime calculation
+    - Weekly rest day support (unlike CallCenter)
+    """
+    DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+    def _resolve_shift_category(self, employee: Employee, check_in_time: datetime) -> str:
+        if not employee.department:
+            return "workers_shift_1"
+        shift_2_start = employee.department.evening_shift_start_time
+        if shift_2_start and check_in_time.time() >= shift_2_start:
+            return "workers_shift_2"
+        return "workers_shift_1"
+
+    def _resolve_shift_window(self, employee: Employee, check_in_time: datetime) -> Dict[str, time]:
+        if not employee.department:
+            return {
+                "start_time": time(0, 0),
+                "grace_end_time": time(0, 0),
+                "end_time": time(23, 59, 59),
+            }
+
+        department = employee.department
+        shift_category = self._resolve_shift_category(employee, check_in_time)
+
+        if shift_category == "workers_shift_2" and all(
+            [
+                department.evening_shift_start_time,
+                department.evening_shift_late_start_time,
+                department.evening_shift_end_time,
+            ]
+        ):
+            return {
+                "start_time": department.evening_shift_start_time,
+                "grace_end_time": department.evening_shift_late_start_time,
+                "end_time": department.evening_shift_end_time,
+            }
+
+        return {
+            "start_time": department.shift_start_time,
+            "grace_end_time": department.late_start_time,
+            "end_time": department.shift_end_time,
+        }
+
+    def get_shift_category_for_check_in(self, db: Session, employee: Employee, check_in_time: datetime) -> str:
+        return self._resolve_shift_category(employee, check_in_time)
+
+    def calculate_late_status(self, db: Session, employee: Employee, check_in_time: datetime) -> bool:
+        return self.calculate_late_minutes(db, employee, check_in_time) > 0
+
+    def calculate_late_minutes(self, db: Session, employee: Employee, check_in_time: datetime) -> int:
+        # If it's a rest day, no late penalty
+        if self.is_rest_day(db, employee, check_in_time.date()):
+            return 0
+        window = self._resolve_shift_window(employee, check_in_time)
+        grace_end_at = datetime.combine(check_in_time.date(), window["grace_end_time"])
+        # Late = only minutes AFTER grace_end (NOT shift_start) - matches user spec
+        if check_in_time > grace_end_at:
+            return int((check_in_time - grace_end_at).total_seconds() // 60)
+        return 0
+
+    def calculate_working_hours(self, check_in_time: datetime, check_out_time: datetime) -> float:
+        seconds = max((check_out_time - check_in_time).total_seconds(), 0)
+        return round(seconds / 3600, 2)
+
+    def calculate_overtime_hours(self, employee: Employee, check_in_time: datetime, check_out_time: datetime) -> float:
+        window = self._resolve_shift_window(employee, check_in_time)
+        shift_end_at = datetime.combine(check_in_time.date(), window["end_time"])
+        if check_out_time <= shift_end_at:
+            return 0.0
+        return round((check_out_time - shift_end_at).total_seconds() / 3600, 2)
+
+    def calculate_shift_deficit_hours(self, employee: Employee, check_in_time: datetime, check_out_time: datetime) -> float:
+        window = self._resolve_shift_window(employee, check_in_time)
+        shift_end_at = datetime.combine(check_in_time.date(), window["end_time"])
+        if check_out_time >= shift_end_at:
+            return 0.0
+        return round((shift_end_at - check_out_time).total_seconds() / 3600, 2)
+
+    def supports_shift_system(self) -> bool:
+        return True
+
+    def is_rest_day(self, db: Session, employee: Employee, check_date: date) -> bool:
+        if not employee.weekly_rest_day:
+            return False
+        check_day = self.DAY_NAMES[check_date.weekday()]
+        return check_day.lower() == employee.weekly_rest_day.lower()
+
+    def get_shift_for_day(self, db: Session, employee: Employee, check_date: date) -> Optional[Dict[str, Any]]:
+        if not employee.department:
+            return None
+        return {
+            "shift_1": {
+                "start_time": employee.department.shift_start_time,
+                "grace_end_time": employee.department.late_start_time,
+                "end_time": employee.department.shift_end_time,
+            },
+            "shift_2": {
+                "start_time": employee.department.evening_shift_start_time,
+                "grace_end_time": employee.department.evening_shift_late_start_time,
+                "end_time": employee.department.evening_shift_end_time,
+            },
+        }
+
+class CallCenterDepartmentPolicy(WorkersDepartmentPolicy):
+    """Call center department policy - Mirrors Workers department but for Call Center"""
+    def _resolve_shift_category(self, employee: Employee, check_in_time: datetime) -> str:
+        if not employee.department:
+            return "call_center_shift_1"
+        shift_2_start = employee.department.evening_shift_start_time
+        if shift_2_start and check_in_time.time() >= shift_2_start:
+            return "call_center_shift_2"
+        return "call_center_shift_1"
 
 
 class DoctorsDepartmentPolicy(AttendancePolicy):
@@ -260,8 +316,8 @@ class DoctorsDepartmentPolicy(AttendancePolicy):
         if not employee.department:
             return 0
         
-        # Use department's new shift settings first, fall back to old ones
-        late_start = getattr(employee.department, 'late_start_time', employee.department.half_shift_start_time)
+        # Use department's new shift settings
+        late_start = getattr(employee.department, 'late_start_time', time(8, 30))
         start_time = datetime.combine(check_in_time.date(), late_start)
         
         if check_in_time.timestamp() > start_time.timestamp():
@@ -277,8 +333,8 @@ class DoctorsDepartmentPolicy(AttendancePolicy):
             return 0.0
         
         working_hours = self.calculate_working_hours(check_in_time, check_out_time)
-        # For doctors: full shift is double half shift, so use 2 * half shift hours as full shift
-        half_shift_hours = getattr(employee.department, 'shift_hours', employee.department.half_shift_hours) or 7
+        # For doctors: full shift is double half shift, so use 2 * shift hours as full shift
+        half_shift_hours = getattr(employee.department, 'shift_hours', 7)
         full_shift_hours = half_shift_hours * 2
         
         if working_hours > full_shift_hours:
@@ -291,7 +347,7 @@ class DoctorsDepartmentPolicy(AttendancePolicy):
         
         working_hours = self.calculate_working_hours(check_in_time, check_out_time)
         # Minimum is half shift
-        half_shift_hours = getattr(employee.department, 'shift_hours', employee.department.half_shift_hours) or 7
+        half_shift_hours = getattr(employee.department, 'shift_hours', 7)
         
         if working_hours < half_shift_hours:
             return round(half_shift_hours - working_hours, 2)
@@ -302,7 +358,7 @@ class DoctorsDepartmentPolicy(AttendancePolicy):
             return "half_shift"
         
         working_hours = self.calculate_working_hours(check_in_time, check_out_time)
-        half_shift_hours = getattr(employee.department, 'shift_hours', employee.department.half_shift_hours) or 7
+        half_shift_hours = getattr(employee.department, 'shift_hours', 7)
         full_shift_hours = half_shift_hours * 2
         
         if working_hours >= full_shift_hours:
@@ -314,6 +370,28 @@ class DoctorsDepartmentPolicy(AttendancePolicy):
     def supports_shift_system(self) -> bool:
         return True
 
+    def apply_shift_metrics(self, record: Any) -> None:
+        if not record.employee or not record.check_in_time or not record.check_out_time:
+            record.shift_category = None
+            record.shift_units = 0.0
+            return
+            
+        raw_shift_type = self.get_shift_type(record.employee, record.check_in_time, record.check_out_time)
+        shift_type_map = {
+            "شفت كامل": "full_shift",
+            "نصف شيفت": "half_shift",
+            "نقص في الشفت": "incomplete",
+        }
+        shift_type = shift_type_map.get(raw_shift_type, raw_shift_type)
+        record.shift_category = shift_type
+
+        if shift_type == "full_shift":
+            record.shift_units = 1.0  # Full shift is one unit
+        elif shift_type == "half_shift":
+            record.shift_units = 0.5  # Half shift is 0.5 units
+        else:
+            record.shift_units = 0.0
+
     def is_rest_day(self, db: Session, employee: Employee, check_date: date) -> bool:
         return False
 
@@ -321,14 +399,13 @@ class DoctorsDepartmentPolicy(AttendancePolicy):
         if not employee.department:
             return None
         
-        # Use new settings first, fall back to old ones
+        # Use new settings
         return {
-            "shift_start": getattr(employee.department, 'shift_start_time', employee.department.half_shift_start_time),
-            "shift_end": getattr(employee.department, 'shift_end_time', employee.department.half_shift_end_time),
-            "shift_hours": getattr(employee.department, 'shift_hours', employee.department.half_shift_hours),
-            "late_start": getattr(employee.department, 'late_start_time', employee.department.half_shift_start_time),
-            "overtime_start": getattr(employee.department, 'overtime_start_time', employee.department.overtime_start_time),
-            "grace_period_minutes": employee.department.grace_period_minutes,
+            "shift_start": getattr(employee.department, 'shift_start_time', time(8, 0)),
+            "shift_end": getattr(employee.department, 'shift_end_time', time(15, 0)),
+            "shift_hours": getattr(employee.department, 'shift_hours', 7),
+            "late_start": getattr(employee.department, 'late_start_time', time(8, 30)),
+            "overtime_start": getattr(employee.department, 'overtime_start_time', time(15, 0)),
         }
 
 
@@ -339,6 +416,7 @@ class AttendancePolicyFactory:
         "reception_department": ReceptionDepartmentPolicy,
         "doctors_department": DoctorsDepartmentPolicy,
         "workers_department": WorkersDepartmentPolicy,
+        "call_center_department": CallCenterDepartmentPolicy,
     }
 
     @classmethod

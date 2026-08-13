@@ -40,41 +40,13 @@ class AttendanceService:
         policy = self.policy_factory.get_policy_for_employee(db, employee)
         return policy.calculate_late_minutes(db, employee, check_in_time)
 
-    def _is_doctors_department(self, employee: Employee) -> bool:
-        return bool(employee.department and employee.department.attendance_policy == "doctors_department")
-    
-    def _is_leather_department(self, employee: Employee) -> bool:
-        return bool(employee.department and employee.department.attendance_policy == "leather_department")
-
     def _apply_shift_metrics(self, employee: Employee, record: AttendanceRecord) -> None:
-        record.shift_category = None
-        record.shift_units = 0.0
-        
-        # Leather department: no shift metrics
-        if self._is_leather_department(employee):
-            return
-
-        if not self._is_doctors_department(employee) or not record.check_in_time or not record.check_out_time:
-            return
-        
-        # Use doctors department policy to get shift type
         policy = self.policy_factory.get_policy_for_employee(None, employee)
-        if hasattr(policy, 'get_shift_type'):
-            raw_shift_type = policy.get_shift_type(employee, record.check_in_time, record.check_out_time)
-            shift_type_map = {
-                "شفت كامل": "full_shift",
-                "نصف شيفت": "half_shift",
-                "نقص في الشفت": "incomplete",
-            }
-            shift_type = shift_type_map.get(raw_shift_type, raw_shift_type)
-            record.shift_category = shift_type
-
-            if shift_type == "full_shift":
-                record.shift_units = 1.0  # Full shift is one unit
-            elif shift_type == "half_shift":
-                record.shift_units = 0.5  # Half shift is 0.5 units
-            else:
-                record.shift_units = 0.0
+        if hasattr(policy, 'apply_shift_metrics'):
+            policy.apply_shift_metrics(record)
+        else:
+            record.shift_category = None
+            record.shift_units = 0.0
 
     def _to_response(self, record: AttendanceRecord) -> AttendanceResponse:
         employee_name = " ".join(
@@ -416,11 +388,16 @@ class AttendanceService:
         record.check_in_time = check_in_time
         record.source_type = payload.source_type
         record.verification_data = verification
-        record.is_rest_day = self.policy_factory.get_policy_for_employee(db, employee).is_rest_day(db, employee, attendance_date)
+        policy = self.policy_factory.get_policy_for_employee(db, employee)
+        record.is_rest_day = policy.is_rest_day(db, employee, attendance_date)
         record.worked_on_rest_day = record.is_rest_day
         record.late_minutes = self._calculate_late_minutes(db, employee, check_in_time)
         record.is_late = record.late_minutes > 0
-        record.shift_category = None
+        record.shift_category = (
+            policy.get_shift_category_for_check_in(db, employee, check_in_time)
+            if hasattr(policy, "get_shift_category_for_check_in")
+            else None
+        )
         record.shift_units = 0.0
         record.status = "present"
 
@@ -527,9 +504,15 @@ class AttendanceService:
         if record.check_in_time:
             record.late_minutes = policy.calculate_late_minutes(db, employee, record.check_in_time)
             record.is_late = record.late_minutes > 0
+            record.shift_category = (
+                policy.get_shift_category_for_check_in(db, employee, record.check_in_time)
+                if hasattr(policy, "get_shift_category_for_check_in")
+                else None
+            )
         else:
             record.late_minutes = 0
             record.is_late = False
+            record.shift_category = None
 
         if record.check_in_time and record.check_out_time:
             if record.check_out_time < record.check_in_time:
@@ -552,11 +535,18 @@ class AttendanceService:
             record.working_hours = 0.0
             record.overtime_hours = 0.0
             record.shift_deficit_hours = 0.0
-            record.shift_category = None
             record.shift_units = 0.0
 
         if record.check_in_time:
-            record.status = "present_on_rest_day" if record.worked_on_rest_day else "present"
+            # Workers department requirement:
+            # "ولا يتم تغيير حالة الحضور من "حاضر" إلى "حضر في يوم إجازته""
+            # Only workers dept keeps status = "present" regardless of rest day work flag
+            dept = employee.department
+            is_workers_dept = bool(dept and dept.attendance_policy in ["workers_department", "call_center_department"])
+            if is_workers_dept:
+                record.status = "present"
+            else:
+                record.status = "present_on_rest_day" if record.worked_on_rest_day else "present"
         elif record.is_rest_day:
             record.status = "weekly_rest"
         else:

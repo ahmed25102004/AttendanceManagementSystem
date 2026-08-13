@@ -130,16 +130,6 @@ def department_page(department_id: int, request: Request, db: Session = Depends(
     return templates.TemplateResponse("department_page.html", {"request": request, "page": "departments", "department_id": department_id})
 
 
-@router.get("/shifts", response_class=HTMLResponse)
-def shifts(request: Request, db: Session = Depends(get_db)):
-    user = _get_request_user(request, db)
-    if not user:
-        return RedirectResponse("/login", status_code=302)
-    if user.role not in ["admin", "branch_manager"]:
-        return RedirectResponse("/my-attendance", status_code=302)
-    return templates.TemplateResponse("shifts.html", {"request": request, "page": "shifts"})
-
-
 @router.get("/backups", response_class=HTMLResponse)
 def backups(request: Request, db: Session = Depends(get_db)):
     user = _get_request_user(request, db)

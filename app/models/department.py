@@ -38,15 +38,6 @@ class Department(Base):
     evening_shift_end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     evening_shift_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
     evening_shift_late_start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
-    
-    # Keep old fields for backward compatibility
-    half_shift_start_time: Mapped[time] = mapped_column(Time, default=time(8, 0), nullable=False)
-    half_shift_end_time: Mapped[time] = mapped_column(Time, default=time(15, 0), nullable=False)
-    half_shift_hours: Mapped[int] = mapped_column(Integer, default=7, nullable=False)
-    full_shift_start_time: Mapped[time] = mapped_column(Time, default=time(8, 0), nullable=False)
-    full_shift_end_time: Mapped[time] = mapped_column(Time, default=time(22, 0), nullable=False)
-    full_shift_hours: Mapped[int] = mapped_column(Integer, default=14, nullable=False)
-    grace_period_minutes: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
 
     branch = relationship("Branch", back_populates="departments")
     employees = relationship("Employee", back_populates="department")

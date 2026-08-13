@@ -41,6 +41,8 @@ class ReportRow(BaseModel):
     worked_on_rest_days_count: int = 0
     full_shift_count: int = 0
     half_shift_count: int = 0
+    shift_1_count: int = 0
+    shift_2_count: int = 0
     total_shift_units: float = 0
     total_late_minutes: int = 0
     total_overtime_hours: float = 0

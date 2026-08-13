@@ -112,10 +112,19 @@ def export_weekly_pdf(
 def export_monthly_excel(
     month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
     department_id: int | None = Query(default=None),
+    view_mode: str | None = Query(default=None),
+    employee_code: str | None = Query(default=None),
     db: Session = Depends(get_db),
     branch_id: int | None = Depends(get_current_branch_id),
 ):
     rows = report_service.monthly_report(db, month, branch_id, department_id)
+    if view_mode == "summary":
+        rows = [r for r in rows if r.row_kind == "summary"]
+    elif view_mode == "details" and employee_code:
+        rows = [r for r in rows if r.row_kind != "summary" and r.employee_code == employee_code]
+    elif view_mode == "daily":
+        rows = [r for r in rows if r.row_kind != "summary"]
+    
     file_stream = export_service.export_excel(f"تقرير الحضور الشهري - {month}", rows)
     return StreamingResponse(
         file_stream,
@@ -128,10 +137,19 @@ def export_monthly_excel(
 def export_monthly_pdf(
     month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
     department_id: int | None = Query(default=None),
+    view_mode: str | None = Query(default=None),
+    employee_code: str | None = Query(default=None),
     db: Session = Depends(get_db),
     branch_id: int | None = Depends(get_current_branch_id),
 ):
     rows = report_service.monthly_report(db, month, branch_id, department_id)
+    if view_mode == "summary":
+        rows = [r for r in rows if r.row_kind == "summary"]
+    elif view_mode == "details" and employee_code:
+        rows = [r for r in rows if r.row_kind != "summary" and r.employee_code == employee_code]
+    elif view_mode == "daily":
+        rows = [r for r in rows if r.row_kind != "summary"]
+        
     file_stream = export_service.export_pdf(f"تقرير الحضور الشهري - {month}", rows)
     return StreamingResponse(
         file_stream,

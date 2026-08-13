@@ -47,7 +47,6 @@
                             <th>كود الموظف</th>
                             <th>الاسم</th>
                             <th>حالة اليوم</th>
-                            <th id="shiftTh">شيفت اليوم</th>
                             <th id="restDayTh">الإجازة الأسبوعية</th>
                             <th>الإجراءات</th>
                         </tr>
@@ -61,58 +60,6 @@
         <div class="card panel-card p-4 h-100">
             <h5 class="fw-bold mb-3">آخر سجلات الحضور</h5>
             <div id="latestAttendanceList"></div>
-        </div>
-    </div>
-</div>
-<div class="modal fade" id="scheduleModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">إدارة جدول الشيفت - <span id="scheduleEmployeeName"></span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="scheduleForm" class="row g-3">
-                    <input type="hidden" id="scheduleEmployeeId">
-                    <div class="col-md-6">
-                        <label class="form-label">الوردية الافتراضية</label>
-                        <select id="scheduleDefaultShiftId" class="form-select">
-                            <option value="">-- بدون وردية افتراضية --</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">يوم الإجازة الأسبوعية</label>
-                        <select id="scheduleWeeklyRestDay" class="form-select">
-                            <option value="">-- بدون تحديد --</option>
-                            <option value="monday">الاثنين</option>
-                            <option value="tuesday">الثلاثاء</option>
-                            <option value="wednesday">الأربعاء</option>
-                            <option value="thursday">الخميس</option>
-                            <option value="friday">الجمعة</option>
-                            <option value="saturday">السبت</option>
-                            <option value="sunday">الأحد</option>
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <div class="table-responsive">
-                            <table class="table table-bordered align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>اليوم</th>
-                                        <th>نوع الشيفت</th>
-                                        <th>الوردية</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="scheduleRowsBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
-                <button type="submit" form="scheduleForm" class="btn btn-primary">حفظ الجدول</button>
-            </div>
         </div>
     </div>
 </div>
@@ -141,6 +88,8 @@
                             <option value="leather_department">قسم الجلدية (بالساعات فقط)</option>
                             <option value="reception_department">قسم الريسبشن (بالشيفتات)</option>
                             <option value="doctors_department">الدكاتره (شفت كامل + نصف شفت + اوفر تايم)</option>
+                            <option value="call_center_department">قسم الكول سنتر (شيفتين تلقائيًا)</option>
+                            <option value="workers_department">قسم العمال (شيفتين تلقائيًا + إجازة أسبوعية)</option>
                         </select>
                     </div>
                     <div class="col-md-6">
@@ -248,6 +197,99 @@
                             <input id="editGracePeriodMinutes" type="number">
                         </div>
                     </div>
+                    <div class="col-12" id="callCenterSettingsSection" style="display: none;">
+                        <hr class="my-2">
+                        <h6 class="fw-bold mb-3">إعدادات قسم الكول سنتر</h6>
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <span class="fw-semibold">الشيفت الأول</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">وقت بداية الشيفت</label>
+                                        <input id="editCallCenterShift1StartTime" type="time" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">نهاية فترة السماح للتأخير</label>
+                                        <input id="editCallCenterShift1GraceEndTime" type="time" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">وقت نهاية الشيفت</label>
+                                        <input id="editCallCenterShift1EndTime" type="time" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <span class="fw-semibold">الشيفت الثاني</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">وقت بداية الشيفت</label>
+                                        <input id="editCallCenterShift2StartTime" type="time" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">نهاية فترة السماح للتأخير</label>
+                                        <input id="editCallCenterShift2GraceEndTime" type="time" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">وقت نهاية الشيفت</label>
+                                        <input id="editCallCenterShift2EndTime" type="time" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12" id="workersSettingsSection" style="display: none;">
+                        <hr class="my-2">
+                        <h6 class="fw-bold mb-3">إعدادات قسم العمال</h6>
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <span class="fw-semibold">الشيفت الأول</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">وقت بداية الشيفت</label>
+                                        <input id="editWorkersShift1StartTime" type="time" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">نهاية فترة السماح للتأخير</label>
+                                        <input id="editWorkersShift1GraceEndTime" type="time" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">وقت نهاية الشيفت</label>
+                                        <input id="editWorkersShift1EndTime" type="time" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <span class="fw-semibold">الشيفت الثاني</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">وقت بداية الشيفت</label>
+                                        <input id="editWorkersShift2StartTime" type="time" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">نهاية فترة السماح للتأخير</label>
+                                        <input id="editWorkersShift2GraceEndTime" type="time" class="form-control">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">وقت نهاية الشيفت</label>
+                                        <input id="editWorkersShift2EndTime" type="time" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -332,11 +374,19 @@ function formatTimeForInput(timeStr) {
     return timeStr;
 }
 
-function toggleDoctorsSettings() {
+function toggleDepartmentSettings() {
     const policy = document.getElementById("editDepartmentPolicy").value;
     const doctorsSection = document.getElementById("doctorsSettingsSection");
     if (doctorsSection) {
         doctorsSection.style.display = policy === "doctors_department" ? "block" : "none";
+    }
+    const callCenterSection = document.getElementById("callCenterSettingsSection");
+    if (callCenterSection) {
+        callCenterSection.style.display = policy === "call_center_department" ? "block" : "none";
+    }
+    const workersSection = document.getElementById("workersSettingsSection");
+    if (workersSection) {
+        workersSection.style.display = policy === "workers_department" ? "block" : "none";
     }
 }
 
@@ -349,6 +399,12 @@ function getPolicyDisplayName(policy) {
     }
     if (policy === "doctors_department") {
         return "الدكاتره";
+    }
+    if (policy === "call_center_department") {
+        return "قسم الكول سنتر";
+    }
+    if (policy === "workers_department") {
+        return "قسم العمال";
     }
     return "سياسة افتراضية";
 }
@@ -377,65 +433,6 @@ function getRestDayLabel(value) {
     return dayLabels[value] || "-";
 }
 
-function buildShiftOptions(selectedValue = "") {
-    let html = '<option value="">-- بدون وردية --</option>';
-    shiftsCache.forEach((shift) => {
-        const selected = String(shift.id) === String(selectedValue || "") ? "selected" : "";
-        html += `<option value="${shift.id}" ${selected}>${shift.name} (${shift.start_time} - ${shift.end_time})</option>`;
-    });
-    return html;
-}
-
-function buildScheduleRows(scheduleResponse) {
-    const rowsBody = document.getElementById("scheduleRowsBody");
-    if (!rowsBody) return;
-    const scheduleMap = new Map((scheduleResponse.schedules || []).map((item) => [item.day_of_week, item]));
-    rowsBody.innerHTML = "";
-
-    dayOrder.forEach((dayKey) => {
-        const entry = scheduleMap.get(dayKey);
-        rowsBody.innerHTML += `
-            <tr>
-                <td>${dayLabels[dayKey]}</td>
-                <td>
-                    <select class="form-select schedule-shift-type" data-day="${dayKey}">
-                        <option value="">-- بدون تحديد --</option>
-                        <option value="morning" ${entry?.shift_type === "morning" ? "selected" : ""}>شيفت صباحي</option>
-                        <option value="evening" ${entry?.shift_type === "evening" ? "selected" : ""}>شيفت مسائي</option>
-                        <option value="half" ${entry?.shift_type === "half" ? "selected" : ""}>نصف شيفت</option>
-                        <option value="full" ${entry?.shift_type === "full" ? "selected" : ""}>شيفت كامل</option>
-                    </select>
-                </td>
-                <td>
-                    <select class="form-select schedule-shift-id" data-day="${dayKey}">
-                        ${buildShiftOptions(entry?.shift_id)}
-                    </select>
-                </td>
-            </tr>
-        `;
-    });
-}
-
-async function loadShifts() {
-    shiftsCache = await fetchJSON("/api/shifts");
-    const defaultShiftSelect = document.getElementById("scheduleDefaultShiftId");
-    if (!defaultShiftSelect) return;
-    defaultShiftSelect.innerHTML = buildShiftOptions();
-}
-
-async function openScheduleModal(employeeId, employeeName) {
-    try {
-        document.getElementById("scheduleEmployeeName").textContent = employeeName;
-        document.getElementById("scheduleEmployeeId").value = employeeId;
-        const response = await fetchJSON(`/api/employees/${employeeId}/shift-schedule?all=true`);
-        document.getElementById("scheduleDefaultShiftId").innerHTML = buildShiftOptions(response.shift_id);
-        document.getElementById("scheduleWeeklyRestDay").value = response.weekly_rest_day || "";
-        buildScheduleRows(response);
-        new bootstrap.Modal(document.getElementById("scheduleModal")).show();
-    } catch (error) {
-        showDepartmentPageAlert(error.message);
-    }
-}
 
 function openManualAttendanceModal(employeeId, employeeName) {
     document.getElementById("manualAttendanceEmployeeId").value = employeeId;
@@ -479,7 +476,21 @@ function openEditDepartmentModal() {
         document.getElementById("editFullShiftHours").value = departmentStatsCache.full_shift_hours;
         document.getElementById("editGracePeriodMinutes").value = departmentStatsCache.grace_period_minutes;
         
-        toggleDoctorsSettings();
+        document.getElementById("editCallCenterShift1StartTime").value = formatTimeForInput(departmentStatsCache.shift_start_time);
+        document.getElementById("editCallCenterShift1GraceEndTime").value = formatTimeForInput(departmentStatsCache.late_start_time);
+        document.getElementById("editCallCenterShift1EndTime").value = formatTimeForInput(departmentStatsCache.shift_end_time);
+        document.getElementById("editCallCenterShift2StartTime").value = formatTimeForInput(departmentStatsCache.evening_shift_start_time);
+        document.getElementById("editCallCenterShift2GraceEndTime").value = formatTimeForInput(departmentStatsCache.evening_shift_late_start_time);
+        document.getElementById("editCallCenterShift2EndTime").value = formatTimeForInput(departmentStatsCache.evening_shift_end_time);
+
+        document.getElementById("editWorkersShift1StartTime").value = formatTimeForInput(departmentStatsCache.shift_start_time);
+        document.getElementById("editWorkersShift1GraceEndTime").value = formatTimeForInput(departmentStatsCache.late_start_time);
+        document.getElementById("editWorkersShift1EndTime").value = formatTimeForInput(departmentStatsCache.shift_end_time);
+        document.getElementById("editWorkersShift2StartTime").value = formatTimeForInput(departmentStatsCache.evening_shift_start_time);
+        document.getElementById("editWorkersShift2GraceEndTime").value = formatTimeForInput(departmentStatsCache.evening_shift_late_start_time);
+        document.getElementById("editWorkersShift2EndTime").value = formatTimeForInput(departmentStatsCache.evening_shift_end_time);
+
+        toggleDepartmentSettings();
         new bootstrap.Modal(document.getElementById("editDepartmentModal")).show();
     }
 
@@ -493,10 +504,10 @@ async function loadDepartmentStats() {
         document.getElementById("attendanceToday").textContent = stats.attendance_today;
         document.getElementById("attendancePolicy").textContent = getPolicyDisplayName(stats.attendance_policy);
 
-        // Hide columns for leather department
+        // Hide columns for leather and call center departments (workers has weekly rest day)
         const isLeather = stats.attendance_policy === "leather_department";
-        document.getElementById("shiftTh").style.display = isLeather ? "none" : "";
-        document.getElementById("restDayTh").style.display = isLeather ? "none" : "";
+        const isCallCenter = stats.attendance_policy === "call_center_department";
+        document.getElementById("restDayTh").style.display = (isLeather || isCallCenter) ? "none" : "";
 
         // Load employees table
         const employeesBody = document.getElementById("employeesBody");
@@ -505,6 +516,8 @@ async function loadDepartmentStats() {
                 const status = emp.status || (emp.attendance_today ? "present" : "absent");
                 const safeEmployeeName = JSON.stringify(emp.full_name || "");
                 const isReception = stats.attendance_policy === "reception_department";
+                const isWorkers = stats.attendance_policy === "workers_department";
+                const supportsManualEdit = isReception || isWorkers;
                 const isLeather = stats.attendance_policy === "leather_department";
                 employeesBody.innerHTML += `
                     <tr>
@@ -515,12 +528,10 @@ async function loadDepartmentStats() {
                                 ${getStatusLabel(status)}
                             </span>
                         </td>
-                        <td style="display: ${isLeather ? 'none' : ''}">${emp.shift_name || "-"}</td>
-                        <td style="display: ${isLeather ? 'none' : ''}">${getRestDayLabel(emp.weekly_rest_day)}</td>
+                        <td style="display: ${(isLeather || isCallCenter) ? 'none' : ''}">${getRestDayLabel(emp.weekly_rest_day)}</td>
                         <td>
                             <a href="/employees/${emp.id}" class="btn btn-sm btn-outline-primary">عرض التفاصيل</a>
-                            ${isReception ? `
-                                <button class="btn btn-sm btn-outline-info" onclick='openScheduleModal(${emp.id}, ${safeEmployeeName})'>جدول الشيفت</button>
+                            ${supportsManualEdit ? `
                                 <button class="btn btn-sm btn-outline-success" onclick='openManualAttendanceModal(${emp.id}, ${safeEmployeeName})'>تعديل الحضور</button>
                             ` : ""}
                         </td>
@@ -557,14 +568,13 @@ async function loadDepartmentStats() {
 document.addEventListener("DOMContentLoaded", async () => {
     await hydrateUser();
     await loadBranchSelector();
-    await loadShifts();
     await loadDepartmentStats();
 
     document.getElementById("editDepartmentSettingsBtn").addEventListener("click", () => {
         openEditDepartmentModal();
     });
 
-    document.getElementById("editDepartmentPolicy").addEventListener("change", toggleDoctorsSettings);
+    document.getElementById("editDepartmentPolicy").addEventListener("change", toggleDepartmentSettings);
     
     // Evening shift toggle
     document.getElementById("enableEveningShift").addEventListener("change", (e) => {
@@ -581,7 +591,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 is_active: document.getElementById("editDepartmentActive").checked
             };
             
-            // Add new Doctors settings if applicable
+            // Add Doctors settings if applicable
             if (policy === "doctors_department") {
                 // New fields
                 payload.shift_start_time = document.getElementById("editShiftStartTime").value + ":00";
@@ -602,7 +612,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     payload.evening_shift_end_time = null;
                     payload.evening_shift_hours = null;
                 }
-                
+
                 // Legacy fields (for backward compatibility)
                 payload.half_shift_start_time = document.getElementById("editShiftStartTime").value + ":00";
                 payload.half_shift_end_time = document.getElementById("editShiftEndTime").value + ":00";
@@ -613,6 +623,29 @@ document.addEventListener("DOMContentLoaded", async () => {
                 payload.grace_period_minutes = 30;
             }
             
+            // Call center settings (OUTSIDE doctors block)
+            if (policy === "call_center_department") {
+                const prefix = "CallCenter";
+                payload.shift_start_time = document.getElementById(`edit${prefix}Shift1StartTime`).value ? document.getElementById(`edit${prefix}Shift1StartTime`).value + ":00" : null;
+                payload.late_start_time = document.getElementById(`edit${prefix}Shift1GraceEndTime`).value ? document.getElementById(`edit${prefix}Shift1GraceEndTime`).value + ":00" : null;
+                payload.shift_end_time = document.getElementById(`edit${prefix}Shift1EndTime`).value ? document.getElementById(`edit${prefix}Shift1EndTime`).value + ":00" : null;
+                payload.evening_shift_start_time = document.getElementById(`edit${prefix}Shift2StartTime`).value ? document.getElementById(`edit${prefix}Shift2StartTime`).value + ":00" : null;
+                payload.evening_shift_late_start_time = document.getElementById(`edit${prefix}Shift2GraceEndTime`).value ? document.getElementById(`edit${prefix}Shift2GraceEndTime`).value + ":00" : null;
+                payload.evening_shift_end_time = document.getElementById(`edit${prefix}Shift2EndTime`).value ? document.getElementById(`edit${prefix}Shift2EndTime`).value + ":00" : null;
+            }
+
+            // Workers settings (OUTSIDE doctors block)
+            if (policy === "workers_department") {
+                const prefix = "Workers";
+                payload.shift_start_time = document.getElementById(`edit${prefix}Shift1StartTime`).value ? document.getElementById(`edit${prefix}Shift1StartTime`).value + ":00" : null;
+                payload.late_start_time = document.getElementById(`edit${prefix}Shift1GraceEndTime`).value ? document.getElementById(`edit${prefix}Shift1GraceEndTime`).value + ":00" : null;
+                payload.shift_end_time = document.getElementById(`edit${prefix}Shift1EndTime`).value ? document.getElementById(`edit${prefix}Shift1EndTime`).value + ":00" : null;
+                payload.evening_shift_start_time = document.getElementById(`edit${prefix}Shift2StartTime`).value ? document.getElementById(`edit${prefix}Shift2StartTime`).value + ":00" : null;
+                payload.evening_shift_late_start_time = document.getElementById(`edit${prefix}Shift2GraceEndTime`).value ? document.getElementById(`edit${prefix}Shift2GraceEndTime`).value + ":00" : null;
+                payload.evening_shift_end_time = document.getElementById(`edit${prefix}Shift2EndTime`).value ? document.getElementById(`edit${prefix}Shift2EndTime`).value + ":00" : null;
+            }
+            
+
             try {
                 await fetchJSON(`/api/departments/${currentDepartmentId}`, {
                     method: "PUT",
@@ -629,40 +662,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Refresh stats every 30 seconds
     setInterval(loadDepartmentStats, 30000);
 
-    document.getElementById("scheduleForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const employeeId = document.getElementById("scheduleEmployeeId").value;
-        const schedules = dayOrder.map((dayKey) => {
-            const shiftType = document.querySelector(`.schedule-shift-type[data-day="${dayKey}"]`).value;
-            const shiftId = document.querySelector(`.schedule-shift-id[data-day="${dayKey}"]`).value;
-            if (!shiftType && !shiftId) {
-                return null;
-            }
-            return {
-                day_of_week: dayKey,
-                shift_type: shiftType || "full",
-                shift_id: shiftId ? parseInt(shiftId, 10) : null,
-            };
-        }).filter(Boolean);
-
-        const payload = {
-            shift_id: document.getElementById("scheduleDefaultShiftId").value ? parseInt(document.getElementById("scheduleDefaultShiftId").value, 10) : null,
-            weekly_rest_day: document.getElementById("scheduleWeeklyRestDay").value || null,
-            schedules,
-        };
-
-        try {
-            await fetchJSON(`/api/employees/${employeeId}/shift-schedule?all=true`, {
-                method: "PUT",
-                body: JSON.stringify(payload),
-            });
-            bootstrap.Modal.getInstance(document.getElementById("scheduleModal")).hide();
-            await loadDepartmentStats();
-            showDepartmentPageAlert("تم حفظ جدول الشيفت بنجاح.", "success");
-        } catch (error) {
-            showDepartmentPageAlert(error.message);
-        }
-    });
 
     document.getElementById("manualAttendanceForm").addEventListener("submit", async (event) => {
         event.preventDefault();

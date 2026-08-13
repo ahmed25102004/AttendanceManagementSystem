@@ -2,7 +2,6 @@
 const employeeCache = new Map();
 const departmentCache = new Map();
 const branchCache = new Map();
-const shiftCache = new Map();
 let selectedEmployeeId = null;
 let allEmployees = [];
 let currentView = "table"; // "table" or "card"
@@ -66,22 +65,6 @@ async function loadDepartments() {
       option.textContent = dept.name;
       filterSelectEl.appendChild(option);
     }
-  });
-}
-
-async function loadShifts() {
-  const shifts = await fetchJSON("/api/shifts");
-  const selectEl = document.getElementById("shift_id");
-  if (!selectEl) return;
-  selectEl.innerHTML = '<option value="">-- بدون وردية افتراضية --</option>';
-  shiftCache.clear();
-
-  shifts.forEach((shift) => {
-    shiftCache.set(shift.id, shift);
-    const option = document.createElement("option");
-    option.value = shift.id;
-    option.textContent = `${shift.name} (${shift.start_time} - ${shift.end_time})`;
-    selectEl.appendChild(option);
   });
 }
 
@@ -154,11 +137,9 @@ function getVisibleFieldRequirements(employees, filterDepartment) {
   return employees.reduce((acc, employee) => {
     const requirements = getEmployeeRequirements(employee);
     return {
-      showShiftField: acc.showShiftField || requirements.showShiftField,
       showWeeklyRestDayField: acc.showWeeklyRestDayField || requirements.showWeeklyRestDayField
     };
   }, {
-    showShiftField: false,
     showWeeklyRestDayField: false
   });
 }
@@ -168,6 +149,18 @@ function renderTableView(employees, requirements) {
   if (!tbody) return;
   tbody.innerHTML = "";
   
+  if (employees.length === 0) {
+      tbody.innerHTML = `
+          <tr>
+              <td colspan="9" class="text-center py-5">
+                  <i class="bi bi-inboxes text-muted" style="font-size: 3rem;"></i>
+                  <h5 class="mt-3 text-muted">لا يوجد موظفين</h5>
+              </td>
+          </tr>
+      `;
+      return;
+  }
+
   const employmentTypeLabels = {
     "full_time": "دوام كامل",
     "part_time": "دوام جزئي",
@@ -177,29 +170,37 @@ function renderTableView(employees, requirements) {
 
   employees.forEach((employee) => {
     const dept = employee.department_id ? departmentCache.get(employee.department_id) : null;
-    const shift = employee.shift_id ? shiftCache.get(employee.shift_id) : null;
     const employeeRequirements = getEmployeeRequirements(employee);
     const statusBadge = employee.is_active 
-      ? '<span class="badge bg-success">نشط</span>' 
-      : '<span class="badge bg-secondary">غير نشط</span>';
+      ? '<span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">نشط</span>' 
+      : '<span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3">غير نشط</span>';
+      
     tbody.innerHTML += `
       <tr>
-        <td><span class="fw-medium">${employee.employee_code}</span></td>
-        <td><span class="fw-medium">${employee.full_name}</span></td>
-        <td>${dept ? dept.name : "-"}</td>
-        <td>${employee.phone || "-"}</td>
-        <td>${employee.hire_date}</td>
-        <td>${employee.job_title}</td>
-        <td>${employmentTypeLabels[employee.employment_type] || employee.employment_type}</td>
-        <td style="display: ${requirements.showShiftField ? '' : 'none'}">${employeeRequirements.showShiftField ? (shift ? shift.name : "-") : "-"}</td>
+        <td class="px-4"><span class="badge bg-light text-dark border">${employee.employee_code}</span></td>
+        <td>
+            <div class="d-flex align-items-center">
+                <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 40px; height: 40px;">
+                    <i class="bi bi-person-fill fs-5"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 fw-bold">${employee.full_name}</h6>
+                    <small class="text-muted">${employmentTypeLabels[employee.employment_type] || employee.employment_type}</small>
+                </div>
+            </div>
+        </td>
+        <td><span class="fw-medium">${dept ? dept.name : "-"}</span></td>
+        <td><span class="text-muted small">${employee.job_title}</span></td>
+        <td><span class="text-muted small"><i class="bi bi-calendar3 me-1"></i>${employee.hire_date}</span></td>
+        <td dir="ltr" class="text-end text-muted small">${employee.phone || "-"}</td>
         <td style="display: ${requirements.showWeeklyRestDayField ? '' : 'none'}">${employeeRequirements.showWeeklyRestDayField ? getRestDayLabel(employee.weekly_rest_day) : "-"}</td>
         <td>${statusBadge}</td>
-        <td>
-          <div class="d-flex gap-1 flex-nowrap">
-            <button class="btn btn-sm btn-outline-success" onclick="window.location.href='/employees/${employee.id}'"><i class="bi bi-person"></i></button>
-            <button class="btn btn-sm btn-outline-info" onclick="viewDocuments(${employee.id}, '${employee.full_name}')"><i class="bi bi-file-earmark-text"></i></button>
-            <button class="btn btn-sm btn-outline-primary" onclick="editEmployee(${employee.id})"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.id})"><i class="bi bi-trash"></i></button>
+        <td class="px-4 text-end">
+          <div class="btn-group shadow-sm rounded-3">
+            <button class="btn btn-sm btn-light border" title="الملف الشخصي" onclick="window.location.href='/employees/${employee.id}'"><i class="bi bi-person text-success"></i></button>
+            <button class="btn btn-sm btn-light border" title="المستندات" onclick="viewDocuments(${employee.id}, '${employee.full_name}')"><i class="bi bi-folder2-open text-info"></i></button>
+            <button class="btn btn-sm btn-light border" title="تعديل" onclick="editEmployee(${employee.id})"><i class="bi bi-pencil text-primary"></i></button>
+            <button class="btn btn-sm btn-light border" title="حذف" onclick="deleteEmployee(${employee.id})"><i class="bi bi-trash text-danger"></i></button>
           </div>
         </td>
       </tr>
@@ -212,6 +213,16 @@ function renderCardView(employees, requirements) {
   if (!cardContainer) return;
   cardContainer.innerHTML = "";
   
+  if (employees.length === 0) {
+      cardContainer.innerHTML = `
+          <div class="col-12 text-center py-5">
+              <i class="bi bi-inboxes text-muted" style="font-size: 3rem;"></i>
+              <h5 class="mt-3 text-muted">لا يوجد موظفين</h5>
+          </div>
+      `;
+      return;
+  }
+
   const employmentTypeLabels = {
     "full_time": "دوام كامل",
     "part_time": "دوام جزئي",
@@ -221,47 +232,51 @@ function renderCardView(employees, requirements) {
 
   employees.forEach((employee) => {
     const dept = employee.department_id ? departmentCache.get(employee.department_id) : null;
-    const shift = employee.shift_id ? shiftCache.get(employee.shift_id) : null;
     const employeeRequirements = getEmployeeRequirements(employee);
     const statusBadge = employee.is_active 
-      ? '<span class="badge bg-success">نشط</span>' 
-      : '<span class="badge bg-secondary">غير نشط</span>';
+      ? '<span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">نشط</span>' 
+      : '<span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill px-3">غير نشط</span>';
     cardContainer.innerHTML += `
-      <div class="col-lg-4 col-md-6">
-        <div class="card h-100 shadow-sm border-0">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-              <h5 class="card-title fw-bold mb-0 text-truncate">${employee.full_name}</h5>
+      <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden position-relative">
+          <div class="bg-primary bg-opacity-10 p-3 pb-4 text-center">
+              <div class="bg-white rounded-circle d-inline-flex justify-content-center align-items-center shadow-sm mb-2" style="width: 64px; height: 64px;">
+                  <i class="bi bi-person-fill text-primary fs-2"></i>
+              </div>
+              <h5 class="fw-bold mb-1 text-truncate">${employee.full_name}</h5>
+              <div class="small text-muted mb-2">${employee.job_title}</div>
               ${statusBadge}
+          </div>
+          <div class="card-body pt-3">
+            <div class="d-flex justify-content-between mb-2 small">
+                <span class="text-muted"><i class="bi bi-upc-scan me-1"></i>الكود</span>
+                <span class="fw-bold text-dark">${employee.employee_code}</span>
             </div>
-            <h6 class="card-subtitle text-muted mb-3"><i class="bi bi-person-badge me-1"></i>${employee.employee_code}</h6>
-            <div class="mb-2">
-              <i class="bi bi-door-open me-2"></i> <span class="text-muted">القسم:</span> ${dept ? dept.name : "-"}
+            <div class="d-flex justify-content-between mb-2 small">
+                <span class="text-muted"><i class="bi bi-building me-1"></i>القسم</span>
+                <span class="fw-medium">${dept ? dept.name : "-"}</span>
             </div>
-            <div class="mb-2">
-              <i class="bi bi-briefcase me-2"></i> <span class="text-muted">الوظيفة:</span> ${employee.job_title}
+            <div class="d-flex justify-content-between mb-2 small">
+                <span class="text-muted"><i class="bi bi-telephone me-1"></i>الهاتف</span>
+                <span class="fw-medium text-end" dir="ltr">${employee.phone || "-"}</span>
             </div>
-            <div class="mb-2">
-              <i class="bi bi-clock me-2"></i> <span class="text-muted">التوظيف:</span> ${employmentTypeLabels[employee.employment_type] || employee.employment_type}
+            <div class="d-flex justify-content-between mb-3 small" style="display: ${requirements.showWeeklyRestDayField && employeeRequirements.showWeeklyRestDayField ? 'flex' : 'none'} !important">
+                <span class="text-muted"><i class="bi bi-calendar-x me-1"></i>الإجازة</span>
+                <span class="fw-medium">${getRestDayLabel(employee.weekly_rest_day)}</span>
             </div>
-            <div class="mb-2" style="display: ${requirements.showShiftField && employeeRequirements.showShiftField ? '' : 'none'}">
-              <i class="bi bi-calendar2-week me-2"></i> <span class="text-muted">الوردية:</span> ${shift ? shift.name : "-"}
-            </div>
-            <div class="mb-3" style="display: ${requirements.showWeeklyRestDayField && employeeRequirements.showWeeklyRestDayField ? '' : 'none'}">
-              <i class="bi bi-calendar-day me-2"></i> <span class="text-muted">الإجازة الأسبوعية:</span> ${getRestDayLabel(employee.weekly_rest_day)}
-            </div>
-            <div class="d-flex gap-2 pt-2 border-top border-light">
-              <button class="btn btn-sm btn-outline-success flex-grow-1" onclick="window.location.href='/employees/${employee.id}'">
-                <i class="bi bi-person"></i> ملف الموظف
+            
+            <div class="d-flex gap-2 pt-3 border-top mt-auto">
+              <button class="btn btn-sm btn-light flex-grow-1" onclick="window.location.href='/employees/${employee.id}'">
+                <i class="bi bi-person text-success"></i>
               </button>
-              <button class="btn btn-sm btn-outline-info" onclick="viewDocuments(${employee.id}, '${employee.full_name}')">
-                <i class="bi bi-file-earmark-text"></i>
+              <button class="btn btn-sm btn-light flex-grow-1" onclick="viewDocuments(${employee.id}, '${employee.full_name}')">
+                <i class="bi bi-folder2-open text-info"></i>
               </button>
-              <button class="btn btn-sm btn-outline-primary" onclick="editEmployee(${employee.id})">
-                <i class="bi bi-pencil"></i>
+              <button class="btn btn-sm btn-light flex-grow-1" onclick="editEmployee(${employee.id})">
+                <i class="bi bi-pencil text-primary"></i>
               </button>
-              <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.id})">
-                <i class="bi bi-trash"></i>
+              <button class="btn btn-sm btn-light flex-grow-1" onclick="deleteEmployee(${employee.id})">
+                <i class="bi bi-trash text-danger"></i>
               </button>
             </div>
           </div>
@@ -330,14 +345,19 @@ function getPolicyRequirements(attendancePolicy) {
       showShiftField: true,
       showWeeklyRestDayField: true
     },
-    // Workers policy: same as reception
+    // Workers policy: auto shift detection (NO manual shift selection), HAS weekly rest day
     "workers_department": {
-      showShiftField: true,
+      showShiftField: false,
       showWeeklyRestDayField: true
     },
     // Doctors policy: show shift field
     "doctors_department": {
       showShiftField: true,
+      showWeeklyRestDayField: false
+    },
+    // Call Center policy: auto shift detection (NO manual shift selection), NO weekly rest day
+    "call_center_department": {
+      showShiftField: false,
       showWeeklyRestDayField: false
     }
   };
@@ -350,15 +370,6 @@ function updateDepartmentSpecificFields() {
   const dept = departmentId ? departmentCache.get(parseInt(departmentId)) : null;
   
   const requirements = dept ? getPolicyRequirements(dept.attendance_policy) : getPolicyRequirements("default");
-  
-  // Update visibility and clear value of shift field
-  const shiftField = document.getElementById("shiftField");
-  if (shiftField) {
-    shiftField.style.display = requirements.showShiftField ? "block" : "none";
-    if (!requirements.showShiftField) {
-      el("shift_id").value = "";
-    }
-  }
   
   // Update visibility and clear value of weekly rest day field
   const weeklyRestDayField = document.getElementById("weeklyRestDayField");
@@ -375,7 +386,6 @@ function resetEmployeeForm() {
   if (form) form.reset();
   el("employeeId").value = "";
   el("department_id").value = "";
-  el("shift_id").value = "";
   el("weekly_rest_day").value = "";
   updateDepartmentSpecificFields();
 }
@@ -396,9 +406,15 @@ function editEmployee(employeeId) {
   el("hire_date").value = employee.hire_date;
   el("department_id").value = employee.department_id || "";
   el("employment_type").value = employee.employment_type || "full_time";
-  el("shift_id").value = employee.shift_id || "";
   el("weekly_rest_day").value = employee.weekly_rest_day || "";
   updateDepartmentSpecificFields();
+  
+  const collapseEl = document.getElementById('employeeFormCollapse');
+  if (collapseEl) {
+      const bsCollapse = new bootstrap.Collapse(collapseEl, { toggle: false });
+      bsCollapse.show();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 async function deleteEmployee(employeeId) {
@@ -427,7 +443,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
         await loadBranches();
         await loadDepartments();
-        await loadShifts();
         await loadEmployees();
         // Initialize fields visibility
         updateDepartmentSpecificFields();
@@ -497,11 +512,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                   employment_type: el("employment_type").value || "full_time",
               };
           
-          // Add shift field only if it's required by the policy
-          if (requirements.showShiftField) {
-            payload.shift_id = el("shift_id").value ? parseInt(el("shift_id").value, 10) : null;
-          }
-          
           // Add weekly rest day field only if it's required by the policy
           if (requirements.showWeeklyRestDayField) {
             payload.weekly_rest_day = el("weekly_rest_day").value || null;
@@ -518,6 +528,12 @@ document.addEventListener("DOMContentLoaded", async () => {
               resetEmployeeForm();
               await loadEmployees();
               showAlert("employeeAlert", employeeId ? "تم تحديث بيانات الموظف بنجاح." : "تم إضافة الموظف بنجاح.", "success");
+              
+              const collapseEl = document.getElementById('employeeFormCollapse');
+              if (collapseEl) {
+                  const bsCollapse = bootstrap.Collapse.getInstance(collapseEl);
+                  if (bsCollapse) bsCollapse.hide();
+              }
           } catch (error) {
               showAlert("employeeAlert", error.message);
           }

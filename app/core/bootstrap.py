@@ -457,7 +457,6 @@ def bootstrap_defaults() -> None:
             )
             db.add(admin)
         
-        from app.models.shift import Shift
         from datetime import time
         
         # For each branch, create default departments and shifts
@@ -580,35 +579,7 @@ def bootstrap_defaults() -> None:
                 )
                 db.add(doctors_dept)
                 
-            # Create default shifts for this branch if they don't exist
-            morning_shift = db.query(Shift).filter(
-                Shift.name == "صباحي",
-                Shift.branch_id == branch.id
-            ).first()
-            if not morning_shift:
-                morning_shift = Shift(
-                    name="صباحي",
-                    start_time=time(7, 30),
-                    end_time=time(14, 30),
-                    grace_period_minutes=15,
-                    branch_id=branch.id
-                )
-                db.add(morning_shift)
-                
-            evening_shift = db.query(Shift).filter(
-                Shift.name == "مسائي",
-                Shift.branch_id == branch.id
-            ).first()
-            if not evening_shift:
-                evening_shift = Shift(
-                    name="مسائي",
-                    start_time=time(14, 0),
-                    end_time=time(21, 30),
-                    grace_period_minutes=15,
-                    branch_id=branch.id
-                )
-                db.add(evening_shift)
-                
+
         employees = db.query(Employee).all()
         for employee in employees:
             _sync_employee_user(db, employee)
