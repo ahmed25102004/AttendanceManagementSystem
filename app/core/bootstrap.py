@@ -538,6 +538,34 @@ def bootstrap_defaults() -> None:
                 )
                 db.add(workers_dept)
                 
+            # Create Call Center Department for this branch if it doesn't exist
+            call_center_dept = db.query(Department).filter(
+                Department.name == "قسم الكول سنتر",
+                Department.branch_id == branch.id
+            ).first()
+            if not call_center_dept:
+                from datetime import time
+                call_center_dept = Department(
+                    name="قسم الكول سنتر",
+                    description="قسم الكول سنتر - نظام كشف تلقائي للشيفتات الصباحية والمسائية",
+                    attendance_policy="call_center_department",
+                    branch_id=branch.id,
+                    # Morning shift
+                    shift_start_time=time(8, 0),
+                    late_start_time=time(8, 30),
+                    shift_end_time=time(16, 0),
+                    shift_hours=8,
+                    # Evening shift
+                    evening_shift_start_time=time(15, 0),
+                    evening_shift_late_start_time=time(15, 30),
+                    evening_shift_end_time=time(23, 0),
+                    evening_shift_hours=8,
+                    overtime_enabled=True,
+                    overtime_start_time=time(16, 0),
+                    grace_period_minutes=30
+                )
+                db.add(call_center_dept)
+
             # Create Doctors Department for this branch if it doesn't exist
             from datetime import time
             doctors_dept = db.query(Department).filter(
@@ -550,7 +578,6 @@ def bootstrap_defaults() -> None:
                     description="قسم الدكاتره - نظام شفت كامل ونصف شفت مع اوفر تايم",
                     attendance_policy="doctors_department",
                     branch_id=branch.id,
-                    # New fields
                     shift_start_time=time(8, 0),
                     shift_end_time=time(15, 0),
                     shift_hours=7,
