@@ -1,71 +1,116 @@
 {% extends "partials_layout.html" %}
-{% set title = "لوحة فرع" %}
-{% set subtitle = "إحصائيات فرع" %}
+{% set title = "لوحة معلومات الفرع" %}
+{% set subtitle = "نظرة عامة على الحضور والأجهزة والإحصائيات الحيوية" %}
 {% block page_content %}
+<!-- Stats Cards Row -->
 <div class="row g-4 mb-4">
     <div class="col-xl-3 col-md-6">
-        <div class="card text-white bg-primary">
-            <div class="card-body">
-                <div class="text-uppercase fw-bold small mb-1">موظفين</div>
-                <div class="fs-3 fw-bold" id="totalEmployees">0</div>
+        <div class="stat-card-modern stat-gradient-blue d-flex align-items-center justify-content-between">
+            <div>
+                <div class="text-white-50 fw-bold small mb-1">إجمالي الموظفين</div>
+                <div class="fs-2 fw-extrabold" id="totalEmployees">0</div>
+                <div class="small text-white-50 mt-1"><i class="bi bi-person-badge me-1"></i>المسجلين بالفرع</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-people-fill"></i>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card text-white bg-success">
-            <div class="card-body">
-                <div class="text-uppercase fw-bold small mb-1">حاضرين اليوم</div>
-                <div class="fs-3 fw-bold" id="attendanceToday">0</div>
+        <div class="stat-card-modern stat-gradient-green d-flex align-items-center justify-content-between">
+            <div>
+                <div class="text-white-50 fw-bold small mb-1">حاضرين اليوم</div>
+                <div class="fs-2 fw-extrabold" id="attendanceToday">0</div>
+                <div class="small text-white-50 mt-1"><i class="bi bi-check-circle-fill me-1"></i>تم تسجيل حضورهم</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-person-check-fill"></i>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card text-white bg-info">
-            <div class="card-body">
-                <div class="text-uppercase fw-bold small mb-1">سجلات اليوم</div>
-                <div class="fs-3 fw-bold" id="logsToday">0</div>
+        <div class="stat-card-modern stat-gradient-cyan d-flex align-items-center justify-content-between">
+            <div>
+                <div class="text-white-50 fw-bold small mb-1">سجلات اليوم</div>
+                <div class="fs-2 fw-extrabold" id="logsToday">0</div>
+                <div class="small text-white-50 mt-1"><i class="bi bi-fingerprint me-1"></i>حركات البصمة</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-clock-history"></i>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card text-white bg-secondary">
-            <div class="card-body">
-                <div class="text-uppercase fw-bold small mb-1">أجهزة متصلة</div>
-                <div class="fs-3 fw-bold" id="onlineDevices">0</div>
+        <div class="stat-card-modern stat-gradient-purple d-flex align-items-center justify-content-between">
+            <div>
+                <div class="text-white-50 fw-bold small mb-1">أجهزة البصمة المتصلة</div>
+                <div class="fs-2 fw-extrabold" id="onlineDevices">0</div>
+                <div class="small text-white-50 mt-1"><i class="bi bi-wifi me-1"></i>حالة الأجهزة</div>
+            </div>
+            <div class="stat-icon-wrapper">
+                <i class="bi bi-hdd-network-fill"></i>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Main Panels Row -->
 <div class="row g-4">
+    <!-- Latest Attendance Logs -->
     <div class="col-xl-8">
         <div class="card panel-card p-4 h-100">
-            <h5 class="fw-bold mb-3">آخر سجلات الحضور</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="feature-icon" style="width: 36px; height: 36px; font-size: 17px;">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <h5 class="fw-bold mb-0 text-dark">آخر سجلات الحضور والانصراف</h5>
+                </div>
+                <button class="btn btn-outline-primary btn-sm rounded-pill" onclick="loadBranchStats()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>تحديث
+                </button>
+            </div>
             <div class="table-responsive">
                 <table class="table align-middle" id="latestLogsTable">
                     <thead>
                         <tr>
                             <th>كود الموظف</th>
-                            <th>الاسم</th>
-                            <th>الجهاز</th>
-                            <th>الوقت</th>
-                            <th>النوع</th>
+                            <th>اسم الموظف</th>
+                            <th>جهاز البصمة</th>
+                            <th>وقت التسجيل</th>
+                            <th>نوع الحركة</th>
                         </tr>
                     </thead>
-                    <tbody id="latestLogsBody"></tbody>
+                    <tbody id="latestLogsBody">
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">
+                                <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                جارٍ تحميل السجلات...
+                            </td>
+                        </tr>
+                    </tbody>
                 </table>
             </div>
         </div>
     </div>
+
+    <!-- Inactive Devices List -->
     <div class="col-xl-4">
         <div class="card panel-card p-4 h-100">
-            <h5 class="fw-bold mb-3">الأجهزة غير المتصلة</h5>
-            <div id="inactiveDevicesList" class="mb-3">
-                <div class="text-muted">لا توجد أجهزة غير متصلة</div>
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <div class="feature-icon" style="width: 36px; height: 36px; font-size: 17px; background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <h5 class="fw-bold mb-0 text-dark">الأجهزة غير المتصلة</h5>
+            </div>
+            <div id="inactiveDevicesList" class="d-flex flex-column gap-2">
+                <div class="text-muted small p-3 bg-light rounded-3 text-center">جارٍ فحص حالة الأجهزة...</div>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
 let currentBranchId = {{ branch_id }};
@@ -73,34 +118,59 @@ let currentBranchId = {{ branch_id }};
 async function loadBranchStats() {
     try {
         const stats = await fetchJSON(`/api/branches/${currentBranchId}/stats`);
-        document.getElementById("totalEmployees").textContent = stats.total_employees;
-        document.getElementById("attendanceToday").textContent = stats.attendance_today;
-        document.getElementById("logsToday").textContent = stats.logs_today;
-        document.getElementById("onlineDevices").textContent = stats.online_devices;
+        document.getElementById("totalEmployees").textContent = stats.total_employees || 0;
+        document.getElementById("attendanceToday").textContent = stats.attendance_today || 0;
+        document.getElementById("logsToday").textContent = stats.logs_today || 0;
+        document.getElementById("onlineDevices").textContent = stats.online_devices || 0;
 
         const latestLogsBody = document.getElementById("latestLogsBody");
         latestLogsBody.innerHTML = "";
-        stats.latest_logs.forEach((log) => {
-            latestLogsBody.innerHTML += `
+        
+        if (!stats.latest_logs || stats.latest_logs.length === 0) {
+            latestLogsBody.innerHTML = `
                 <tr>
-                    <td>${log.employee_code}</td>
-                    <td>${log.employee_name || "-"}</td>
-                    <td>${log.device_name || "-"}</td>
-                    <td>${new Date(log.check_time).toLocaleString("ar-EG")}</td>
-                    <td>${log.attendance_type || "-"}</td>
+                    <td colspan="5" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+                        لا توجد حركات بصمة مسجلة لليوم حتى الآن
+                    </td>
                 </tr>
             `;
-        });
+        } else {
+            stats.latest_logs.forEach((log) => {
+                const typeText = log.attendance_type || "تسجيل حضور";
+                const isCheckIn = typeText.includes("حضور") || typeText.toLowerCase().includes("in");
+                const badgeClass = isCheckIn ? "badge-glow-success" : "badge-glow-primary";
+
+                latestLogsBody.innerHTML += `
+                    <tr>
+                        <td><span class="badge bg-light text-dark border font-monospace">#${log.employee_code}</span></td>
+                        <td class="fw-bold">${log.employee_name || "-"}</td>
+                        <td><i class="bi bi-hdd text-muted me-1"></i>${log.device_name || "-"}</td>
+                        <td class="small text-secondary">${new Date(log.check_time).toLocaleString("ar-EG")}</td>
+                        <td><span class="badge ${badgeClass}">${typeText}</span></td>
+                    </tr>
+                `;
+            });
+        }
 
         const inactiveDevicesList = document.getElementById("inactiveDevicesList");
         if (!stats.inactive_devices || stats.inactive_devices.length === 0) {
-            inactiveDevicesList.innerHTML = `<div class="text-muted">لا توجد أجهزة غير متصلة</div>`;
+            inactiveDevicesList.innerHTML = `
+                <div class="p-4 bg-success bg-opacity-10 border border-success border-opacity-25 rounded-4 text-center">
+                    <i class="bi bi-check-circle-fill text-success fs-3 d-block mb-2"></i>
+                    <strong class="text-success d-block">جميع الأجهزة متصلة</strong>
+                    <small class="text-muted">تعمل المنظومة بانتظام دون انقطاع</small>
+                </div>
+            `;
         } else {
             inactiveDevicesList.innerHTML = "";
             stats.inactive_devices.forEach((device) => {
                 inactiveDevicesList.innerHTML += `
-                    <div class="mb-2">
-                        <div class="fw-semibold">${device.device_name}</div>
+                    <div class="p-3 bg-danger bg-opacity-10 border border-danger border-opacity-20 rounded-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong class="text-danger"><i class="bi bi-hdd-network me-1"></i>${device.device_name}</strong>
+                            <span class="badge bg-danger">غير متصل</span>
+                        </div>
                         <div class="small text-muted">
                             آخر اتصال: ${device.last_seen ? new Date(device.last_seen).toLocaleString("ar-EG") : "لم يتصل قط"}
                         </div>
@@ -109,7 +179,7 @@ async function loadBranchStats() {
             });
         }
     } catch (error) {
-        console.error(error);
+        console.error("Error loading branch stats:", error);
     }
 }
 

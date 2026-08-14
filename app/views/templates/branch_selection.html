@@ -1,72 +1,133 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container py-5">
-    <div class="text-center mb-5">
-        <h1 class="fw-bold mb-3">نظام إدارة الحضور والانصراف</h1>
-        <p class="text-muted">اختر فرع للبدء</p>
+<div class="selection-wrapper d-flex flex-column justify-content-between min-vh-100 p-3 p-md-4">
+    <!-- Animated background shapes matching login page -->
+    <div class="login-bg-shape shape-1"></div>
+    <div class="login-bg-shape shape-2"></div>
+    <div class="login-bg-shape shape-3"></div>
+    <div class="login-bg-shape shape-4"></div>
+
+    <div class="container py-4 position-relative" style="z-index: 2;">
+        <!-- Brand Header Bar -->
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-5 p-3 p-md-4 rounded-4" style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.15);">
+            <div class="d-flex align-items-center gap-3">
+                <div class="brand-logo-circle">
+                    <i class="bi bi-clock-history fs-2"></i>
+                </div>
+                <div>
+                    <h4 class="fw-bold text-white mb-0">مراكز تجميل فيردي</h4>
+                    <small class="text-white-50">Verde Beauty Clinic &bull; بوابة إدارة الفروع</small>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-outline-light rounded-pill px-3 py-2" onclick="window.location.href='/employee-profile'" title="الملف الشخصي">
+                    <i class="bi bi-person-circle fs-5 me-1"></i>
+                    <span>الملف الشخصي</span>
+                </button>
+                <button class="btn sidebar-logout-btn rounded-pill px-3 py-2" data-action="logout">
+                    <i class="bi bi-box-arrow-right me-1"></i>
+                    <span>خروج</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Page Intro -->
+        <div class="text-center mb-5">
+            <span class="badge bg-primary bg-opacity-25 text-white border border-primary border-opacity-50 px-3 py-2 rounded-pill fw-bold mb-3">
+                <i class="bi bi-buildings-fill ms-1 text-info"></i>اختيار فرع العمل
+            </span>
+            <h1 class="fw-extrabold text-white mb-2">الفروع ومراكز الخدمة</h1>
+            <p class="text-white-50 fs-6 mx-auto" style="max-width: 600px;">
+                حدد الفرع المطلوب للوصول إلى لوحة الإحصائيات، كشوفات الموظفين، سجلات البصمة، والتقارير المخصصة.
+            </p>
+        </div>
+
+        <div id="branchSelectionAlert" class="mb-4"></div>
+
+        <!-- Branches Cards Grid -->
+        <div class="row g-4 mb-5" id="branchCardsContainer">
+            <!-- Dynamic branch cards will load here -->
+        </div>
+
+        <!-- Action Button -->
+        <div class="text-center">
+            <button class="btn btn-primary btn-lg rounded-pill px-4 py-3 shadow-lg" data-bs-toggle="modal" data-bs-target="#addBranchModal">
+                <i class="bi bi-plus-circle-fill me-2 fs-5"></i>إضافة فرع جديد للمنظومة
+            </button>
+        </div>
     </div>
 
-    <div id="branchSelectionAlert" class="mb-4"></div>
-
-    <div class="row g-4 mb-5" id="branchCardsContainer"></div>
-
-    <div class="text-center">
-        <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addBranchModal">
-            <i class="bi bi-plus-circle me-2"></i>إضافة فرع جديد
-        </button>
+    <!-- Footer Note -->
+    <div class="text-center py-3 text-white-50 small position-relative" style="z-index: 2;">
+        نظام إدارة الحضور والانصراف الذكي &copy; 2026 Verde Clinic &bull; جميع الحقوق محفوظة
     </div>
 </div>
 
 <!-- Add/Edit Branch Modal -->
 <div class="modal fade" id="addBranchModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
             <div class="modal-header">
-                <h5 class="modal-title" id="branchModalTitle">إضافة فرع</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="feature-icon" style="width: 34px; height: 34px; font-size: 16px;">
+                        <i class="bi bi-buildings"></i>
+                    </div>
+                    <h5 class="modal-title mb-0" id="branchModalTitle">إضافة فرع</h5>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <input type="hidden" id="modalBranchId">
                 <div class="mb-3">
-                    <label class="form-label">اسم الفرع</label>
-                    <input id="modalBranchName" class="form-control" required>
+                    <label class="form-label fw-semibold text-secondary">اسم الفرع</label>
+                    <div class="input-group modern-input-group">
+                        <span class="input-group-text"><i class="bi bi-building"></i></span>
+                        <input id="modalBranchName" class="form-control" placeholder="مثال: فرع المهندسين..." required>
+                    </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">الوصف</label>
-                    <textarea id="modalBranchDescription" class="form-control" rows="3"></textarea>
+                    <label class="form-label fw-semibold text-secondary">الوصف / العنوان</label>
+                    <textarea id="modalBranchDescription" class="form-control" rows="2" placeholder="وصف مختصر للفرع..."></textarea>
                 </div>
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">وقت فتح الحضور</label>
+                        <label class="form-label fw-semibold text-secondary">وقت فتح الحضور</label>
                         <input id="modalCheckInOpenTime" type="time" class="form-control" value="08:00">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">وقت إغلاق الحضور</label>
+                        <label class="form-label fw-semibold text-secondary">وقت إغلاق الحضور</label>
                         <input id="modalCheckInCloseTime" type="time" class="form-control" value="11:00">
                     </div>
                 </div>
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">وقت فتح الانصراف</label>
+                        <label class="form-label fw-semibold text-secondary">وقت فتح الانصراف</label>
                         <input id="modalCheckOutOpenTime" type="time" class="form-control" value="16:00">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">وقت إغلاق الانصراف</label>
+                        <label class="form-label fw-semibold text-secondary">وقت إغلاق الانصراف</label>
                         <input id="modalCheckOutCloseTime" type="time" class="form-control" value="22:00">
                     </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">دقائق التأخير المسموح بها</label>
-                    <input id="modalAllowedLateMinutes" type="number" class="form-control" value="15">
+                    <label class="form-label fw-semibold text-secondary">دقائق التأخير المسموح بها</label>
+                    <div class="input-group modern-input-group">
+                        <span class="input-group-text"><i class="bi bi-stopwatch"></i></span>
+                        <input id="modalAllowedLateMinutes" type="number" class="form-control" value="15" min="0">
+                        <span class="input-group-text">دقيقة</span>
+                    </div>
                 </div>
-                <div class="form-check mb-3">
-                    <input id="modalBranchIsActive" type="checkbox" class="form-check-input" checked>
-                    <label class="form-check-label">فعال</label>
+                <div class="form-check form-switch p-0 mt-3 d-flex align-items-center justify-content-between">
+                    <label class="form-check-label fw-semibold" for="modalBranchIsActive">حالة تفعيل الفرع</label>
+                    <input id="modalBranchIsActive" type="checkbox" class="form-check-input ms-0" role="switch" checked style="float: none; width: 2.5em; height: 1.3em;">
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-primary" id="saveBranchBtn">حفظ</button>
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary px-4" id="saveBranchBtn">
+                    <i class="bi bi-check2-circle me-1"></i>حفظ البيانات
+                </button>
             </div>
         </div>
     </div>
@@ -81,12 +142,12 @@
         const el = document.getElementById("branchSelectionAlert");
         if (!el) return;
         el.innerHTML = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            <div class="alert alert-${type} alert-dismissible fade show rounded-4 border-0 shadow-sm" role="alert">
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
-        setTimeout(() => { el.innerHTML = ""; }, 3000);
+        setTimeout(() => { el.innerHTML = ""; }, 4000);
     }
 
     async function loadBranchSelection() {
@@ -100,7 +161,11 @@
             if (!branches || !branches.length) {
                 container.innerHTML = `
                     <div class="col-12 text-center py-5">
-                        <div class="text-muted">لا توجد فروع بعد. قم بإضافة فرع جديد للبدء.</div>
+                        <div class="p-5 glass-panel-card text-center">
+                            <i class="bi bi-buildings text-muted fs-1 d-block mb-3"></i>
+                            <h5 class="fw-bold text-dark mb-2">لا توجد فروع مسجلة حتى الآن</h5>
+                            <p class="text-muted mb-0">قم بالضغط على الزر أدناه لإضافة أول فرع للبدء في إدارة النظام.</p>
+                        </div>
                     </div>
                 `;
                 return;
@@ -108,27 +173,51 @@
 
             branches.forEach(branch => {
                 branchSelectionCache.set(branch.id, branch);
+                const isActive = branch.is_active;
+                const statusBadge = isActive 
+                    ? '<span class="badge badge-glow-success"><i class="bi bi-check-circle-fill me-1"></i>فعال</span>' 
+                    : '<span class="badge badge-glow-danger"><i class="bi bi-dash-circle-fill me-1"></i>غير فعال</span>';
+
                 container.innerHTML += `
                     <div class="col-md-6 col-lg-4">
-                        <div class="card panel-card p-4 h-100">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <div>
-                                    <h5 class="fw-bold mb-1">${branch.name}</h5>
-                                    <span class="badge bg-${branch.is_active ? 'success' : 'secondary'}">
-                                        ${branch.is_active ? 'فعال' : 'غير فعال'}
-                                    </span>
+                        <div class="card glass-panel-card p-4 h-100 d-flex flex-column justify-content-between">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="feature-icon">
+                                            <i class="bi bi-building"></i>
+                                        </div>
+                                        <div>
+                                            <h5 class="fw-bold mb-0 text-dark">${branch.name}</h5>
+                                            <small class="text-muted">كود الفرع: #${branch.id}</small>
+                                        </div>
+                                    </div>
+                                    ${statusBadge}
+                                </div>
+                                <p class="text-secondary mb-3 small" style="min-height: 38px;">${branch.description || 'فرع مراكز تجميل فيردي'}</p>
+
+                                <div class="bg-light bg-opacity-75 p-2 rounded-3 mb-4 small text-secondary">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span><i class="bi bi-box-arrow-in-right text-primary me-1"></i>نافذة الحضور:</span>
+                                        <strong>${formatTimeForInput(branch.check_in_open_time) || '08:00'} - ${formatTimeForInput(branch.check_in_close_time) || '11:00'}</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span><i class="bi bi-box-arrow-left text-primary me-1"></i>نافذة الانصراف:</span>
+                                        <strong>${formatTimeForInput(branch.check_out_open_time) || '16:00'} - ${formatTimeForInput(branch.check_out_close_time) || '22:00'}</strong>
+                                    </div>
                                 </div>
                             </div>
-                            <p class="text-muted mb-4 small">${branch.description || 'لا يوجد وصف'}</p>
-                            <div class="d-flex gap-2">
+
+                            <div class="d-flex gap-2 pt-2 border-top">
                                 <button class="btn btn-primary flex-grow-1" onclick="selectBranch(${branch.id})">
-                                    دخول للفرع
+                                    <span>دخول للفرع</span>
+                                    <i class="bi bi-arrow-left"></i>
                                 </button>
-                                <button class="btn btn-outline-primary" onclick="editBranchModal(${branch.id})">
-                                    تعديل
+                                <button class="btn btn-outline-primary" onclick="editBranchModal(${branch.id})" title="تعديل الفرع">
+                                    <i class="bi bi-pencil-square"></i>
                                 </button>
-                                <button class="btn btn-outline-danger" onclick="deleteBranchSelection(${branch.id})">
-                                    حذف
+                                <button class="btn btn-outline-danger" onclick="deleteBranchSelection(${branch.id})" title="حذف الفرع">
+                                    <i class="bi bi-trash"></i>
                                 </button>
                             </div>
                         </div>
@@ -191,7 +280,7 @@
     function formatTimeForInput(timeStr) {
         if (!timeStr) return "";
         const parts = timeStr.split(":");
-        return parts.length >=2 ? `${parts[0]}:${parts[1]}` : timeStr;
+        return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : timeStr;
     }
 
     async function saveBranch() {
@@ -203,7 +292,7 @@
             check_in_close_time: document.getElementById("modalCheckInCloseTime").value,
             check_out_open_time: document.getElementById("modalCheckOutOpenTime").value,
             check_out_close_time: document.getElementById("modalCheckOutCloseTime").value,
-            allowed_late_minutes: parseInt(document.getElementById("modalAllowedLateMinutes").value),
+            allowed_late_minutes: parseInt(document.getElementById("modalAllowedLateMinutes").value) || 0,
             is_active: document.getElementById("modalBranchIsActive").checked
         };
         const method = branchId ? "PUT" : "POST";
@@ -213,7 +302,7 @@
             const modal = bootstrap.Modal.getInstance(document.getElementById("addBranchModal"));
             modal.hide();
             await loadBranchSelection();
-            showBranchSelectionAlert(branchId ? "تم تحديث الفرع بنجاح." : "تم إضافة الفرع بنجاح.", "success");
+            showBranchSelectionAlert(branchId ? "تم تحديث بيانات الفرع بنجاح." : "تم إضافة الفرع الجديد بنجاح.", "success");
         } catch (error) {
             console.error(error);
             showBranchSelectionAlert(error.message);
@@ -221,7 +310,7 @@
     }
 
     async function deleteBranchSelection(branchId) {
-        if (!confirm("هل تريد حذف هذا الفرع؟")) return;
+        if (!confirm("هل تريد بالتأكيد حذف هذا الفرع؟")) return;
         try {
             await fetchJSON(`/api/branches/${branchId}`, { method: "DELETE" });
             await loadBranchSelection();
@@ -234,7 +323,7 @@
 
     document.addEventListener("DOMContentLoaded", async () => {
         await loadBranchSelection();
-        document.getElementById("saveBranchBtn").addEventListener("click", saveBranch);
+        document.getElementById("saveBranchBtn")?.addEventListener("click", saveBranch);
     });
 </script>
 {% endblock %}
