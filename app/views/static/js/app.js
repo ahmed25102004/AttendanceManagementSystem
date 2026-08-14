@@ -365,6 +365,10 @@ function setupMobileSidebar() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    // Do not run dashboard initialization on login page
+    if (window.location.pathname.startsWith("/login")) {
+        return;
+    }
     await hydrateUser();
     await loadBranchSelector();
     setupMobileSidebar();
