@@ -1,32 +1,156 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="login-page d-flex align-items-center justify-content-center p-3">
-    <div class="container">
+<div class="login-wrapper d-flex align-items-center justify-content-center min-vh-100 p-3">
+    <!-- Animated background shapes -->
+    <div class="login-bg-shape shape-1"></div>
+    <div class="login-bg-shape shape-2"></div>
+    <div class="login-bg-shape shape-3"></div>
+
+    <div class="container py-4">
         <div class="row justify-content-center">
-            <div class="col-lg-4 col-md-6">
-                <div class="card login-card p-4">
-                    <div class="text-center mb-4">
-                        <h2 class="fw-bold text-primary">نظام إدارة الحضور والانصراف</h2>
-                        <p class="text-muted mb-0">تسجيل الدخول إلى النظام</p>
+            <div class="col-xl-9 col-lg-10 col-md-11">
+                <div class="card login-main-card shadow-2-strong border-0 overflow-hidden">
+                    <div class="row g-0">
+                        <!-- Branding Side (Visible on desktop & tablet) -->
+                        <div class="col-lg-6 login-brand-side d-flex flex-column justify-content-between p-4 p-md-5 text-white">
+                            <div>
+                                <div class="d-flex align-items-center gap-3 mb-4">
+                                    <div class="login-logo-circle">
+                                        <i class="bi bi-clock-history fs-2 text-white"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="fw-bold mb-0 text-white">عيادات فيردي</h4>
+                                        <small class="text-white-50">Verde Beauty Clinic</small>
+                                    </div>
+                                </div>
+                                <div class="my-4">
+                                    <h2 class="fw-extrabold text-white mb-3">نظام إدارة الحضور والانصراف الذكي</h2>
+                                    <p class="text-white-50 lh-base">
+                                        منظومة متكاملة ومرنة لإدارة ومتابعة بصمات الموظفين، كشف الشيفتات التلقائي، واحتساب ساعات العمل والتقارير بدقة متناهية.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="login-features-list mt-auto">
+                                <div class="feature-item d-flex align-items-center gap-3 mb-3">
+                                    <div class="feature-icon"><i class="bi bi-cpu-fill"></i></div>
+                                    <div>
+                                        <strong class="d-block text-white fs-6">كشف تلقائي للشيفتات</strong>
+                                        <small class="text-white-50">التعرف على الشيفت وفقاً لبصمة الموظف</small>
+                                    </div>
+                                </div>
+                                <div class="feature-item d-flex align-items-center gap-3 mb-3">
+                                    <div class="feature-icon"><i class="bi bi-file-earmark-bar-graph-fill"></i></div>
+                                    <div>
+                                        <strong class="d-block text-white fs-6">تقارير مخصصة لكل قسم</strong>
+                                        <small class="text-white-50">عرض البيانات الحيوية للمدير بدون تعقيد</small>
+                                    </div>
+                                </div>
+                                <div class="feature-item d-flex align-items-center gap-3">
+                                    <div class="feature-icon"><i class="bi bi-shield-lock-fill"></i></div>
+                                    <div>
+                                        <strong class="d-block text-white fs-6">أمان وحماية للبيانات</strong>
+                                        <small class="text-white-50">صلاحيات محددة وإدارة موثوقة</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Side -->
+                        <div class="col-lg-6 login-form-side p-4 p-md-5 d-flex flex-column justify-content-center bg-white">
+                            <div class="login-form-header mb-4">
+                                <span class="badge bg-primary bg-opacity-10 text-primary mb-2 px-3 py-2 rounded-pill fw-bold">
+                                    <i class="bi bi-door-open-fill ms-1"></i>بوابة تسجيل الدخول
+                                </span>
+                                <h3 class="fw-bold text-dark mb-1">مرحباً بك مجدداً 👋</h3>
+                                <p class="text-muted small mb-0">أدخل بيانات حسابك للوصول إلى لوحة التحكم</p>
+                            </div>
+
+                            <div id="loginAlert"></div>
+
+                            <form id="loginForm" class="login-form">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold text-secondary" for="username">
+                                        <i class="bi bi-person-fill ms-1 text-primary"></i>اسم المستخدم
+                                    </label>
+                                    <div class="input-group input-group-lg login-input-group">
+                                        <span class="input-group-text bg-light border-end-0">
+                                            <i class="bi bi-person text-muted"></i>
+                                        </span>
+                                        <input 
+                                            id="username" 
+                                            class="form-control bg-light border-start-0 ps-0" 
+                                            placeholder="أدخل اسم المستخدم..."
+                                            autocomplete="username" 
+                                            required
+                                        >
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <label class="form-label fw-semibold text-secondary" for="password">
+                                            <i class="bi bi-key-fill ms-1 text-primary"></i>كلمة المرور
+                                        </label>
+                                    </div>
+                                    <div class="input-group input-group-lg login-input-group">
+                                        <span class="input-group-text bg-light border-end-0">
+                                            <i class="bi bi-lock text-muted"></i>
+                                        </span>
+                                        <input 
+                                            id="password" 
+                                            type="password" 
+                                            class="form-control bg-light border-start-0 border-end-0 px-0" 
+                                            placeholder="أدخل كلمة المرور..."
+                                            autocomplete="current-password" 
+                                            required
+                                        >
+                                        <button 
+                                            class="btn btn-light border-start-0 text-muted" 
+                                            type="button" 
+                                            id="togglePasswordBtn"
+                                            title="إظهار / إخفاء كلمة المرور"
+                                        >
+                                            <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button type="submit" id="loginSubmitBtn" class="btn btn-primary btn-lg w-100 fw-bold py-3 shadow-sm login-submit-btn">
+                                    <span id="btnText">تسجيل الدخول</span>
+                                    <i class="bi bi-arrow-left ms-2" id="btnIcon"></i>
+                                </button>
+                            </form>
+
+                            <div class="mt-4 pt-3 text-center border-top">
+                                <small class="text-muted">
+                                    <i class="bi bi-shield-check text-success ms-1"></i>نظام آمن ومحمي &copy; 2026 Verde Clinic
+                                </small>
+                            </div>
+                        </div>
                     </div>
-                    <div id="loginAlert"></div>
-                    <form id="loginForm">
-                        <div class="mb-3">
-                            <label class="form-label">اسم المستخدم</label>
-                            <input id="username" class="form-control" autocomplete="username" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">كلمة المرور</label>
-                            <input id="password" type="password" class="form-control" autocomplete="current-password" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">تسجيل الدخول</button>
-                    </form>
                 </div>
             </div>
         </div>
     </div>
-</section>
+</div>
 {% endblock %}
 {% block scripts %}
-<script src="/static/js/login.js"></script>
+<script src="/static/js/login.js?v=3"></script>
+<script>
+    // Password visibility toggle
+    document.getElementById("togglePasswordBtn")?.addEventListener("click", () => {
+        const passwordInput = document.getElementById("password");
+        const icon = document.getElementById("togglePasswordIcon");
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            icon.classList.remove("bi-eye");
+            icon.classList.add("bi-eye-slash");
+        } else {
+            passwordInput.type = "password";
+            icon.classList.remove("bi-eye-slash");
+            icon.classList.add("bi-eye");
+        }
+    });
+</script>
 {% endblock %}

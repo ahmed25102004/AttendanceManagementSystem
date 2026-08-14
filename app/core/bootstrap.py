@@ -501,13 +501,6 @@ def bootstrap_defaults() -> None:
                     evening_shift_end_time=time(23, 59),
                     evening_shift_hours=8,
                     evening_shift_late_start_time=time(16, 15),
-                    # Old fields (backward compatibility)
-                    half_shift_start_time=time(8, 0),
-                    half_shift_end_time=time(15, 0),
-                    half_shift_hours=7,
-                    full_shift_start_time=time(8, 0),
-                    full_shift_end_time=time(22, 0),
-                    full_shift_hours=14,
                     grace_period_minutes=15
                 )
                 db.add(reception_dept)
@@ -537,13 +530,6 @@ def bootstrap_defaults() -> None:
                     evening_shift_end_time=time(23, 0),
                     evening_shift_hours=8,
                     evening_shift_late_start_time=time(15, 15),
-                    # Old fields (backward compatibility)
-                    half_shift_start_time=time(8, 0),
-                    half_shift_end_time=time(15, 0),
-                    half_shift_hours=7,
-                    full_shift_start_time=time(8, 0),
-                    full_shift_end_time=time(22, 0),
-                    full_shift_hours=14,
                     grace_period_minutes=15
                 )
                 db.add(workers_dept)
@@ -568,13 +554,6 @@ def bootstrap_defaults() -> None:
                     attendance_end_time=time(11, 0),
                     overtime_enabled=True,
                     overtime_start_time=time(15, 0),
-                    # Old fields (backward compatibility)
-                    half_shift_start_time=time(8, 0),
-                    half_shift_end_time=time(15, 0),
-                    half_shift_hours=7,
-                    full_shift_start_time=time(8, 0),
-                    full_shift_end_time=time(22, 0),
-                    full_shift_hours=14,
                     grace_period_minutes=30
                 )
                 db.add(doctors_dept)
