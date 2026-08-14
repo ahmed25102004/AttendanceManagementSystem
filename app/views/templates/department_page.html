@@ -39,7 +39,12 @@
 <div class="row g-4">
     <div class="col-xl-8">
         <div class="card panel-card p-4 h-100">
-            <h5 class="fw-bold mb-3">موظفين القسم</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">موظفين القسم</h5>
+                <button class="btn btn-sm btn-primary" onclick="openAddDeptEmployeeModal()">
+                    <i class="bi bi-person-plus-fill me-1"></i>إضافة موظف للقسم
+                </button>
+            </div>
             <div class="table-responsive">
                 <table class="table align-middle" id="employeesTable">
                     <thead>
@@ -321,6 +326,59 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
                 <button type="submit" form="manualAttendanceForm" class="btn btn-primary">حفظ التعديل</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Employee Directly to This Department -->
+<div class="modal fade" id="addDeptEmployeeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">إضافة موظف لهذا القسم</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addDeptEmployeeForm" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">كود الموظف (جهاز البصمة) <span class="text-danger">*</span></label>
+                        <input id="deptEmpCode" class="form-control" required placeholder="مثال: 101">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">الاسم الرباعي <span class="text-danger">*</span></label>
+                        <input id="deptEmpFullName" class="form-control" required placeholder="اسم الموظف">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">المسمى الوظيفي <span class="text-danger">*</span></label>
+                        <input id="deptEmpJobTitle" class="form-control" required placeholder="مثال: موظف استقبال">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">تاريخ التعيين <span class="text-danger">*</span></label>
+                        <input id="deptEmpHireDate" type="date" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">رقم الهاتف</label>
+                        <input id="deptEmpPhone" class="form-control" placeholder="01xxxxxxxxx">
+                    </div>
+                    <div class="col-md-6" id="deptEmpWeeklyRestDayField">
+                        <label class="form-label fw-semibold">يوم الإجازة الأسبوعية</label>
+                        <select id="deptEmpWeeklyRestDay" class="form-select">
+                            <option value="">-- بدون تحديد --</option>
+                            <option value="monday">الاثنين</option>
+                            <option value="tuesday">الثلاثاء</option>
+                            <option value="wednesday">الأربعاء</option>
+                            <option value="thursday">الخميس</option>
+                            <option value="friday">الجمعة</option>
+                            <option value="saturday">السبت</option>
+                            <option value="sunday">الأحد</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="submit" form="addDeptEmployeeForm" class="btn btn-primary fw-bold" id="deptEmpSubmitBtn">حفظ الموظف</button>
             </div>
         </div>
     </div>
