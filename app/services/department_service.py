@@ -41,13 +41,10 @@ class DepartmentService:
         return bool(department and department.attendance_policy == "call_center_department")
 
     def _is_reception_or_leather_department(self, department: Department | None) -> bool:
-        return bool(department and (department.attendance_policy == "reception_department" or
-                                    department.attendance_policy == "leather_department"))
+        return bool(department and (department.attendance_policy in {"reception_department", "leather_department", "doctors_department", "default"}))
 
     def _is_unified_department(self, department: Department | None) -> bool:
-        return (self._is_workers_department(department) or
-                self._is_call_center_department(department) or
-                self._is_reception_or_leather_department(department))
+        return True
 
     def get_stats(self, db: Session, department_id: int, branch_id: int | None = None) -> dict:
         # Check department exists

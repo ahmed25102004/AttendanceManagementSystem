@@ -41,9 +41,6 @@
         <div class="card panel-card p-4 h-100">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="fw-bold mb-0">موظفين القسم</h5>
-                <button class="btn btn-sm btn-primary" onclick="openAddDeptEmployeeModal()">
-                    <i class="bi bi-person-plus-fill me-1"></i>إضافة موظف للقسم
-                </button>
             </div>
             <div class="table-responsive">
                 <table class="table align-middle" id="employeesTable">
@@ -331,58 +328,7 @@
     </div>
 </div>
 
-<!-- Modal: Add Employee Directly to This Department -->
-<div class="modal fade" id="addDeptEmployeeModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold">إضافة موظف لهذا القسم</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form id="addDeptEmployeeForm" class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">كود الموظف (جهاز البصمة) <span class="text-danger">*</span></label>
-                        <input id="deptEmpCode" class="form-control" required placeholder="مثال: 101">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">الاسم الرباعي <span class="text-danger">*</span></label>
-                        <input id="deptEmpFullName" class="form-control" required placeholder="اسم الموظف">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">المسمى الوظيفي <span class="text-danger">*</span></label>
-                        <input id="deptEmpJobTitle" class="form-control" required placeholder="مثال: موظف استقبال">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">تاريخ التعيين <span class="text-danger">*</span></label>
-                        <input id="deptEmpHireDate" type="date" class="form-control" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-semibold">رقم الهاتف</label>
-                        <input id="deptEmpPhone" class="form-control" placeholder="01xxxxxxxxx">
-                    </div>
-                    <div class="col-md-6" id="deptEmpWeeklyRestDayField">
-                        <label class="form-label fw-semibold">يوم الإجازة الأسبوعية</label>
-                        <select id="deptEmpWeeklyRestDay" class="form-select">
-                            <option value="">-- بدون تحديد --</option>
-                            <option value="monday">الاثنين</option>
-                            <option value="tuesday">الثلاثاء</option>
-                            <option value="wednesday">الأربعاء</option>
-                            <option value="thursday">الخميس</option>
-                            <option value="friday">الجمعة</option>
-                            <option value="saturday">السبت</option>
-                            <option value="sunday">الأحد</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                <button type="submit" form="addDeptEmployeeForm" class="btn btn-primary fw-bold" id="deptEmpSubmitBtn">حفظ الموظف</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 {% endblock %}
 {% block scripts %}
 <script>
@@ -536,71 +482,91 @@ function openEditDepartmentModal() {
 async function loadDepartmentStats() {
     try {
         const stats = await fetchJSON(`/api/departments/${currentDepartmentId}/stats`);
+        if (!stats) return;
         departmentStatsCache = stats;
-        document.title = `${stats.name} - نظام الحضور`;
-        document.querySelector("h2").textContent = stats.name;
-        document.getElementById("totalEmployees").textContent = stats.total_employees;
-        document.getElementById("attendanceToday").textContent = stats.attendance_today;
-        document.getElementById("attendancePolicy").textContent = getPolicyDisplayName(stats.attendance_policy);
+        document.title = `${stats.name || "القسم"} - نظام الحضور`;
+        const titleEl = document.querySelector(".desktop-header-bar h3") || document.querySelector("h3") || document.querySelector("h2");
+        if (titleEl) {
+            titleEl.textContent = stats.name || "صفحة القسم";
+        }
+        const totalEmpEl = document.getElementById("totalEmployees");
+        if (totalEmpEl) totalEmpEl.textContent = stats.total_employees ?? 0;
+
+        const attTodayEl = document.getElementById("attendanceToday");
+        if (attTodayEl) attTodayEl.textContent = stats.attendance_today ?? 0;
+
+        const attPolicyEl = document.getElementById("attendancePolicy");
+        if (attPolicyEl) attPolicyEl.textContent = getPolicyDisplayName(stats.attendance_policy);
 
         // Hide columns for leather and call center departments (workers has weekly rest day)
         const isLeather = stats.attendance_policy === "leather_department";
         const isCallCenter = stats.attendance_policy === "call_center_department";
-        document.getElementById("restDayTh").style.display = (isLeather || isCallCenter) ? "none" : "";
+        const restDayTh = document.getElementById("restDayTh");
+        if (restDayTh) {
+            restDayTh.style.display = (isLeather || isCallCenter) ? "none" : "";
+        }
 
         // Load employees table
         const employeesBody = document.getElementById("employeesBody");
-        employeesBody.innerHTML = "";
-        stats.employees.forEach((emp) => {
-                const status = emp.status || (emp.attendance_today ? "present" : "absent");
-                const safeEmployeeName = JSON.stringify(emp.full_name || "");
-                const isReception = stats.attendance_policy === "reception_department";
-                const isWorkers = stats.attendance_policy === "workers_department";
-                const supportsManualEdit = isReception || isWorkers || isCallCenter;
-                const isLeather = stats.attendance_policy === "leather_department";
-                employeesBody.innerHTML += `
-                    <tr>
-                        <td>${emp.employee_code || "-"}</td>
-                        <td><a href="/employees/${emp.id}">${emp.full_name}</a></td>
-                        <td>
-                            <span class="badge ${getStatusBadgeClass(status)}">
-                                ${getStatusLabel(status)}
-                            </span>
-                        </td>
-                        <td style="display: ${(isLeather || isCallCenter) ? 'none' : ''}">${getRestDayLabel(emp.weekly_rest_day)}</td>
-                        <td>
-                            <a href="/employees/${emp.id}" class="btn btn-sm btn-outline-primary">عرض التفاصيل</a>
-                            ${supportsManualEdit ? `
-                                <button class="btn btn-sm btn-outline-success" onclick='openManualAttendanceModal(${emp.id}, ${safeEmployeeName})'>تعديل الحضور</button>
-                            ` : ""}
-                        </td>
-                    </tr>
-                `;
-            });
+        if (employeesBody) {
+            employeesBody.innerHTML = "";
+            if (!stats.employees || stats.employees.length === 0) {
+                employeesBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">لا يوجد موظفين في هذا القسم</td></tr>`;
+            } else {
+                stats.employees.forEach((emp) => {
+                    const status = emp.status || (emp.attendance_today ? "present" : "absent");
+                    const safeEmployeeName = JSON.stringify(emp.full_name || "");
+                    const isReception = stats.attendance_policy === "reception_department";
+                    const isWorkers = stats.attendance_policy === "workers_department";
+                    const supportsManualEdit = isReception || isWorkers || isCallCenter;
+                    employeesBody.innerHTML += `
+                        <tr>
+                            <td>${emp.employee_code || "-"}</td>
+                            <td><a href="/employees/${emp.id}">${emp.full_name}</a></td>
+                            <td>
+                                <span class="badge ${getStatusBadgeClass(status)}">
+                                    ${getStatusLabel(status)}
+                                </span>
+                            </td>
+                            <td style="display: ${(isLeather || isCallCenter) ? 'none' : ''}">${getRestDayLabel(emp.weekly_rest_day)}</td>
+                            <td>
+                                <a href="/employees/${emp.id}" class="btn btn-sm btn-outline-primary">عرض التفاصيل</a>
+                                ${supportsManualEdit ? `
+                                    <button class="btn btn-sm btn-outline-success" onclick='openManualAttendanceModal(${emp.id}, ${safeEmployeeName})'>تعديل الحضور</button>
+                                ` : ""}
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+        }
 
         // Load latest attendance
         const latestAttendanceList = document.getElementById("latestAttendanceList");
-        if (!stats.latest_attendance || stats.latest_attendance.length === 0) {
-            latestAttendanceList.innerHTML = `<div class="text-muted">لا توجد سجلات</div>`;
-        } else {
-            latestAttendanceList.innerHTML = "";
-            stats.latest_attendance.forEach((ar) => {
-                latestAttendanceList.innerHTML += `
-                    <div class="mb-3 p-2 border rounded">
-                        <div class="fw-semibold">${ar.employee_name || "-"}</div>
-                        <div class="small text-muted">
-                            ${new Date(ar.check_in_time).toLocaleString("ar-EG")}
-                            ${ar.check_out_time ? " - " + new Date(ar.check_out_time).toLocaleString("ar-EG") : ""}
+        if (latestAttendanceList) {
+            if (!stats.latest_attendance || stats.latest_attendance.length === 0) {
+                latestAttendanceList.innerHTML = `<div class="text-muted">لا توجد سجلات</div>`;
+            } else {
+                latestAttendanceList.innerHTML = "";
+                stats.latest_attendance.forEach((ar) => {
+                    const checkIn = ar.check_in_time ? new Date(ar.check_in_time).toLocaleString("ar-EG") : "-";
+                    const checkOut = ar.check_out_time ? " - " + new Date(ar.check_out_time).toLocaleString("ar-EG") : "";
+                    latestAttendanceList.innerHTML += `
+                        <div class="mb-3 p-2 border rounded">
+                            <div class="fw-semibold">${ar.employee_name || "-"}</div>
+                            <div class="small text-muted">
+                                ${checkIn}${checkOut}
+                            </div>
+                            <div class="small">
+                                ${ar.working_hours ? Number(ar.working_hours).toFixed(2) + " ساعات" : ""}
+                            </div>
                         </div>
-                        <div class="small">
-                            ${ar.working_hours ? ar.working_hours.toFixed(2) + " ساعات" : ""}
-                        </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
+            }
         }
     } catch (error) {
-        console.error(error);
+        console.error("Error loading department stats:", error);
     }
 }
 
@@ -691,6 +657,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Refresh stats every 30 seconds
     setInterval(loadDepartmentStats, 30000);
+
+
 
 
     document.getElementById("manualAttendanceForm").addEventListener("submit", async (event) => {
