@@ -446,7 +446,7 @@ def bootstrap_defaults() -> None:
             db.add(branch2)
         db.flush()
         
-        admin = db.query(User).filter(User.username == settings.admin_username).first()
+        admin = db.query(User).filter(User.username.ilike(settings.admin_username)).first()
         if not admin:
             admin = User(
                 username=settings.admin_username,
@@ -456,6 +456,10 @@ def bootstrap_defaults() -> None:
                 is_active=True,
             )
             db.add(admin)
+        else:
+            admin.password_hash = security_manager.hash_password(settings.admin_password)
+            admin.is_active = True
+        db.commit()
         
         from datetime import time
         
