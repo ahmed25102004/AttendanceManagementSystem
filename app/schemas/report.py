@@ -46,3 +46,5 @@ class ReportRow(BaseModel):
     total_shift_units: float = 0
     total_late_minutes: int = 0
     total_overtime_hours: float = 0
+    # New field: total working days (used in call center / workers monthly summary)
+    working_days_count: int = 0

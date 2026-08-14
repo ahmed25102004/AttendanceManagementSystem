@@ -100,7 +100,7 @@
                     </div>
                     <div class="col-12" id="doctorsSettingsSection" style="display: none;">
                         <hr class="my-2">
-                        <h6 class="fw-bold mb-3">إعدادات قسم الدكاترة</h6>
+                        <h6 class="fw-bold mb-3">إعدادات الشيفتات والحضور</h6>
                         
                         <!-- Basic Shift Settings -->
                         <div class="card mb-3">
@@ -185,18 +185,8 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Legacy Fields (Hidden but kept for backward compatibility) -->
-                        <div style="display: none;">
-                            <input id="editHalfShiftStartTime" type="time">
-                            <input id="editHalfShiftEndTime" type="time">
-                            <input id="editHalfShiftHours" type="number">
-                            <input id="editFullShiftStartTime" type="time">
-                            <input id="editFullShiftEndTime" type="time">
-                            <input id="editFullShiftHours" type="number">
-                            <input id="editGracePeriodMinutes" type="number">
-                        </div>
                     </div>
+                        
                     <div class="col-12" id="callCenterSettingsSection" style="display: none;">
                         <hr class="my-2">
                         <h6 class="fw-bold mb-3">إعدادات قسم الكول سنتر</h6>
@@ -378,7 +368,7 @@ function toggleDepartmentSettings() {
     const policy = document.getElementById("editDepartmentPolicy").value;
     const doctorsSection = document.getElementById("doctorsSettingsSection");
     if (doctorsSection) {
-        doctorsSection.style.display = policy === "doctors_department" ? "block" : "none";
+        doctorsSection.style.display = (policy === "doctors_department" || policy === "reception_department" || policy === "default") ? "block" : "none";
     }
     const callCenterSection = document.getElementById("callCenterSettingsSection");
     if (callCenterSection) {
@@ -451,11 +441,11 @@ function openEditDepartmentModal() {
         document.getElementById("editDepartmentPolicy").value = departmentStatsCache.attendance_policy;
         document.getElementById("editDepartmentActive").checked = true; // Default true
         
-        // Load new Doctors settings
-        document.getElementById("editShiftStartTime").value = formatTimeForInput(departmentStatsCache.shift_start_time || departmentStatsCache.half_shift_start_time);
-        document.getElementById("editShiftEndTime").value = formatTimeForInput(departmentStatsCache.shift_end_time || departmentStatsCache.half_shift_end_time);
-        document.getElementById("editShiftHours").value = departmentStatsCache.shift_hours || departmentStatsCache.half_shift_hours;
-        document.getElementById("editLateStartTime").value = formatTimeForInput(departmentStatsCache.late_start_time || departmentStatsCache.half_shift_start_time);
+        // Load new settings
+        document.getElementById("editShiftStartTime").value = formatTimeForInput(departmentStatsCache.shift_start_time);
+        document.getElementById("editShiftEndTime").value = formatTimeForInput(departmentStatsCache.shift_end_time);
+        document.getElementById("editShiftHours").value = departmentStatsCache.shift_hours;
+        document.getElementById("editLateStartTime").value = formatTimeForInput(departmentStatsCache.late_start_time);
         document.getElementById("editAttendanceEndTime").value = formatTimeForInput(departmentStatsCache.attendance_end_time || "11:00:00");
         document.getElementById("editOvertimeStartTime").value = formatTimeForInput(departmentStatsCache.overtime_start_time);
         
@@ -467,28 +457,19 @@ function openEditDepartmentModal() {
         document.getElementById("editEveningShiftEndTime").value = formatTimeForInput(departmentStatsCache.evening_shift_end_time);
         document.getElementById("editEveningShiftHours").value = departmentStatsCache.evening_shift_hours || "";
         
-        // Load legacy Doctors settings (for backward compatibility)
-        document.getElementById("editHalfShiftStartTime").value = formatTimeForInput(departmentStatsCache.half_shift_start_time);
-        document.getElementById("editHalfShiftEndTime").value = formatTimeForInput(departmentStatsCache.half_shift_end_time);
-        document.getElementById("editHalfShiftHours").value = departmentStatsCache.half_shift_hours;
-        document.getElementById("editFullShiftStartTime").value = formatTimeForInput(departmentStatsCache.full_shift_start_time);
-        document.getElementById("editFullShiftEndTime").value = formatTimeForInput(departmentStatsCache.full_shift_end_time);
-        document.getElementById("editFullShiftHours").value = departmentStatsCache.full_shift_hours;
-        document.getElementById("editGracePeriodMinutes").value = departmentStatsCache.grace_period_minutes;
-        
-        document.getElementById("editCallCenterShift1StartTime").value = formatTimeForInput(departmentStatsCache.shift_start_time);
-        document.getElementById("editCallCenterShift1GraceEndTime").value = formatTimeForInput(departmentStatsCache.late_start_time);
-        document.getElementById("editCallCenterShift1EndTime").value = formatTimeForInput(departmentStatsCache.shift_end_time);
-        document.getElementById("editCallCenterShift2StartTime").value = formatTimeForInput(departmentStatsCache.evening_shift_start_time);
-        document.getElementById("editCallCenterShift2GraceEndTime").value = formatTimeForInput(departmentStatsCache.evening_shift_late_start_time);
-        document.getElementById("editCallCenterShift2EndTime").value = formatTimeForInput(departmentStatsCache.evening_shift_end_time);
+        document.getElementById("editCallCenterShift1StartTime").value = departmentStatsCache.shift_start_time ? formatTimeForInput(departmentStatsCache.shift_start_time) : "08:00";
+        document.getElementById("editCallCenterShift1GraceEndTime").value = departmentStatsCache.late_start_time ? formatTimeForInput(departmentStatsCache.late_start_time) : "08:30";
+        document.getElementById("editCallCenterShift1EndTime").value = departmentStatsCache.shift_end_time ? formatTimeForInput(departmentStatsCache.shift_end_time) : "16:00";
+        document.getElementById("editCallCenterShift2StartTime").value = departmentStatsCache.evening_shift_start_time ? formatTimeForInput(departmentStatsCache.evening_shift_start_time) : "16:00";
+        document.getElementById("editCallCenterShift2GraceEndTime").value = departmentStatsCache.evening_shift_late_start_time ? formatTimeForInput(departmentStatsCache.evening_shift_late_start_time) : "16:30";
+        document.getElementById("editCallCenterShift2EndTime").value = departmentStatsCache.evening_shift_end_time ? formatTimeForInput(departmentStatsCache.evening_shift_end_time) : "00:00";
 
-        document.getElementById("editWorkersShift1StartTime").value = formatTimeForInput(departmentStatsCache.shift_start_time);
-        document.getElementById("editWorkersShift1GraceEndTime").value = formatTimeForInput(departmentStatsCache.late_start_time);
-        document.getElementById("editWorkersShift1EndTime").value = formatTimeForInput(departmentStatsCache.shift_end_time);
-        document.getElementById("editWorkersShift2StartTime").value = formatTimeForInput(departmentStatsCache.evening_shift_start_time);
-        document.getElementById("editWorkersShift2GraceEndTime").value = formatTimeForInput(departmentStatsCache.evening_shift_late_start_time);
-        document.getElementById("editWorkersShift2EndTime").value = formatTimeForInput(departmentStatsCache.evening_shift_end_time);
+        document.getElementById("editWorkersShift1StartTime").value = departmentStatsCache.shift_start_time ? formatTimeForInput(departmentStatsCache.shift_start_time) : "08:00";
+        document.getElementById("editWorkersShift1GraceEndTime").value = departmentStatsCache.late_start_time ? formatTimeForInput(departmentStatsCache.late_start_time) : "08:30";
+        document.getElementById("editWorkersShift1EndTime").value = departmentStatsCache.shift_end_time ? formatTimeForInput(departmentStatsCache.shift_end_time) : "16:00";
+        document.getElementById("editWorkersShift2StartTime").value = departmentStatsCache.evening_shift_start_time ? formatTimeForInput(departmentStatsCache.evening_shift_start_time) : "16:00";
+        document.getElementById("editWorkersShift2GraceEndTime").value = departmentStatsCache.evening_shift_late_start_time ? formatTimeForInput(departmentStatsCache.evening_shift_late_start_time) : "16:30";
+        document.getElementById("editWorkersShift2EndTime").value = departmentStatsCache.evening_shift_end_time ? formatTimeForInput(departmentStatsCache.evening_shift_end_time) : "00:00";
 
         toggleDepartmentSettings();
         new bootstrap.Modal(document.getElementById("editDepartmentModal")).show();
@@ -517,7 +498,7 @@ async function loadDepartmentStats() {
                 const safeEmployeeName = JSON.stringify(emp.full_name || "");
                 const isReception = stats.attendance_policy === "reception_department";
                 const isWorkers = stats.attendance_policy === "workers_department";
-                const supportsManualEdit = isReception || isWorkers;
+                const supportsManualEdit = isReception || isWorkers || isCallCenter;
                 const isLeather = stats.attendance_policy === "leather_department";
                 employeesBody.innerHTML += `
                     <tr>
@@ -591,15 +572,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 is_active: document.getElementById("editDepartmentActive").checked
             };
             
-            // Add Doctors settings if applicable
-            if (policy === "doctors_department") {
+            // Add Unified / Doctors / Reception settings if applicable
+            if (policy === "doctors_department" || policy === "reception_department" || policy === "default") {
                 // New fields
-                payload.shift_start_time = document.getElementById("editShiftStartTime").value + ":00";
-                payload.shift_end_time = document.getElementById("editShiftEndTime").value + ":00";
-                payload.shift_hours = parseInt(document.getElementById("editShiftHours").value, 10);
-                payload.late_start_time = document.getElementById("editLateStartTime").value + ":00";
-                payload.attendance_end_time = document.getElementById("editAttendanceEndTime").value + ":00";
-                payload.overtime_start_time = document.getElementById("editOvertimeStartTime").value + ":00";
+                payload.shift_start_time = document.getElementById("editShiftStartTime").value ? document.getElementById("editShiftStartTime").value + ":00" : "08:00:00";
+                payload.shift_end_time = document.getElementById("editShiftEndTime").value ? document.getElementById("editShiftEndTime").value + ":00" : "15:00:00";
+                payload.shift_hours = parseInt(document.getElementById("editShiftHours").value, 10) || 7;
+                payload.late_start_time = document.getElementById("editLateStartTime").value ? document.getElementById("editLateStartTime").value + ":00" : "08:30:00";
+                payload.attendance_end_time = document.getElementById("editAttendanceEndTime").value ? document.getElementById("editAttendanceEndTime").value + ":00" : "11:00:00";
+                payload.overtime_start_time = document.getElementById("editOvertimeStartTime").value ? document.getElementById("editOvertimeStartTime").value + ":00" : "15:00:00";
                 
                 // Evening shift settings
                 const eveningShiftEnabled = document.getElementById("enableEveningShift").checked;
@@ -612,15 +593,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     payload.evening_shift_end_time = null;
                     payload.evening_shift_hours = null;
                 }
-
-                // Legacy fields (for backward compatibility)
-                payload.half_shift_start_time = document.getElementById("editShiftStartTime").value + ":00";
-                payload.half_shift_end_time = document.getElementById("editShiftEndTime").value + ":00";
-                payload.half_shift_hours = parseInt(document.getElementById("editShiftHours").value, 10);
-                payload.full_shift_start_time = document.getElementById("editShiftStartTime").value + ":00";
-                payload.full_shift_end_time = document.getElementById("editShiftEndTime").value + ":00";
-                payload.full_shift_hours = parseInt(document.getElementById("editShiftHours").value, 10);
-                payload.grace_period_minutes = 30;
             }
             
             // Call center settings (OUTSIDE doctors block)

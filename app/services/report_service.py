@@ -12,12 +12,14 @@ from app.models.employee import Employee
 from app.schemas.report import ReportRow
 from app.services.reception_service import ReceptionService
 from app.services.workers_service import WorkersService
+from app.services.call_center_service import CallCenterService
 
 
 class ReportService:
     def __init__(self) -> None:
         self.reception_service = ReceptionService()
         self.workers_service = WorkersService()
+        self.call_center_service = CallCenterService()
 
     def _format_time(self, value) -> str | None:
         return value.strftime("%H:%M") if value else None
@@ -34,7 +36,15 @@ class ReportService:
         return start, end
 
     def _month_range(self, month_str: str) -> tuple[date, date]:
-        year, month = (int(x) for x in month_str.split("-"))
+        month_str = month_str.strip().replace("/", "-")
+        parts = [int(x) for x in month_str.split("-") if x.isdigit()]
+        if len(parts) == 2:
+            if parts[0] > 1000:  # YYYY-MM
+                year, month = parts[0], parts[1]
+            else:  # MM-YYYY
+                month, year = parts[0], parts[1]
+        else:
+            raise HTTPException(status_code=400, detail="صيغة الشهر غير صحيحة، يرجى استخدام YYYY-MM (مثال: 2026-08)")
         start = date(year, month, 1)
         _, last_day = monthrange(year, month)
         end = date(year, month, last_day)
@@ -42,6 +52,12 @@ class ReportService:
 
     def _is_workers_department(self, department: Department | None) -> bool:
         return bool(department and department.attendance_policy == "workers_department")
+
+    def _is_call_center_department(self, department: Department | None) -> bool:
+        return bool(department and department.attendance_policy == "call_center_department")
+
+    def _is_call_center_or_workers(self, department: Department | None) -> bool:
+        return self._is_workers_department(department) or self._is_call_center_department(department)
 
     def _is_reception_family_department(self, department: Department | None) -> bool:
         return bool(department and (department.attendance_policy == "reception_department" or
@@ -269,9 +285,9 @@ class ReportService:
     ) -> list[ReportRow]:
         target_department = self._resolve_target_department(db, department_id)
 
-        # Workers: use dedicated workers service with per-shift logic
-        if department_id and self._is_workers_department(target_department):
-            return self.workers_service.build_report_rows(
+        # Call Center & Workers: use CallCenterService with auto-shift detection
+        if department_id and self._is_call_center_or_workers(target_department):
+            return self.call_center_service.build_report_rows(
                 db, department_id, report_date, report_date, branch_id
             )
 
@@ -295,8 +311,8 @@ class ReportService:
         start_date, end_date = self._week_range(report_date)
         target_department = self._resolve_target_department(db, department_id)
 
-        if department_id and self._is_workers_department(target_department):
-            return self.workers_service.build_report_rows(
+        if department_id and self._is_call_center_or_workers(target_department):
+            return self.call_center_service.build_report_rows(
                 db, department_id, start_date, end_date, branch_id
             )
 
@@ -318,13 +334,14 @@ class ReportService:
         start_date, end_date = self._month_range(month)
         target_department = self._resolve_target_department(db, department_id)
 
-        if department_id and self._is_workers_department(target_department):
-            return self.workers_service.build_report_rows(
+        # Call Center & Workers: use new summary builder (one row per employee + daily detail rows)
+        if department_id and self._is_call_center_or_workers(target_department):
+            return self.call_center_service.build_monthly_summary_rows(
                 db, department_id, start_date, end_date, branch_id
             )
 
         if department_id and self._is_reception_family_department(target_department):
-            return self.reception_service.build_report_rows(
+            return self.reception_service.build_monthly_summary_rows(
                 db, department_id, start_date, end_date, branch_id
             )
 

@@ -9,11 +9,95 @@ function reportDepartmentQuery() {
     return departmentId ? `&department_id=${departmentId}` : "";
 }
 
-function isLeatherDepartment() {
-    if (!currentSelectedDepartment) return false;
+function getSelectedPolicy() {
+    if (!currentSelectedDepartment) return "default";
     const dept = departmentsCache.find(d => d.id === parseInt(currentSelectedDepartment));
-    return dept && dept.attendance_policy === "leather_department";
+    return dept ? dept.attendance_policy : "default";
 }
+
+const POLICY_COLUMNS = {
+    // 1. Leather Department: Hours only, no shifts, no late, no overtime
+    leather_department: {
+        summary: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "working_days_count", "working_hours", "absent_days_count"
+        ],
+        daily: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "attendance_date", "check_in_time", "check_out_time", "working_hours", "status"
+        ]
+    },
+    // 2. Doctors Department: Full shift, half shift, total units, hours, overtime, late, absent
+    doctors_department: {
+        summary: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "full_shift_count", "half_shift_count", "total_shift_units", 
+            "working_hours", "overtime_hours", "late_minutes", "absent_days_count"
+        ],
+        daily: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "attendance_date", "shift_name", "check_in_time", "check_out_time", 
+            "working_hours", "overtime_hours", "shift_deficit_hours", "late_minutes", "status"
+        ]
+    },
+    // 3. Call Center: Working days, shift 1, shift 2, late, overtime, rest day work, absent
+    call_center_department: {
+        summary: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "working_days_count", "shift_1_count", "shift_2_count", 
+            "late_minutes", "overtime_hours", "worked_on_rest_days_count", "absent_days_count"
+        ],
+        daily: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "attendance_date", "shift_name", "shift_start_time", "shift_end_time", 
+            "check_in_time", "check_out_time", "working_hours", "overtime_hours", 
+            "shift_deficit_hours", "late_minutes", "status", "worked_on_rest_day"
+        ]
+    },
+    // 4. Workers: Working days, shift 1, shift 2, late, overtime, rest day work, weekly rest, absent
+    workers_department: {
+        summary: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "working_days_count", "shift_1_count", "shift_2_count", 
+            "late_minutes", "overtime_hours", "worked_on_rest_days_count", 
+            "weekly_rest_days_count", "absent_days_count"
+        ],
+        daily: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "attendance_date", "shift_name", "shift_start_time", "shift_end_time", 
+            "check_in_time", "check_out_time", "working_hours", "overtime_hours", 
+            "shift_deficit_hours", "late_minutes", "status", "worked_on_rest_day"
+        ]
+    },
+    // 5. Reception: Working days, working hours, late, overtime, rest day work, weekly rest, absent
+    reception_department: {
+        summary: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "working_days_count", "working_hours", "late_minutes", "overtime_hours", 
+            "worked_on_rest_days_count", "weekly_rest_days_count", "absent_days_count"
+        ],
+        daily: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "attendance_date", "shift_name", "shift_start_time", "shift_end_time", 
+            "check_in_time", "check_out_time", "working_hours", "overtime_hours", 
+            "late_minutes", "status", "worked_on_rest_day"
+        ]
+    },
+    // 6. Default / All departments
+    default: {
+        summary: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "working_days_count", "working_hours", "total_shift_units", 
+            "late_minutes", "overtime_hours", "worked_on_rest_days_count", 
+            "weekly_rest_days_count", "absent_days_count"
+        ],
+        daily: [
+            "employee_code", "employee_name", "department", "job_title", 
+            "attendance_date", "shift_name", "check_in_time", "check_out_time", 
+            "working_hours", "overtime_hours", "late_minutes", "status", "worked_on_rest_day"
+        ]
+    }
+};
 
 function getReportStatusLabel(status) {
     const labels = {
@@ -36,53 +120,25 @@ async function loadDepartments() {
     });
     select.addEventListener("change", () => {
         currentSelectedDepartment = select.value;
+        setupColumnVisibilityMenu();
         updateReportTableColumns();
     });
 }
 
 function updateReportTableColumns() {
-    const isLeather = isLeatherDepartment();
-    let hiddenByPolicy = [];
-    
-    // Hide specific columns for leather department
-    if (isLeather) {
-        hiddenByPolicy = [
-            "shift_name",
-            "shift_start_time",
-            "shift_end_time",
-            "overtime_hours",
-            "shift_deficit_hours",
-            "late_minutes",
-            "absent_days_count",
-            "weekly_rest_days_count",
-            "worked_on_rest_days_count",
-            "shift_1_count",
-            "shift_2_count"
-        ];
-    }
-
-    if (currentViewMode === "summary") {
-        hiddenByPolicy.push(
-            "attendance_date", "shift_name", "shift_start_time", "shift_end_time", 
-            "check_in_time", "check_out_time", "shift_deficit_hours", "status", "worked_on_rest_day"
-        );
-    } else {
-        hiddenByPolicy.push(
-            "absent_days_count", "weekly_rest_days_count", "worked_on_rest_days_count",
-            "shift_1_count", "shift_2_count"
-        );
-    }
+    const policy = getSelectedPolicy();
+    const config = POLICY_COLUMNS[policy] || POLICY_COLUMNS.default;
+    const mode = currentViewMode === "summary" ? "summary" : "daily";
+    const allowedColumns = config[mode] || config.daily;
 
     const allColumns = document.querySelectorAll("#reportTable th[data-column]");
     allColumns.forEach((th) => {
         const columnName = th.dataset.column;
         const checkbox = document.querySelector(`.col-toggle[data-column="${columnName}"]`);
         
-        let isVisible = true;
+        let isVisible = allowedColumns.includes(columnName);
         
-        if (hiddenByPolicy.includes(columnName)) {
-            isVisible = false;
-        } else if (checkbox && !checkbox.checked) {
+        if (checkbox && !checkbox.checked) {
             isVisible = false;
         }
 
@@ -91,6 +147,22 @@ function updateReportTableColumns() {
         const tds = document.querySelectorAll(`#reportTableBody td[data-column="${columnName}"]`);
         tds.forEach(td => td.style.display = isVisible ? "" : "none");
     });
+
+    // Update Header Labels based on mode
+    const isSummary = currentViewMode === "summary";
+    const overtimeTh = document.querySelector("#reportTable th[data-column='overtime_hours']");
+    const lateTh = document.querySelector("#reportTable th[data-column='late_minutes']");
+    const hoursTh = document.querySelector("#reportTable th[data-column='working_hours']");
+    
+    if (overtimeTh) {
+        overtimeTh.textContent = isSummary ? "إجمالي الإضافي (س)" : "ساعات العمل الإضافي";
+    }
+    if (lateTh) {
+        lateTh.textContent = isSummary ? "إجمالي التأخير (د)" : "التأخير";
+    }
+    if (hoursTh) {
+        hoursTh.textContent = isSummary ? "إجمالي الساعات" : "الساعات";
+    }
 }
 
 function setupColumnVisibilityMenu() {
@@ -99,24 +171,16 @@ function setupColumnVisibilityMenu() {
     const headers = document.querySelectorAll("#reportTable th[data-column]");
     menu.innerHTML = "";
     
+    const policy = getSelectedPolicy();
+    const config = POLICY_COLUMNS[policy] || POLICY_COLUMNS.default;
+    const mode = currentViewMode === "summary" ? "summary" : "daily";
+    const allowedColumns = config[mode] || config.daily;
+
     headers.forEach(th => {
         const col = th.dataset.column;
         const label = th.dataset.label;
-        
-        const hideByDefault = [
-            "department", 
-            "job_title", 
-            "attendance_date",
-            "shift_name", 
-            "shift_start_time", 
-            "shift_end_time", 
-            "absent_days_count",
-            "weekly_rest_days_count",
-            "worked_on_rest_days_count",
-            "shift_1_count",
-            "shift_2_count"
-        ];
-        const checked = hideByDefault.includes(col) ? "" : "checked";
+        const isDefaultVisible = allowedColumns.includes(col);
+        const checked = isDefaultVisible ? "checked" : "";
         
         const li = document.createElement("li");
         li.innerHTML = `
@@ -217,7 +281,7 @@ function renderTableBody(rows) {
     if (rowsToRender.length === 0) {
         tbody.innerHTML = `
             <tr id="emptyRowTr">
-                <td colspan="21" class="text-center py-5 text-muted">
+                <td colspan="25" class="text-center py-5 text-muted">
                     <i class="bi bi-search fs-1 d-block mb-2 opacity-50"></i>
                     <strong>لا توجد نتائج لعرضها</strong>
                 </td>
@@ -244,13 +308,20 @@ function renderTableBody(rows) {
             if (row.overtime_hours > 0) overtimeClass = "text-success fw-bold";
         }
 
-        const overtimeValue = row.row_kind === "summary" ? row.total_overtime_hours : row.overtime_hours;
+        const isSummary = row.row_kind === "summary";
+        const overtimeValue = isSummary
+            ? (row.total_overtime_hours ?? 0)
+            : (row.overtime_hours ?? 0);
+        const lateValue = isSummary
+            ? (row.total_late_minutes ?? 0)
+            : (row.late_minutes ?? 0);
         
         let statusBadgeClass = "bg-secondary";
         if (row.status === 'present') statusBadgeClass = 'bg-success';
         else if (row.status === 'absent') statusBadgeClass = 'bg-danger';
         else if (row.status === 'weekly_rest') statusBadgeClass = 'bg-info text-dark';
         else if (row.status === 'present_on_rest_day') statusBadgeClass = 'bg-warning text-dark';
+        else if (row.status === 'monthly_summary') statusBadgeClass = 'bg-primary';
 
         // Format dates cleanly
         let checkIn = "-";
@@ -274,22 +345,26 @@ function renderTableBody(rows) {
                 <td data-column="department"><span class="badge bg-light text-dark border">${row.department || "-"}</span></td>
                 <td data-column="job_title" class="text-muted small">${row.job_title || "-"}</td>
                 <td data-column="attendance_date">${row.attendance_date || "-"}</td>
+                <td data-column="working_days_count"><span class="badge bg-primary bg-opacity-75">${row.working_days_count || 0} يوم</span></td>
                 <td data-column="shift_name">${row.shift_name || "-"}</td>
                 <td data-column="shift_start_time">${row.shift_start_time || "-"}</td>
                 <td data-column="shift_end_time">${row.shift_end_time || "-"}</td>
                 <td data-column="check_in_time">${checkIn}</td>
                 <td data-column="check_out_time">${checkOut}</td>
                 <td data-column="working_hours">${row.working_hours || 0}</td>
-                <td data-column="overtime_hours" class="${overtimeClass}">${overtimeValue || 0}</td>
+                <td data-column="overtime_hours" class="${overtimeClass}">${overtimeValue}</td>
                 <td data-column="shift_deficit_hours">${row.shift_deficit_hours || 0}</td>
-                <td data-column="late_minutes" class="${lateClass}">${row.late_minutes || 0}</td>
+                <td data-column="late_minutes" class="${lateClass}">${lateValue}</td>
                 <td data-column="status"><span class="badge ${statusBadgeClass}">${statusLabel}</span></td>
                 <td data-column="worked_on_rest_day">${row.worked_on_rest_day ? '<i class="bi bi-check-circle-fill text-success"></i>' : '-'}</td>
-                <td data-column="absent_days_count">${row.absent_days_count || 0}</td>
-                <td data-column="weekly_rest_days_count">${row.weekly_rest_days_count || 0}</td>
+                <td data-column="full_shift_count">${row.full_shift_count || 0}</td>
+                <td data-column="half_shift_count">${row.half_shift_count || 0}</td>
+                <td data-column="total_shift_units"><span class="badge bg-info text-dark">${row.total_shift_units || 0}</span></td>
                 <td data-column="shift_1_count">${row.shift_1_count || 0}</td>
                 <td data-column="shift_2_count">${row.shift_2_count || 0}</td>
                 <td data-column="worked_on_rest_days_count">${row.worked_on_rest_days_count || 0}</td>
+                <td data-column="weekly_rest_days_count">${row.weekly_rest_days_count || 0}</td>
+                <td data-column="absent_days_count">${row.absent_days_count || 0}</td>
             </tr>
         `;
     });
@@ -300,6 +375,7 @@ function renderTableBody(rows) {
                 e.preventDefault();
                 currentDetailedEmployeeCode = e.target.dataset.code;
                 currentViewMode = "details";
+                setupColumnVisibilityMenu();
                 renderTableBody(currentReportData);
             });
         });
@@ -320,6 +396,7 @@ async function renderReport(url) {
         const searchBox = document.getElementById("reportSearchBox");
         if(searchBox) searchBox.value = ""; 
         
+        setupColumnVisibilityMenu();
         updateSummaryCards(rows);
         renderTableBody(rows);
     } catch (error) {
@@ -354,7 +431,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await hydrateUser();
     await loadDepartments();
     setupColumnVisibilityMenu();
-    updateReportTableColumns(); // initial hide of clutter
+    updateReportTableColumns();
 
     // Setup live search
     const searchBox = document.getElementById("reportSearchBox");
@@ -369,6 +446,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         btnBackToSummary.addEventListener("click", () => {
             currentViewMode = "summary";
             currentDetailedEmployeeCode = null;
+            setupColumnVisibilityMenu();
             const searchTerm = searchBox ? searchBox.value : "";
             filterTable(searchTerm);
         });
@@ -384,8 +462,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // Quick Date Buttons
+    // Set default input values
     const today = new Date().toISOString().split('T')[0];
+    const currentMonth = today.substring(0, 7);
+    if (document.getElementById("daily_report_date")) document.getElementById("daily_report_date").value = today;
+    if (document.getElementById("weekly_report_date")) document.getElementById("weekly_report_date").value = today;
+    if (document.getElementById("monthly_report_month")) document.getElementById("monthly_report_month").value = currentMonth;
+
+    // Quick Date Buttons
     document.getElementById("quickTodayBtn")?.addEventListener("click", () => {
         const tab = new bootstrap.Tab(document.querySelector('#daily-tab'));
         tab.show();
@@ -428,9 +512,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
+    function normalizeMonthInput(value) {
+        if (!value) return "";
+        value = value.trim().replace("/", "-");
+        const parts = value.split("-");
+        if (parts.length === 2) {
+            if (parts[0].length === 4) {
+                return `${parts[0]}-${parts[1].padStart(2, '0')}`;
+            } else if (parts[1].length === 4) {
+                return `${parts[1]}-${parts[0].padStart(2, '0')}`;
+            }
+        }
+        return value;
+    }
+
     document.getElementById("monthlyReportForm")?.addEventListener("submit", async (event) => {
         event.preventDefault();
-        const month = document.getElementById("monthly_report_month").value;
+        const rawMonth = document.getElementById("monthly_report_month").value;
+        const month = normalizeMonthInput(rawMonth);
         try {
             await renderReport(`/api/reports/monthly?month=${month}${reportDepartmentQuery()}`);
         } catch (error) {
@@ -459,7 +558,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     document.getElementById("exportMonthlyExcel")?.addEventListener("click", () => {
-        const month = document.getElementById("monthly_report_month").value;
+        const rawMonth = document.getElementById("monthly_report_month").value;
+        const month = normalizeMonthInput(rawMonth);
         let query = `/api/reports/monthly/export/excel?month=${month}${reportDepartmentQuery()}&view_mode=${currentViewMode}`;
         if (currentViewMode === "details" && currentDetailedEmployeeCode) {
             query += `&employee_code=${currentDetailedEmployeeCode}`;
@@ -468,7 +568,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     document.getElementById("exportMonthlyPdf")?.addEventListener("click", () => {
-        const month = document.getElementById("monthly_report_month").value;
+        const rawMonth = document.getElementById("monthly_report_month").value;
+        const month = normalizeMonthInput(rawMonth);
         let query = `/api/reports/monthly/export/pdf?month=${month}${reportDepartmentQuery()}&view_mode=${currentViewMode}`;
         if (currentViewMode === "details" && currentDetailedEmployeeCode) {
             query += `&employee_code=${currentDetailedEmployeeCode}`;

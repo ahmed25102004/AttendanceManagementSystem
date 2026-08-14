@@ -27,6 +27,7 @@ class Department(Base):
     
     # Late calculation settings
     late_start_time: Mapped[time] = mapped_column(Time, default=time(8, 30), nullable=False)
+    grace_period_minutes: Mapped[int | None] = mapped_column(Integer, default=30, nullable=True)
     attendance_end_time: Mapped[time] = mapped_column(Time, default=time(11, 0), nullable=False)
     
     # Overtime settings

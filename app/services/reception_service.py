@@ -182,7 +182,7 @@ class ReceptionService:
             worked_on_rest_days_count = 0
 
             for current_date in self._iter_dates(start_date, end_date):
-                shift_info = None
+                shift_info = self._resolve_shift_info(employee, current_date) if not is_leather else None
                 is_rest_day = self._is_rest_day(employee, current_date) if not is_leather else False
                 record = record_map.get((employee.id, current_date))
                 day_logs = log_map.get((employee.id, current_date))
@@ -192,6 +192,7 @@ class ReceptionService:
                     worked_on_rest_day = record.worked_on_rest_day if not is_leather else False
                     late_minutes = record.late_minutes if not is_leather else 0
                     working_hours = round(record.working_hours, 2)
+                    overtime_hours = round(getattr(record, "overtime_hours", 0.0) or 0.0, 2)
                     status = record.status
                 else:
                     first_log = day_logs["first"] if day_logs else None
@@ -202,6 +203,11 @@ class ReceptionService:
                     worked_on_rest_day = bool(first_log and is_rest_day) if not is_leather else False
                     late_minutes = self._late_minutes(shift_info, first_log, is_rest_day) if not is_leather else 0
                     working_hours = self._working_hours(first_log, last_log)
+                    overtime_hours = 0.0
+                    if shift_info and last_log and shift_info.get("end_time"):
+                        shift_end = datetime.combine(last_log.date(), shift_info["end_time"])
+                        if last_log > shift_end:
+                            overtime_hours = round((last_log - shift_end).total_seconds() / 3600, 2)
 
                     if first_log:
                         status = "present_on_rest_day" if worked_on_rest_day else "present"
@@ -224,6 +230,7 @@ class ReceptionService:
                         "first_log": first_log,
                         "last_log": last_log,
                         "working_hours": working_hours,
+                        "overtime_hours": overtime_hours,
                         "late_minutes": late_minutes,
                         "status": status,
                         "worked_on_rest_day": worked_on_rest_day,
@@ -234,6 +241,7 @@ class ReceptionService:
                 shift_info = raw_row["shift_info"]
                 rows.append(
                     ReportRow(
+                        row_kind="daily",
                         employee_code=employee.employee_code,
                         employee_name=self._employee_full_name(employee),
                         department=employee.department.name if employee.department else None,
@@ -246,6 +254,7 @@ class ReceptionService:
                         check_in_time=self._format_datetime(raw_row["first_log"]),
                         check_out_time=self._format_datetime(raw_row["last_log"]),
                         working_hours=raw_row["working_hours"],
+                        overtime_hours=raw_row.get("overtime_hours", 0.0),
                         status=raw_row["status"],
                         is_late=raw_row["late_minutes"] > 0 if not is_leather else False,
                         late_minutes=raw_row["late_minutes"] if not is_leather else 0,
@@ -256,20 +265,179 @@ class ReceptionService:
                     )
                 )
 
-        rows.sort(key=lambda row: (row.attendance_date, row.employee_name))
+        rows.sort(key=lambda row: (row.employee_name or "", row.attendance_date))
         return rows
+
+    def build_monthly_summary_rows(
+        self,
+        db: Session,
+        department_id: int,
+        start_date: date,
+        end_date: date,
+        branch_id: int | None = None,
+    ) -> list[ReportRow]:
+        """Monthly summary builder for Reception and Leather departments."""
+        department = db.query(Department).filter(Department.id == department_id).first()
+        is_leather = self.is_leather_department(department)
+        
+        employees = self._query_department_employees(db, department_id, branch_id)
+        employee_ids = [employee.id for employee in employees]
+        log_map = self._build_log_map(db, employee_ids, start_date, end_date)
+        record_map = self._build_record_map(db, employee_ids, start_date, end_date)
+
+        all_rows: list[ReportRow] = []
+        for employee in employees:
+            raw_rows: list[dict] = []
+            working_days = 0
+            total_hours = 0.0
+            total_late = 0
+            total_ot = 0.0
+            absent_days_count = 0
+            weekly_rest_days_count = 0
+            worked_on_rest_days_count = 0
+
+            for current_date in self._iter_dates(start_date, end_date):
+                shift_info = self._resolve_shift_info(employee, current_date) if not is_leather else None
+                is_rest_day = self._is_rest_day(employee, current_date) if not is_leather else False
+                record = record_map.get((employee.id, current_date))
+                day_logs = log_map.get((employee.id, current_date))
+                if record:
+                    first_log = record.check_in_time
+                    last_log = record.check_out_time
+                    worked_on_rest_day = record.worked_on_rest_day if not is_leather else False
+                    late_minutes = record.late_minutes if not is_leather else 0
+                    working_hours = round(record.working_hours, 2)
+                    overtime_hours = round(getattr(record, "overtime_hours", 0.0) or 0.0, 2)
+                    status = record.status
+                else:
+                    first_log = day_logs["first"] if day_logs else None
+                    last_log = day_logs["last"] if day_logs else None
+                    if first_log and last_log and last_log <= first_log:
+                        last_log = None
+
+                    worked_on_rest_day = bool(first_log and is_rest_day) if not is_leather else False
+                    late_minutes = self._late_minutes(shift_info, first_log, is_rest_day) if not is_leather else 0
+                    working_hours = self._working_hours(first_log, last_log)
+                    overtime_hours = 0.0
+                    if shift_info and last_log and shift_info.get("end_time"):
+                        shift_end = datetime.combine(last_log.date(), shift_info["end_time"])
+                        if last_log > shift_end:
+                            overtime_hours = round((last_log - shift_end).total_seconds() / 3600, 2)
+
+                    if first_log:
+                        status = "present_on_rest_day" if worked_on_rest_day else "present"
+                    elif is_rest_day:
+                        status = "weekly_rest" if not is_leather else "absent"
+                    else:
+                        status = "absent"
+
+                if status in ("present", "present_on_rest_day"):
+                    working_days += 1
+                    total_hours += working_hours
+                    total_late += late_minutes
+                    total_ot += overtime_hours
+
+                if status == "present_on_rest_day":
+                    worked_on_rest_days_count += 1
+                elif status == "weekly_rest":
+                    weekly_rest_days_count += 1
+                elif status == "absent":
+                    absent_days_count += 1
+
+                raw_rows.append(
+                    {
+                        "current_date": current_date,
+                        "shift_info": shift_info,
+                        "first_log": first_log,
+                        "last_log": last_log,
+                        "working_hours": working_hours,
+                        "overtime_hours": overtime_hours,
+                        "late_minutes": late_minutes,
+                        "status": status,
+                        "worked_on_rest_day": worked_on_rest_day,
+                    }
+                )
+
+            emp_name = self._employee_full_name(employee)
+            dept_name = employee.department.name if employee.department else None
+
+            # Daily detail rows
+            for raw_row in raw_rows:
+                shift_info = raw_row["shift_info"]
+                all_rows.append(
+                    ReportRow(
+                        row_kind="daily",
+                        employee_code=employee.employee_code,
+                        employee_name=emp_name,
+                        department=dept_name,
+                        job_title=employee.job_title,
+                        attendance_date=raw_row["current_date"].isoformat(),
+                        shift_name=shift_info["label"] if shift_info and not is_leather else None,
+                        shift_type=shift_info["shift_type"] if shift_info and not is_leather else None,
+                        shift_start_time=self._format_time(shift_info["start_time"]) if shift_info and not is_leather else None,
+                        shift_end_time=self._format_time(shift_info["end_time"]) if shift_info and not is_leather else None,
+                        check_in_time=self._format_datetime(raw_row["first_log"]),
+                        check_out_time=self._format_datetime(raw_row["last_log"]),
+                        working_hours=raw_row["working_hours"],
+                        overtime_hours=raw_row.get("overtime_hours", 0.0),
+                        status=raw_row["status"],
+                        is_late=raw_row["late_minutes"] > 0 if not is_leather else False,
+                        late_minutes=raw_row["late_minutes"] if not is_leather else 0,
+                        worked_on_rest_day=raw_row["worked_on_rest_day"],
+                        absent_days_count=absent_days_count if not is_leather else 0,
+                        weekly_rest_days_count=weekly_rest_days_count if not is_leather else 0,
+                        worked_on_rest_days_count=worked_on_rest_days_count if not is_leather else 0,
+                    )
+                )
+
+            # Summary row for this employee
+            all_rows.append(
+                ReportRow(
+                    row_kind="summary",
+                    employee_code=employee.employee_code,
+                    employee_name=emp_name,
+                    department=dept_name,
+                    job_title=employee.job_title,
+                    attendance_date="ملخص شهري",
+                    check_in_time=None,
+                    check_out_time=None,
+                    working_hours=round(total_hours, 2),
+                    status="monthly_summary",
+                    is_late=False,
+                    working_days_count=working_days,
+                    total_late_minutes=total_late if not is_leather else 0,
+                    total_overtime_hours=round(total_ot, 2) if not is_leather else 0.0,
+                    worked_on_rest_days_count=worked_on_rest_days_count if not is_leather else 0,
+                    weekly_rest_days_count=weekly_rest_days_count if not is_leather else 0,
+                    absent_days_count=absent_days_count,
+                )
+            )
+
+        all_rows.sort(key=lambda r: (
+            r.employee_name or "", r.employee_code or "",
+            0 if r.row_kind == "summary" else 1, r.attendance_date,
+        ))
+        return all_rows
 
     def _resolve_shift_info(self, employee: Employee, target_date: date) -> dict | None:
         if not employee or not employee.department:
             return None
             
         dept = employee.department
+        grace_minutes = getattr(dept, "grace_period_minutes", None)
+        if grace_minutes is None:
+            if dept.shift_start_time and dept.late_start_time:
+                t1 = datetime.combine(target_date, dept.shift_start_time)
+                t2 = datetime.combine(target_date, dept.late_start_time)
+                grace_minutes = max(0, int((t2 - t1).total_seconds() // 60))
+            else:
+                grace_minutes = 30
         return {
             "label": self.SHIFT_TYPE_LABELS.get("morning", "شيفت صباحي"),
             "shift_type": "morning",
             "start_time": dept.shift_start_time,
             "end_time": dept.shift_end_time,
-            "grace_period_minutes": dept.grace_period_minutes or 0,
+            "grace_period_minutes": grace_minutes,
         }
 
     def get_department_today_stats(

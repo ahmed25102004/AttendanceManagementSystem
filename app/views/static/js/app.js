@@ -91,7 +91,17 @@ async function fetchJSON(url, options = {}) {
     const data = contentType.includes("application/json") ? await response.json() : await response.blob();
 
     if (!response.ok) {
-        throw new Error(data.detail || "فشل تنفيذ الطلب.");
+        let errorMsg = "فشل تنفيذ الطلب.";
+        if (data && data.detail) {
+            if (typeof data.detail === "string") {
+                errorMsg = data.detail;
+            } else if (Array.isArray(data.detail)) {
+                errorMsg = data.detail.map(d => d.msg || JSON.stringify(d)).join(" - ");
+            } else if (typeof data.detail === "object") {
+                errorMsg = data.detail.msg || JSON.stringify(data.detail);
+            }
+        }
+        throw new Error(errorMsg);
     }
     return data;
 }

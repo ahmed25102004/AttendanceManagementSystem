@@ -21,15 +21,6 @@ class DepartmentCreate(BaseModel):
     evening_shift_end_time: time | None = None
     evening_shift_hours: int | None = None
     evening_shift_late_start_time: time | None = None
-    
-    # Backward compatibility
-    half_shift_start_time: time = Field(default="08:00:00")
-    half_shift_end_time: time = Field(default="15:00:00")
-    half_shift_hours: int = Field(default=7)
-    full_shift_start_time: time = Field(default="08:00:00")
-    full_shift_end_time: time = Field(default="22:00:00")
-    full_shift_hours: int = Field(default=14)
-    grace_period_minutes: int = Field(default=30)
 
 
 class DepartmentUpdate(BaseModel):
@@ -51,16 +42,6 @@ class DepartmentUpdate(BaseModel):
     evening_shift_end_time: time | None = None
     evening_shift_hours: int | None = None
     evening_shift_late_start_time: time | None = None
-    
-    # Backward compatibility
-    half_shift_start_time: time | None = None
-    half_shift_end_time: time | None = None
-    half_shift_hours: int | None = None
-    full_shift_start_time: time | None = None
-    full_shift_end_time: time | None = None
-    full_shift_hours: int | None = None
-    overtime_start_time: time | None = None
-    grace_period_minutes: int | None = None
 
 
 class DepartmentResponse(DepartmentCreate):

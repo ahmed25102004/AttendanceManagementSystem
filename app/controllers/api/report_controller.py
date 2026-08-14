@@ -5,6 +5,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_branch_manager_or_admin, get_db, get_current_branch_id
+from app.models.department import Department
 from app.services.export_service import ExportService
 from app.services.report_service import ReportService
 
@@ -12,6 +13,14 @@ from app.services.report_service import ReportService
 router = APIRouter(dependencies=[Depends(get_branch_manager_or_admin)])
 report_service = ReportService()
 export_service = ExportService()
+
+
+def _get_department_policy(db: Session, department_id: int | None) -> str:
+    """Return attendance policy for given department, or 'default'."""
+    if not department_id:
+        return "default"
+    dept = db.query(Department).filter(Department.id == department_id).first()
+    return dept.attendance_policy if dept else "default"
 
 
 @router.get("/daily")
@@ -36,7 +45,7 @@ def weekly_report(
 
 @router.get("/monthly")
 def monthly_report(
-    month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
+    month: str = Query(...),
     department_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
     branch_id: int | None = Depends(get_current_branch_id),
@@ -110,7 +119,7 @@ def export_weekly_pdf(
 
 @router.get("/monthly/export/excel")
 def export_monthly_excel(
-    month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
+    month: str = Query(...),
     department_id: int | None = Query(default=None),
     view_mode: str | None = Query(default=None),
     employee_code: str | None = Query(default=None),
@@ -118,14 +127,19 @@ def export_monthly_excel(
     branch_id: int | None = Depends(get_current_branch_id),
 ):
     rows = report_service.monthly_report(db, month, branch_id, department_id)
+    policy = _get_department_policy(db, department_id)
     if view_mode == "summary":
-        rows = [r for r in rows if r.row_kind == "summary"]
+        file_stream = export_service.export_policy_summary_excel(
+            f"تقرير الحضور الشهري - {month}", rows, policy
+        )
     elif view_mode == "details" and employee_code:
         rows = [r for r in rows if r.row_kind != "summary" and r.employee_code == employee_code]
+        file_stream = export_service.export_excel(f"تقرير الحضور الشهري - {month}", rows)
     elif view_mode == "daily":
         rows = [r for r in rows if r.row_kind != "summary"]
-    
-    file_stream = export_service.export_excel(f"تقرير الحضور الشهري - {month}", rows)
+        file_stream = export_service.export_excel(f"تقرير الحضور الشهري - {month}", rows)
+    else:
+        file_stream = export_service.export_excel(f"تقرير الحضور الشهري - {month}", rows)
     return StreamingResponse(
         file_stream,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -135,7 +149,7 @@ def export_monthly_excel(
 
 @router.get("/monthly/export/pdf")
 def export_monthly_pdf(
-    month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
+    month: str = Query(...),
     department_id: int | None = Query(default=None),
     view_mode: str | None = Query(default=None),
     employee_code: str | None = Query(default=None),
@@ -143,14 +157,19 @@ def export_monthly_pdf(
     branch_id: int | None = Depends(get_current_branch_id),
 ):
     rows = report_service.monthly_report(db, month, branch_id, department_id)
+    policy = _get_department_policy(db, department_id)
     if view_mode == "summary":
-        rows = [r for r in rows if r.row_kind == "summary"]
+        file_stream = export_service.export_policy_summary_pdf(
+            f"تقرير الحضور الشهري - {month}", rows, policy
+        )
     elif view_mode == "details" and employee_code:
         rows = [r for r in rows if r.row_kind != "summary" and r.employee_code == employee_code]
+        file_stream = export_service.export_pdf(f"تقرير الحضور الشهري - {month}", rows)
     elif view_mode == "daily":
         rows = [r for r in rows if r.row_kind != "summary"]
-        
-    file_stream = export_service.export_pdf(f"تقرير الحضور الشهري - {month}", rows)
+        file_stream = export_service.export_pdf(f"تقرير الحضور الشهري - {month}", rows)
+    else:
+        file_stream = export_service.export_pdf(f"تقرير الحضور الشهري - {month}", rows)
     return StreamingResponse(
         file_stream,
         media_type="application/pdf",

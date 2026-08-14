@@ -9,12 +9,14 @@ from app.models.employee import Employee
 from app.models.attendance import AttendanceRecord
 from app.services.reception_service import ReceptionService
 from app.services.workers_service import WorkersService
+from app.services.call_center_service import CallCenterService
 
 
 class DepartmentService:
     def __init__(self) -> None:
         self.reception_service = ReceptionService()
         self.workers_service = WorkersService()
+        self.call_center_service = CallCenterService()
 
     def _employee_full_name(self, employee: Employee) -> str:
         return " ".join(part.strip() for part in [employee.first_name, employee.last_name] if part and part.strip())
@@ -37,48 +39,44 @@ class DepartmentService:
     def _is_workers_department(self, department: Department | None) -> bool:
         return bool(department and department.attendance_policy == "workers_department")
 
+    def _is_call_center_department(self, department: Department | None) -> bool:
+        return bool(department and department.attendance_policy == "call_center_department")
+
     def _is_reception_or_leather_department(self, department: Department | None) -> bool:
         return bool(department and (department.attendance_policy == "reception_department" or
                                     department.attendance_policy == "leather_department"))
 
     def _is_unified_department(self, department: Department | None) -> bool:
-        return self._is_workers_department(department) or self._is_reception_or_leather_department(department)
+        return (self._is_workers_department(department) or
+                self._is_call_center_department(department) or
+                self._is_reception_or_leather_department(department))
 
     def get_stats(self, db: Session, department_id: int, branch_id: int | None = None) -> dict:
         # Check department exists
         department = self.get(db, department_id, branch_id)
         if self._is_unified_department(department):
             # Route to correct service based on policy
-            if self._is_workers_department(department):
-                today_stats = self.workers_service.get_department_today_stats(db, department_id, branch_id)
+            if self._is_call_center_department(department) or self._is_workers_department(department):
+                today_stats = self.call_center_service.get_department_today_stats(db, department_id, branch_id)
             else:
-                today_stats = self.reception_service.get_department_today_stats(db, department_id)
+                today_stats = self.reception_service.get_department_today_stats(db, department_id, branch_id)
             return {
                 "id": department_id,
                 "name": department.name,
                 "description": department.description,
                 "attendance_policy": department.attendance_policy,
                 "is_active": department.is_active,
-                # New fields
-                "shift_start_time": getattr(department, "shift_start_time", department.half_shift_start_time),
-                "shift_end_time": getattr(department, "shift_end_time", department.half_shift_end_time),
-                "shift_hours": getattr(department, "shift_hours", department.half_shift_hours),
-                "late_start_time": getattr(department, "late_start_time", department.half_shift_start_time),
-                "attendance_end_time": getattr(department, "attendance_end_time", None),
-                "overtime_enabled": getattr(department, "overtime_enabled", True),
+                "shift_start_time": department.shift_start_time,
+                "shift_end_time": department.shift_end_time,
+                "shift_hours": department.shift_hours,
+                "late_start_time": department.late_start_time,
+                "attendance_end_time": department.attendance_end_time,
+                "overtime_enabled": department.overtime_enabled,
                 "overtime_start_time": department.overtime_start_time,
-                "evening_shift_start_time": getattr(department, "evening_shift_start_time", None),
-                "evening_shift_end_time": getattr(department, "evening_shift_end_time", None),
-                "evening_shift_hours": getattr(department, "evening_shift_hours", None),
-                "evening_shift_late_start_time": getattr(department, "evening_shift_late_start_time", None),
-                # Old fields (backward compatibility)
-                "half_shift_start_time": department.half_shift_start_time,
-                "half_shift_end_time": department.half_shift_end_time,
-                "half_shift_hours": department.half_shift_hours,
-                "full_shift_start_time": department.full_shift_start_time,
-                "full_shift_end_time": department.full_shift_end_time,
-                "full_shift_hours": department.full_shift_hours,
-                "grace_period_minutes": department.grace_period_minutes,
+                "evening_shift_start_time": department.evening_shift_start_time,
+                "evening_shift_end_time": department.evening_shift_end_time,
+                "evening_shift_hours": department.evening_shift_hours,
+                "evening_shift_late_start_time": department.evening_shift_late_start_time,
                 "total_employees": len(today_stats["employees"]),
                 "attendance_today": today_stats["attendance_today"],
                 "employees": today_stats["employees"],
@@ -117,26 +115,17 @@ class DepartmentService:
             "description": department.description,
             "attendance_policy": department.attendance_policy,
             "is_active": department.is_active,
-            # New fields
-            "shift_start_time": getattr(department, "shift_start_time", department.half_shift_start_time),
-            "shift_end_time": getattr(department, "shift_end_time", department.half_shift_end_time),
-            "shift_hours": getattr(department, "shift_hours", department.half_shift_hours),
-            "late_start_time": getattr(department, "late_start_time", department.half_shift_start_time),
-            "attendance_end_time": getattr(department, "attendance_end_time", None),
-            "overtime_enabled": getattr(department, "overtime_enabled", True),
+            "shift_start_time": department.shift_start_time,
+            "shift_end_time": department.shift_end_time,
+            "shift_hours": department.shift_hours,
+            "late_start_time": department.late_start_time,
+            "attendance_end_time": department.attendance_end_time,
+            "overtime_enabled": department.overtime_enabled,
             "overtime_start_time": department.overtime_start_time,
-            "evening_shift_start_time": getattr(department, "evening_shift_start_time", None),
-            "evening_shift_end_time": getattr(department, "evening_shift_end_time", None),
-            "evening_shift_hours": getattr(department, "evening_shift_hours", None),
-            "evening_shift_late_start_time": getattr(department, "evening_shift_late_start_time", None),
-            # Old fields (backward compatibility)
-            "half_shift_start_time": department.half_shift_start_time,
-            "half_shift_end_time": department.half_shift_end_time,
-            "half_shift_hours": department.half_shift_hours,
-            "full_shift_start_time": department.full_shift_start_time,
-            "full_shift_end_time": department.full_shift_end_time,
-            "full_shift_hours": department.full_shift_hours,
-            "grace_period_minutes": department.grace_period_minutes,
+            "evening_shift_start_time": department.evening_shift_start_time,
+            "evening_shift_end_time": department.evening_shift_end_time,
+            "evening_shift_hours": department.evening_shift_hours,
+            "evening_shift_late_start_time": department.evening_shift_late_start_time,
             "total_employees": total_employees,
             "attendance_today": today_attendance,
             "employees": [
