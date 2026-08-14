@@ -336,9 +336,38 @@ document.addEventListener("click", (event) => {
     }
 });
 
+function setupMobileSidebar() {
+    const toggleBtn = document.getElementById("mobileMenuToggleBtn");
+    const closeBtn = document.getElementById("closeMobileSidebarBtn");
+    const sidebar = document.getElementById("mainSidebar");
+    const backdrop = document.getElementById("sidebarBackdrop");
+    const mobileBranchName = document.getElementById("mobileSidebarBranchName");
+
+    if (mobileBranchName) {
+        mobileBranchName.textContent = getCurrentBranchName() || "الفرع";
+    }
+
+    function openSidebar() {
+        if (sidebar) sidebar.classList.add("sidebar-open");
+        if (backdrop) backdrop.classList.add("show");
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeSidebar() {
+        if (sidebar) sidebar.classList.remove("sidebar-open");
+        if (backdrop) backdrop.classList.remove("show");
+        document.body.style.overflow = "";
+    }
+
+    if (toggleBtn) toggleBtn.addEventListener("click", openSidebar);
+    if (closeBtn) closeBtn.addEventListener("click", closeSidebar);
+    if (backdrop) backdrop.addEventListener("click", closeSidebar);
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     await hydrateUser();
     await loadBranchSelector();
+    setupMobileSidebar();
     const branchNameEl = document.getElementById("sidebarBranchName");
     if (branchNameEl) {
         branchNameEl.textContent = getCurrentBranchName() || "غير محدد";

@@ -1,15 +1,59 @@
 {% extends "base.html" %}
 {% block content %}
+<!-- Mobile Top Navigation Bar (Visible only on mobile/tablet < 992px) -->
+<header class="mobile-top-nav d-lg-none d-flex align-items-center justify-content-between p-3 bg-dark text-white sticky-top shadow-sm">
+    <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-light btn-sm border-0 p-1" id="mobileMenuToggleBtn" type="button" aria-label="القائمة">
+            <i class="bi bi-list fs-3"></i>
+        </button>
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-primary fs-4"></i>
+            <div>
+                <h6 class="mb-0 fw-bold text-white lh-1">نظام فيردي</h6>
+                <small class="text-white-50" id="mobileSidebarBranchName">الفرع</small>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <!-- Notification on mobile -->
+        <div class="dropdown">
+            <button class="btn btn-outline-light btn-sm p-1 position-relative" type="button" data-bs-toggle="dropdown" id="mobileNotificationDropdown">
+                <i class="bi bi-bell fs-5"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="mobileUnreadCount">0</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow" id="mobileNotificationDropdownMenu" style="max-height: 350px; overflow-y: auto; width: 280px;">
+                <li class="p-3 text-center text-muted">لا توجد إشعارات</li>
+            </ul>
+        </div>
+        <!-- User avatar on mobile -->
+        <button class="btn btn-outline-light btn-sm p-1 rounded-circle" type="button" onclick="window.location.href='/employee-profile'" title="الملف الشخصي">
+            <i class="bi bi-person-circle fs-5"></i>
+        </button>
+    </div>
+</header>
+
+<!-- Sidebar Overlay Backdrop for Mobile -->
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
 <div class="d-lg-flex main-wrapper">
-    <aside class="sidebar p-3">
+    <!-- Sidebar -->
+    <aside class="sidebar p-3" id="mainSidebar">
+        <!-- Close button on mobile -->
+        <div class="d-flex justify-content-between align-items-center d-lg-none mb-3 border-bottom border-secondary pb-2">
+            <h5 class="text-white mb-0 fw-bold">القائمة الرئيسية</h5>
+            <button class="btn btn-outline-light btn-sm p-1 rounded-circle" id="closeMobileSidebarBtn" type="button">
+                <i class="bi bi-x-lg fs-5"></i>
+            </button>
+        </div>
+
         <div class="text-white mb-4">
-            <button class="btn btn-outline-light btn-sm mb-3" onclick="window.location.href='/'">
+            <button class="btn btn-outline-light btn-sm w-100 mb-3" onclick="window.location.href='/'">
                 <i class="bi bi-arrow-left-circle me-1"></i>الرجوع لاختيار الفرع
             </button>
-            <h4 class="mb-1">نظام الحضور</h4>
+            <h4 class="mb-1 fw-bold d-none d-lg-block">نظام الحضور</h4>
             <small class="text-white-50"><span id="sidebarBranchName"></span></small>
         </div>
-        <nav class="nav flex-column">
+        <nav class="nav flex-column sidebar-nav">
             <div class="sidebar-group">
                 <button
                     type="button"
@@ -18,57 +62,75 @@
                     aria-expanded="false"
                     aria-controls="departmentsNavContainer"
                 >
-                    <span>إدارة الأقسام</span>
+                    <span><i class="bi bi-diagram-3 me-2"></i>إدارة الأقسام</span>
                     <span class="nav-toggle-icon" aria-hidden="true"></span>
                 </button>
                 <div id="departmentsNavContainer" class="nav-submenu" hidden>
                     <div id="departmentsNav" class="nav flex-column"></div>
                 </div>
             </div>
-            <a class="nav-link {% if page == 'employees' %}active{% endif %}" href="/employees">الموظفين</a>
-            <a class="nav-link {% if page == 'devices' %}active{% endif %}" href="/devices">الأجهزة</a>
-            <a class="nav-link {% if page == 'attendance' %}active{% endif %}" href="/attendance">الحضور والانصراف</a>
-            <a class="nav-link {% if page == 'monitoring' %}active{% endif %}" href="/monitoring">المراقبة</a>
-            <a class="nav-link {% if page == 'reports' %}active{% endif %}" href="/reports">التقارير</a>
-            <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings">الإعدادات</a>
-            <a class="nav-link {% if page == 'backups' %}active{% endif %}" href="/backups">النسخ الاحتياطية</a>
-            <button class="btn btn-outline-light mt-3" data-action="logout">تسجيل الخروج</button>
+            <a class="nav-link {% if page == 'employees' %}active{% endif %}" href="/employees">
+                <i class="bi bi-people me-2"></i>الموظفين
+            </a>
+            <a class="nav-link {% if page == 'devices' %}active{% endif %}" href="/devices">
+                <i class="bi bi-hdd-network me-2"></i>الأجهزة
+            </a>
+            <a class="nav-link {% if page == 'attendance' %}active{% endif %}" href="/attendance">
+                <i class="bi bi-calendar2-check me-2"></i>الحضور والانصراف
+            </a>
+            <a class="nav-link {% if page == 'monitoring' %}active{% endif %}" href="/monitoring">
+                <i class="bi bi-activity me-2"></i>المراقبة
+            </a>
+            <a class="nav-link {% if page == 'reports' %}active{% endif %}" href="/reports">
+                <i class="bi bi-file-earmark-bar-graph me-2"></i>التقارير
+            </a>
+            <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings">
+                <i class="bi bi-gear me-2"></i>الإعدادات
+            </a>
+            <a class="nav-link {% if page == 'backups' %}active{% endif %}" href="/backups">
+                <i class="bi bi-shield-check me-2"></i>النسخ الاحتياطية
+            </a>
+            <button class="btn btn-outline-danger mt-3 text-start w-100" data-action="logout">
+                <i class="bi bi-box-arrow-right me-2"></i>تسجيل الخروج
+            </button>
         </nav>
     </aside>
-    <main class="content-area p-2 p-lg-3">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+
+    <!-- Main Content Area -->
+    <main class="content-area p-3 p-md-4">
+        <!-- Desktop Header Bar -->
+        <div class="desktop-header-bar d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 p-3 bg-white rounded-4 shadow-sm">
             <div>
-                <h2 class="fw-bold mb-0">{{ title }}</h2>
+                <h3 class="fw-bold mb-0 text-dark">{{ title }}</h3>
                 <p class="text-muted small mb-0">{{ subtitle }}</p>
             </div>
-            <div class="d-flex align-items-center gap-3">
+            <div class="d-flex flex-wrap align-items-center gap-3">
                 <!-- Branch Selector -->
                 <div class="d-flex align-items-center gap-2">
-                    <label class="text-muted small mb-0">الفرع:</label>
-                    <select id="branchSelector" class="form-select form-select-sm" style="width: 200px;">
+                    <label class="text-muted small mb-0 fw-semibold">الفرع:</label>
+                    <select id="branchSelector" class="form-select form-select-sm shadow-none" style="min-width: 180px;">
                         <option value="">جارٍ التحميل...</option>
                     </select>
                 </div>
-                <!-- Notification Dropdown -->
-                <div class="dropdown">
-                    <button class="btn btn-outline-secondary position-relative" type="button" data-bs-toggle="dropdown" id="notificationDropdown">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
+                <!-- Notification Dropdown (Desktop) -->
+                <div class="dropdown d-none d-lg-block">
+                    <button class="btn btn-light border position-relative" type="button" data-bs-toggle="dropdown" id="notificationDropdown">
+                        <i class="bi bi-bell fs-5 text-secondary"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="unreadCount">0</span>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end" id="notificationDropdownMenu" style="max-height: 400px; overflow-y: auto;">
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0" id="notificationDropdownMenu" style="max-height: 400px; overflow-y: auto; width: 320px;">
                         <li class="p-3 text-center text-muted">لا توجد إشعارات</li>
                     </ul>
                 </div>
-                <!-- User Info -->
-                <div class="text-start">
+                <!-- User Info (Desktop) -->
+                <div class="d-none d-lg-block text-start border-start pe-3 ps-3">
                     <div class="small text-muted">مسجل الدخول باسم</div>
-                    <div class="fw-semibold" id="currentUserName">مدير النظام</div>
+                    <div class="fw-bold text-primary" id="currentUserName">مدير النظام</div>
                 </div>
             </div>
         </div>
+
+        <!-- Page Content -->
         {% block page_content %}{% endblock %}
     </main>
 </div>
