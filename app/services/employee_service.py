@@ -73,21 +73,17 @@ class EmployeeService:
             joinedload(Employee.user),
         )
 
-    def _validate_department(self, db: Session, department_id: int | None, branch_id: int | None) -> Department | None:
+    def _validate_department(self, db: Session, department_id: int | None, branch_id: int | None = None) -> Department | None:
         if department_id is None:
             return None
         query = db.query(Department).filter(Department.id == department_id)
-        if branch_id is not None:
-            query = query.filter(Department.branch_id == branch_id)
         department = query.first()
         if not department:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="القسم غير موجود داخل الفرع المحدد.",
+                detail="القسم غير موجود.",
             )
         return department
-
-
 
     def _sync_employee_user(
         self,
@@ -186,8 +182,10 @@ class EmployeeService:
         return responses
 
     def create(self, db: Session, payload: EmployeeCreate, branch_id: int | None = None) -> EmployeeResponse:
+        dept = self._validate_department(db, payload.department_id)
+        final_branch_id = (dept.branch_id if dept and dept.branch_id else None) or branch_id or payload.branch_id
+        
         # Check if employee_code already exists in the same branch
-        final_branch_id = branch_id or payload.branch_id
         query = db.query(Employee).filter(Employee.employee_code == payload.employee_code)
         if final_branch_id:
             query = query.filter(Employee.branch_id == final_branch_id)
@@ -197,8 +195,6 @@ class EmployeeService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="كود الموظف مستخدم بالفعل في هذا الفرع."
             )
-        
-        self._validate_department(db, payload.department_id, final_branch_id)
 
         employee = Employee(
             first_name=self._normalize_full_name(payload.full_name),
@@ -247,7 +243,9 @@ class EmployeeService:
                     detail="كود الموظف مستخدم بالفعل في هذا الفرع."
                 )
 
-        self._validate_department(db, payload.department_id, final_branch_id)
+        dept = self._validate_department(db, payload.department_id)
+        if dept and dept.branch_id:
+            final_branch_id = dept.branch_id
 
         employee.first_name = self._normalize_full_name(payload.full_name)
         employee.last_name = ""

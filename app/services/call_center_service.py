@@ -10,7 +10,7 @@ from app.schemas.report import ReportRow
 class CallCenterService:
     """Shared service for Call Center and Workers departments.
 
-    Key rules (per spec):
+    Key rules:
     - Shift auto-detected from first check-in time.
       first < shift2_start  -> Shift 1 (morning)
       first >= shift2_start -> Shift 2 (evening)
@@ -43,16 +43,25 @@ class CallCenterService:
         dept = emp.department
         if not dept:
             return None
-        s1 = {"label": "الشيفت الاول", "shift_type": "morning", "shift_category": "shift_1",
-               "start_time": dept.shift_start_time, "late_time": dept.late_start_time,
-               "end_time": dept.shift_end_time}
+        s1 = {
+            "label": "الشيفت الاول",
+            "shift_type": "morning",
+            "shift_category": "shift_1",
+            "start_time": dept.shift_start_time,
+            "late_time": dept.late_start_time,
+            "end_time": dept.shift_end_time,
+        }
         if not first_log or not dept.evening_shift_start_time:
             return s1
         if first_log.time() >= dept.evening_shift_start_time:
-            return {"label": "الشيفت الثاني", "shift_type": "evening", "shift_category": "shift_2",
-                    "start_time": dept.evening_shift_start_time,
-                    "late_time": dept.evening_shift_late_start_time,
-                    "end_time": dept.evening_shift_end_time}
+            return {
+                "label": "الشيفت الثاني",
+                "shift_type": "evening",
+                "shift_category": "shift_2",
+                "start_time": dept.evening_shift_start_time,
+                "late_time": dept.evening_shift_late_start_time,
+                "end_time": dept.evening_shift_end_time,
+            }
         return s1
 
     def _late_min(self, si, cin):
@@ -87,11 +96,16 @@ class CallCenterService:
     def _build_log_map(self, db, ids, sd, ed):
         if not ids:
             return {}
-        logs = (db.query(AttendanceLog)
-                .filter(AttendanceLog.employee_id.in_(ids),
-                        AttendanceLog.check_time >= datetime.combine(sd, time.min),
-                        AttendanceLog.check_time < datetime.combine(ed + timedelta(days=1), time.min))
-                .order_by(AttendanceLog.check_time).all())
+        logs = (
+            db.query(AttendanceLog)
+            .filter(
+                AttendanceLog.employee_id.in_(ids),
+                AttendanceLog.check_time >= datetime.combine(sd, time.min),
+                AttendanceLog.check_time < datetime.combine(ed + timedelta(days=1), time.min),
+            )
+            .order_by(AttendanceLog.check_time)
+            .all()
+        )
         g = {}
         for lg in logs:
             if not lg.employee_id:
@@ -109,18 +123,25 @@ class CallCenterService:
     def _build_record_map(self, db, ids, sd, ed):
         if not ids:
             return {}
-        return {(r.employee_id, r.attendance_date): r
-                for r in db.query(AttendanceRecord)
-                .filter(AttendanceRecord.employee_id.in_(ids),
-                        AttendanceRecord.attendance_date >= sd,
-                        AttendanceRecord.attendance_date <= ed).all()}
+        return {
+            (r.employee_id, r.attendance_date): r
+            for r in db.query(AttendanceRecord)
+            .filter(
+                AttendanceRecord.employee_id.in_(ids),
+                AttendanceRecord.attendance_date >= sd,
+                AttendanceRecord.attendance_date <= ed,
+            )
+            .all()
+        }
 
     def _query_employees(self, db, dept_id, branch_id=None):
-        q = (db.query(Employee).options(joinedload(Employee.department))
-             .filter(Employee.department_id == dept_id, Employee.is_active.is_(True)))
-        if branch_id:
-            q = q.filter(Employee.branch_id == branch_id)
-        return q.order_by(Employee.first_name.asc(), Employee.id.asc()).all()
+        return (
+            db.query(Employee)
+            .options(joinedload(Employee.department))
+            .filter(Employee.department_id == dept_id, Employee.is_active.is_(True))
+            .order_by(Employee.first_name.asc(), Employee.id.asc())
+            .all()
+        )
 
     def _day_metrics(self, emp, cur_date, rec, dlogs):
         is_rest = self._is_rest(emp, cur_date)
@@ -145,10 +166,19 @@ class CallCenterService:
             dh = self._deficit_h(si, ll)
             ot = self._ot_h(si, ll)
             st = "present" if fl else ("weekly_rest" if is_rest else "absent")
-        return {"current_date": cur_date, "shift_info": si, "first_log": fl, "last_log": ll,
-                "working_hours": wh, "late_minutes": lm, "shift_deficit_hours": dh,
-                "overtime_hours": ot, "status": st, "is_rest_day": is_rest,
-                "worked_on_rest_day": wor}
+        return {
+            "current_date": cur_date,
+            "shift_info": si,
+            "first_log": fl,
+            "last_log": ll,
+            "working_hours": wh,
+            "late_minutes": lm,
+            "shift_deficit_hours": dh,
+            "overtime_hours": ot,
+            "status": st,
+            "is_rest_day": is_rest,
+            "worked_on_rest_day": wor,
+        }
 
     def _make_daily_row(self, emp, m, absent, weekly_rest, rest_work):
         si = m["shift_info"]
@@ -275,28 +305,39 @@ class CallCenterService:
             if m["first_log"]:
                 cnt += 1
             summ.append({
-                "id": emp.id, "full_name": self._full_name(emp),
+                "id": emp.id,
+                "full_name": self._full_name(emp),
                 "employee_code": emp.employee_code,
                 "attendance_today": bool(m["first_log"]),
                 "status": m["status"],
                 "weekly_rest_day": emp.weekly_rest_day,
                 "shift_name": si["label"] if si else None,
                 "shift_type": si["shift_type"] if si else None,
-                "check_in_time": m["first_log"],
-                "check_out_time": m["last_log"],
+                "check_in_time": self._fmt_dt(m["first_log"]),
+                "check_out_time": self._fmt_dt(m["last_log"]),
+                "working_hours": m["working_hours"],
                 "late_minutes": m["late_minutes"],
+                "shift_deficit_hours": m["shift_deficit_hours"],
+                "overtime_hours": m["overtime_hours"],
                 "worked_on_rest_day": m["worked_on_rest_day"],
             })
-        latest_logs = []
-        if ids:
-            for lg in (db.query(AttendanceLog).options(joinedload(AttendanceLog.employee))
-                       .filter(AttendanceLog.employee_id.in_(ids))
-                       .order_by(AttendanceLog.check_time.desc()).limit(10).all()):
-                latest_logs.append({
-                    "id": lg.id, "employee_id": lg.employee_id,
-                    "employee_name": self._full_name(lg.employee) if lg.employee else None,
-                    "attendance_date": lg.check_time.date(),
-                    "check_in_time": lg.check_time, "check_out_time": None,
-                    "is_late": False, "working_hours": 0.0,
-                })
-        return {"attendance_today": cnt, "employees": summ, "latest_attendance": latest_logs}
+        lat = (
+            db.query(AttendanceRecord)
+            .filter(AttendanceRecord.employee_id.in_(ids), AttendanceRecord.attendance_date == today)
+            .order_by(AttendanceRecord.check_in_time.desc())
+            .limit(10)
+            .all()
+        )
+        return {
+            "attendance_today": cnt,
+            "employees": summ,
+            "latest_attendance": [
+                {
+                    "employee_name": self._full_name(r.employee),
+                    "check_in_time": self._fmt_dt(r.check_in_time),
+                    "check_out_time": self._fmt_dt(r.check_out_time),
+                    "working_hours": r.working_hours,
+                }
+                for r in lat
+            ],
+        }

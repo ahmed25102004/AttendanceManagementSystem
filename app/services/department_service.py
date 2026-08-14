@@ -29,8 +29,6 @@ class DepartmentService:
 
     def get(self, db: Session, department_id: int, branch_id: int | None = None) -> Department:
         query = db.query(Department).filter(Department.id == department_id)
-        if branch_id:
-            query = query.filter(Department.branch_id == branch_id)
         department = query.first()
         if not department:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="القسم غير موجود.")
@@ -54,12 +52,14 @@ class DepartmentService:
     def get_stats(self, db: Session, department_id: int, branch_id: int | None = None) -> dict:
         # Check department exists
         department = self.get(db, department_id, branch_id)
+        effective_branch_id = department.branch_id or branch_id
+
         if self._is_unified_department(department):
             # Route to correct service based on policy
             if self._is_call_center_department(department) or self._is_workers_department(department):
-                today_stats = self.call_center_service.get_department_today_stats(db, department_id, branch_id)
+                today_stats = self.call_center_service.get_department_today_stats(db, department_id, effective_branch_id)
             else:
-                today_stats = self.reception_service.get_department_today_stats(db, department_id, branch_id)
+                today_stats = self.reception_service.get_department_today_stats(db, department_id, effective_branch_id)
             return {
                 "id": department_id,
                 "name": department.name,
@@ -86,12 +86,12 @@ class DepartmentService:
         today = date.today()
 
         total_employees = db.query(func.count(Employee.id)).filter(
-            Employee.department_id == department_id, Employee.branch_id == branch_id, Employee.is_active.is_(True)
+            Employee.department_id == department_id, Employee.is_active.is_(True)
         ).scalar()
 
         # Get today's attendance for department
         today_attendance = db.query(func.count(AttendanceRecord.id)).filter(
-            AttendanceRecord.employee.has(department_id=department_id, branch_id=branch_id),
+            AttendanceRecord.employee.has(department_id=department_id),
             AttendanceRecord.attendance_date == today
         ).scalar()
 
@@ -99,14 +99,14 @@ class DepartmentService:
         employees_in_department = db.query(Employee).options(
             joinedload(Employee.attendance_records)
         ).filter(
-            Employee.department_id == department_id, Employee.branch_id == branch_id, Employee.is_active.is_(True)
+            Employee.department_id == department_id, Employee.is_active.is_(True)
         ).all()
 
         # Get latest attendance records for department employees
         latest_attendance = db.query(AttendanceRecord).options(
             joinedload(AttendanceRecord.employee)
         ).filter(
-            AttendanceRecord.employee.has(department_id=department_id, branch_id=branch_id)
+            AttendanceRecord.employee.has(department_id=department_id)
         ).order_by(AttendanceRecord.check_in_time.desc()).limit(10).all()
 
         return {

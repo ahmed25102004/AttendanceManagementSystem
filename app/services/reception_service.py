@@ -147,16 +147,15 @@ class ReceptionService:
         department_id: int,
         branch_id: int | None = None,
     ) -> list[Employee]:
-        query = (
+        return (
             db.query(Employee)
             .options(
                 joinedload(Employee.department),
             )
             .filter(Employee.department_id == department_id, Employee.is_active.is_(True))
+            .order_by(Employee.first_name.asc(), Employee.id.asc())
+            .all()
         )
-        if branch_id:
-            query = query.filter(Employee.branch_id == branch_id)
-        return query.order_by(Employee.first_name.asc(), Employee.id.asc()).all()
 
     def build_report_rows(
         self,
