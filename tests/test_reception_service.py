@@ -11,7 +11,6 @@ from app.models.branch import Branch
 from app.models.department import Department
 from app.models.device import Device
 from app.models.employee import Employee
-from app.models.shift import Shift
 from app.services.reception_service import ReceptionService
 
 
@@ -25,14 +24,15 @@ class ReceptionServiceTests(unittest.TestCase):
         session = self.Session()
         try:
             branch = Branch(name="Main Branch")
-            department = Department(name="قسم الريسبشن", attendance_policy="reception_department")
-            shift = Shift(
-                name="صباحي",
-                start_time=time(7, 30),
-                end_time=time(14, 30),
+            department = Department(
+                name="قسم الريسبشن",
+                attendance_policy="reception_department",
+                shift_start_time=time(7, 30),
+                shift_end_time=time(14, 30),
                 grace_period_minutes=15,
+                late_start_time=time(7, 45),
             )
-            session.add_all([branch, department, shift])
+            session.add_all([branch, department])
             session.flush()
 
             device = Device(
@@ -52,7 +52,6 @@ class ReceptionServiceTests(unittest.TestCase):
                 hire_date=date(2024, 1, 1),
                 is_active=True,
                 department_id=department.id,
-                shift_id=shift.id,
                 weekly_rest_day="friday",
             )
             session.add_all([device, employee])
@@ -136,14 +135,15 @@ class ReceptionServiceTests(unittest.TestCase):
         session = self.Session()
         try:
             branch = Branch(name="Reception Branch")
-            department = Department(name="قسم الريسبشن", attendance_policy="reception_department")
-            shift = Shift(
-                name="مسائي",
-                start_time=time(14, 0),
-                end_time=time(21, 30),
+            department = Department(
+                name="قسم الريسبشن",
+                attendance_policy="reception_department",
+                shift_start_time=time(14, 0),
+                shift_end_time=time(21, 30),
                 grace_period_minutes=15,
+                late_start_time=time(14, 15),
             )
-            session.add_all([branch, department, shift])
+            session.add_all([branch, department])
             session.flush()
 
             device = Device(
@@ -163,7 +163,6 @@ class ReceptionServiceTests(unittest.TestCase):
                 hire_date=date(2024, 1, 1),
                 is_active=True,
                 department_id=department.id,
-                shift_id=shift.id,
                 weekly_rest_day="saturday",
             )
             session.add_all([device, employee])

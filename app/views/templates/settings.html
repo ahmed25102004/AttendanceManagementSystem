@@ -1,91 +1,50 @@
 {% extends "partials_layout.html" %}
-{% set title = "إعدادات المركز" %}
-{% set subtitle = "تخصيص اسم المركز ومواعيد العمل وعطلة نهاية الأسبوع وقواعد التأخير" %}
+{% set title = "إعدادات النظام" %}
+{% set subtitle = "تخصيص اسم المركز والمنظومة، وإعدادات النسخ الاحتياطي التلقائي" %}
 {% block page_content %}
 <div id="settingsAlert"></div>
 
-<!-- Branch Settings -->
-<div class="card panel-card p-4 mb-4">
-    <h5 class="fw-bold mb-3">إعدادات الفرع الحالي</h5>
-    <form id="branchSettingsForm">
-        <div class="row g-3">
-            <div class="col-md-6">
-                <label class="form-label">بداية فترة تسجيل الحضور</label>
-                <input id="branch_check_in_open_time" type="time" class="form-control" required>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">نهاية فترة تسجيل الحضور</label>
-                <input id="branch_check_in_close_time" type="time" class="form-control" required>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">بداية فترة تسجيل الانصراف</label>
-                <input id="branch_check_out_open_time" type="time" class="form-control" required>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">نهاية فترة تسجيل الانصراف</label>
-                <input id="branch_check_out_close_time" type="time" class="form-control" required>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">دقائق السماح للتأخير</label>
-                <input id="branch_allowed_late_minutes" type="number" class="form-control" min="0" max="240" required>
-            </div>
-        </div>
-        <button class="btn btn-success mt-4">حفظ إعدادات الفرع</button>
-    </form>
-</div>
-
-<!-- Global Settings -->
+<!-- System & Backup Settings -->
 <div class="card panel-card p-4">
-    <h5 class="fw-bold mb-3">إعدادات المركز العاملة</h5>
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <div class="feature-icon" style="width: 36px; height: 36px; font-size: 18px;">
+            <i class="bi bi-shield-check"></i>
+        </div>
+        <h5 class="fw-bold mb-0 text-white">إعدادات المنظومة والنسخ الاحتياطي</h5>
+    </div>
     <form id="settingsForm">
         <div class="row g-3">
-            <div class="col-md-6">
-                <label class="form-label">اسم المركز</label>
-                <input id="company_name" class="form-control" required>
+            <div class="col-md-12">
+                <label class="form-label">اسم المركز / المنظومة</label>
+                <input id="company_name" class="form-control" placeholder="اسم المركز..." required>
             </div>
-            <div class="col-md-3">
-                <label class="form-label">وقت بداية العمل</label>
-                <input id="work_start_time" type="time" class="form-control" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">وقت نهاية العمل</label>
-                <input id="work_end_time" type="time" class="form-control" required>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label d-block">أيام العطلة الأسبوعية</label>
-                <div class="d-flex flex-wrap gap-3">
-                    <div class="form-check"><input class="form-check-input" type="checkbox" name="weekend_days" value="Friday" id="weekendFriday"><label class="form-check-label" for="weekendFriday">الجمعة</label></div>
-                    <div class="form-check"><input class="form-check-input" type="checkbox" name="weekend_days" value="Saturday" id="weekendSaturday"><label class="form-check-label" for="weekendSaturday">السبت</label></div>
-                    <div class="form-check"><input class="form-check-input" type="checkbox" name="weekend_days" value="Sunday" id="weekendSunday"><label class="form-check-label" for="weekendSunday">الأحد</label></div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">دقائق السماح للتأخير (إعدادات مركزية)</label>
-                <input id="late_grace_minutes" type="number" class="form-control" min="0" max="240" required>
-            </div>
-            <div class="col-12"><hr class="my-1"></div>
+
+            <div class="col-12"><hr class="my-2 border-secondary border-opacity-25"></div>
+            
             <div class="col-12">
-                <h5 class="fw-bold mb-1">إعدادات النسخ الاحتياطية التلقائية</h5>
+                <h6 class="fw-bold mb-2 text-white">النسخ الاحتياطي التلقائي</h6>
             </div>
-            <div class="col-md-6">
-                <div class="form-check mt-2">
-                    <input id="auto_backup_enabled" class="form-check-input" type="checkbox">
-                    <label class="form-check-label" for="auto_backup_enabled">تفعيل النسخ الاحتياطية التلقائية</label>
+            <div class="col-md-12">
+                <div class="form-check form-switch p-0 d-flex align-items-center justify-content-between mb-2">
+                    <label class="form-check-label fw-semibold text-secondary" for="auto_backup_enabled">تفعيل النسخ الاحتياطي التلقائي اليومي</label>
+                    <input id="auto_backup_enabled" class="form-check-input ms-0" type="checkbox" role="switch" style="float: none; width: 2.5em; height: 1.3em;">
                 </div>
             </div>
             <div class="col-md-6">
-                <label class="form-label">وقت النسخ الاحتياطية (يومياً)</label>
+                <label class="form-label">وقت إنشاء النسخة الاحتياطية (يومياً)</label>
                 <input id="auto_backup_time" type="time" class="form-control" required>
             </div>
             <div class="col-md-6">
-                <label class="form-label">احتفاظ بالنسخ الاحتياطية لعدد أيام</label>
+                <label class="form-label">مدة الاحتفاظ بالنسخ (بالأيام)</label>
                 <input id="auto_backup_retention_days" type="number" class="form-control" min="1" max="365" required>
             </div>
         </div>
-        <button class="btn btn-primary mt-4">حفظ إعدادات المركز</button>
+        <button class="btn btn-primary mt-4 rounded-pill px-4">
+            <i class="bi bi-save me-1"></i>حفظ إعدادات النظام
+        </button>
     </form>
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="/static/js/settings.js"></script>
+<script src="/static/js/settings.js?v=6"></script>
 {% endblock %}
