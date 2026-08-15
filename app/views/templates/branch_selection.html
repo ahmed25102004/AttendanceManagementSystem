@@ -188,35 +188,35 @@
                                             <i class="bi bi-building"></i>
                                         </div>
                                         <div>
-                                            <h5 class="fw-bold mb-0 text-dark">${branch.name}</h5>
-                                            <small class="text-muted">كود الفرع: #${branch.id}</small>
+                                            <h5 class="fw-bold mb-0 text-white">${branch.name}</h5>
+                                            <small class="text-secondary">كود الفرع: #${branch.id}</small>
                                         </div>
                                     </div>
                                     ${statusBadge}
                                 </div>
                                 <p class="text-secondary mb-3 small" style="min-height: 38px;">${branch.description || 'فرع مراكز تجميل فيردي'}</p>
 
-                                <div class="bg-light bg-opacity-75 p-2 rounded-3 mb-4 small text-secondary">
+                                <div class="p-2 rounded-3 mb-4 small text-secondary" style="background: #0b1120; border: 1px solid var(--border-card);">
                                     <div class="d-flex justify-content-between mb-1">
                                         <span><i class="bi bi-box-arrow-in-right text-primary me-1"></i>نافذة الحضور:</span>
-                                        <strong>${formatTimeForInput(branch.check_in_open_time) || '08:00'} - ${formatTimeForInput(branch.check_in_close_time) || '11:00'}</strong>
+                                        <strong class="text-white">${formatTimeForInput(branch.check_in_open_time) || '08:00'} - ${formatTimeForInput(branch.check_in_close_time) || '11:00'}</strong>
                                     </div>
                                     <div class="d-flex justify-content-between">
                                         <span><i class="bi bi-box-arrow-left text-primary me-1"></i>نافذة الانصراف:</span>
-                                        <strong>${formatTimeForInput(branch.check_out_open_time) || '16:00'} - ${formatTimeForInput(branch.check_out_close_time) || '22:00'}</strong>
+                                        <strong class="text-white">${formatTimeForInput(branch.check_out_open_time) || '16:00'} - ${formatTimeForInput(branch.check_out_close_time) || '22:00'}</strong>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="d-flex gap-2 pt-2 border-top">
-                                <button class="btn btn-primary flex-grow-1" onclick="selectBranch(${branch.id})">
+                            <div class="d-flex gap-2 pt-2 border-top border-secondary border-opacity-25">
+                                <button class="btn btn-primary flex-grow-1 rounded-pill" onclick="selectBranch(${branch.id})">
                                     <span>دخول للفرع</span>
                                     <i class="bi bi-arrow-left"></i>
                                 </button>
-                                <button class="btn btn-outline-primary" onclick="editBranchModal(${branch.id})" title="تعديل الفرع">
+                                <button class="btn btn-secondary rounded-circle p-2" style="width: 40px; height: 40px;" onclick="editBranchModal(${branch.id})" title="تعديل الفرع">
                                     <i class="bi bi-pencil-square"></i>
                                 </button>
-                                <button class="btn btn-outline-danger" onclick="deleteBranchSelection(${branch.id})" title="حذف الفرع">
+                                <button class="btn btn-outline-danger rounded-circle p-2" style="width: 40px; height: 40px;" onclick="deleteBranchSelection(${branch.id})" title="حذف الفرع">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>

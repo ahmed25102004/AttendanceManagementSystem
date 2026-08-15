@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <!-- Mobile Top Navigation Bar (Visible only on mobile/tablet < 992px) -->
-<header class="mobile-top-nav d-lg-none d-flex align-items-center justify-content-between p-3 text-white sticky-top shadow-sm">
+<header class="mobile-top-nav d-lg-none d-flex align-items-center justify-content-between p-3 sticky-top shadow-sm">
     <div class="d-flex align-items-center gap-2">
         <button class="btn btn-outline-light btn-sm border-0 p-1" id="mobileMenuToggleBtn" type="button" aria-label="القائمة">
             <i class="bi bi-list fs-2 text-white"></i>
@@ -38,7 +38,7 @@
 <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
 <div class="d-lg-flex main-wrapper">
-    <!-- Sidebar -->
+    <!-- Sidebar (Sensei Dark Theme) -->
     <aside class="sidebar p-3 d-flex flex-column justify-content-between" id="mainSidebar">
         <div>
             <!-- Close button on mobile -->
@@ -57,7 +57,7 @@
                     </div>
                     <div>
                         <h5 class="fw-bold text-white mb-0">مراكز فيردي</h5>
-                        <small class="text-white-50">Verde Clinic System</small>
+                        <small class="text-secondary" style="font-size: 0.78rem;">Verde Clinic AI System</small>
                     </div>
                 </div>
                 <div class="mt-2">
@@ -76,8 +76,9 @@
                 </button>
             </div>
 
-            <!-- Navigation Links -->
+            <!-- Navigation Links with Category Labels -->
             <nav class="nav flex-column sidebar-nav">
+                <div class="sidebar-section-label">إدارة الفرع</div>
                 <div class="sidebar-group">
                     <button
                         type="button"
@@ -99,15 +100,19 @@
                 <a class="nav-link {% if page == 'devices' %}active{% endif %}" href="/devices">
                     <i class="bi bi-hdd-network me-2"></i>الأجهزة
                 </a>
+
+                <div class="sidebar-section-label mt-2">السجلات والتقارير</div>
                 <a class="nav-link {% if page == 'attendance' %}active{% endif %}" href="/attendance">
                     <i class="bi bi-calendar2-check me-2"></i>الحضور والانصراف
                 </a>
                 <a class="nav-link {% if page == 'monitoring' %}active{% endif %}" href="/monitoring">
-                    <i class="bi bi-activity me-2"></i>المراقبة
+                    <i class="bi bi-activity me-2"></i>المراقبة الحية
                 </a>
                 <a class="nav-link {% if page == 'reports' %}active{% endif %}" href="/reports">
-                    <i class="bi bi-file-earmark-bar-graph me-2"></i>التقارير
+                    <i class="bi bi-file-earmark-bar-graph me-2"></i>التقارير والإحصائيات
                 </a>
+
+                <div class="sidebar-section-label mt-2">إعدادات النظام</div>
                 <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings">
                     <i class="bi bi-gear me-2"></i>الإعدادات
                 </a>
@@ -117,8 +122,17 @@
             </nav>
         </div>
 
-        <!-- Logout Area at the bottom -->
+        <!-- Bottom Area: Sprints/Verde Widget + Logout -->
         <div class="pt-3 border-top border-secondary border-opacity-25 mt-auto">
+            <div class="sidebar-bottom-widget mb-3 d-none d-lg-block">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="bi bi-shield-lock text-primary fs-6"></i>
+                    <strong class="text-white small">نظام فيردي الذكي</strong>
+                </div>
+                <small class="text-muted d-block" style="font-size: 0.75rem; line-height: 1.3;">
+                    متابعة دقيقة للبصمة وكشف الشيفتات التلقائي.
+                </small>
+            </div>
             <button class="btn sidebar-logout-btn w-100 d-flex align-items-center justify-content-center gap-2" data-action="logout">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>تسجيل الخروج</span>
@@ -131,21 +145,21 @@
         <!-- Desktop Header Bar -->
         <div class="desktop-header-bar d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
             <div>
-                <h3 class="fw-bold mb-1 text-dark">{{ title }}</h3>
-                <p class="text-muted small mb-0">{{ subtitle }}</p>
+                <h3 class="fw-bold mb-1 text-white">{{ title }}</h3>
+                <p class="text-secondary small mb-0">{{ subtitle }}</p>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-3">
                 <!-- Branch Selector -->
-                <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded-3 border">
+                <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-3 border" style="background: #111a2d; border-color: var(--border-card) !important;">
                     <i class="bi bi-buildings text-primary"></i>
-                    <label class="text-muted small mb-0 fw-bold">الفرع:</label>
-                    <select id="branchSelector" class="form-select form-select-sm border-0 bg-transparent shadow-none" style="min-width: 170px; font-weight: 600;">
+                    <label class="text-secondary small mb-0 fw-bold">الفرع:</label>
+                    <select id="branchSelector" class="form-select form-select-sm border-0 bg-transparent shadow-none text-white" style="min-width: 170px; font-weight: 600;">
                         <option value="">جارٍ التحميل...</option>
                     </select>
                 </div>
                 <!-- Notification Dropdown (Desktop) -->
                 <div class="dropdown d-none d-lg-block">
-                    <button class="btn btn-light border position-relative rounded-3 p-2" type="button" data-bs-toggle="dropdown" id="notificationDropdown">
+                    <button class="btn btn-secondary border position-relative rounded-3 p-2" type="button" data-bs-toggle="dropdown" id="notificationDropdown">
                         <i class="bi bi-bell-fill fs-5 text-secondary"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="unreadCount">0</span>
                     </button>
@@ -154,7 +168,7 @@
                     </ul>
                 </div>
                 <!-- User Info (Desktop) -->
-                <div class="d-none d-lg-flex align-items-center gap-2 ps-3 border-start">
+                <div class="d-none d-lg-flex align-items-center gap-2 ps-3 border-start border-secondary border-opacity-25">
                     <div class="header-user-avatar">
                         <i class="bi bi-person-fill"></i>
                     </div>
