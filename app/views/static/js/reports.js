@@ -3,6 +3,7 @@ let currentSelectedDepartment = null;
 let currentReportData = []; 
 let currentViewMode = "daily"; // "daily", "summary", or "details"
 let currentDetailedEmployeeCode = null;
+let currentPeriod = "daily"; // "daily", "weekly", or "monthly"
 
 function reportDepartmentQuery() {
     const departmentId = document.getElementById("reportDepartmentFilter")?.value;
@@ -16,7 +17,6 @@ function getSelectedPolicy() {
 }
 
 const POLICY_COLUMNS = {
-    // 1. Leather Department: Hours only, no shifts, no late, no overtime
     leather_department: {
         summary: [
             "employee_code", "employee_name", "department", "job_title", 
@@ -27,7 +27,6 @@ const POLICY_COLUMNS = {
             "attendance_date", "check_in_time", "check_out_time", "working_hours", "status"
         ]
     },
-    // 2. Doctors Department: Full shift, half shift, total units, hours, overtime, late, absent
     doctors_department: {
         summary: [
             "employee_code", "employee_name", "department", "job_title", 
@@ -40,7 +39,6 @@ const POLICY_COLUMNS = {
             "working_hours", "overtime_hours", "shift_deficit_hours", "late_minutes", "status"
         ]
     },
-    // 3. Call Center: Working days, shift 1, shift 2, late, overtime, rest day work, absent
     call_center_department: {
         summary: [
             "employee_code", "employee_name", "department", "job_title", 
@@ -54,7 +52,6 @@ const POLICY_COLUMNS = {
             "shift_deficit_hours", "late_minutes", "status", "worked_on_rest_day"
         ]
     },
-    // 4. Workers: Working days, shift 1, shift 2, late, overtime, rest day work, weekly rest, absent
     workers_department: {
         summary: [
             "employee_code", "employee_name", "department", "job_title", 
@@ -69,7 +66,6 @@ const POLICY_COLUMNS = {
             "shift_deficit_hours", "late_minutes", "status", "worked_on_rest_day"
         ]
     },
-    // 5. Reception: Working days, working hours, late, overtime, rest day work, weekly rest, absent
     reception_department: {
         summary: [
             "employee_code", "employee_name", "department", "job_title", 
@@ -83,7 +79,6 @@ const POLICY_COLUMNS = {
             "late_minutes", "status", "worked_on_rest_day"
         ]
     },
-    // 6. Default / All departments
     default: {
         summary: [
             "employee_code", "employee_name", "department", "job_title", 
@@ -137,7 +132,6 @@ function updateReportTableColumns() {
         const checkbox = document.querySelector(`.col-toggle[data-column="${columnName}"]`);
         
         let isVisible = allowedColumns.includes(columnName);
-        
         if (checkbox && !checkbox.checked) {
             isVisible = false;
         }
@@ -148,21 +142,14 @@ function updateReportTableColumns() {
         tds.forEach(td => td.style.display = isVisible ? "" : "none");
     });
 
-    // Update Header Labels based on mode
     const isSummary = currentViewMode === "summary";
     const overtimeTh = document.querySelector("#reportTable th[data-column='overtime_hours']");
     const lateTh = document.querySelector("#reportTable th[data-column='late_minutes']");
     const hoursTh = document.querySelector("#reportTable th[data-column='working_hours']");
     
-    if (overtimeTh) {
-        overtimeTh.textContent = isSummary ? "إجمالي الإضافي (س)" : "ساعات العمل الإضافي";
-    }
-    if (lateTh) {
-        lateTh.textContent = isSummary ? "إجمالي التأخير (د)" : "التأخير";
-    }
-    if (hoursTh) {
-        hoursTh.textContent = isSummary ? "إجمالي الساعات" : "الساعات";
-    }
+    if (overtimeTh) overtimeTh.textContent = isSummary ? "إجمالي الإضافي (س)" : "ساعات العمل الإضافي";
+    if (lateTh) lateTh.textContent = isSummary ? "إجمالي التأخير (د)" : "التأخير";
+    if (hoursTh) hoursTh.textContent = isSummary ? "إجمالي الساعات" : "الساعات";
 }
 
 function setupColumnVisibilityMenu() {
@@ -184,7 +171,7 @@ function setupColumnVisibilityMenu() {
         
         const li = document.createElement("li");
         li.innerHTML = `
-            <label class="dropdown-item d-flex align-items-center gap-2">
+            <label class="dropdown-item d-flex align-items-center gap-2 small py-1">
                 <input class="form-check-input col-toggle" type="checkbox" value="" data-column="${col}" ${checked}>
                 ${label}
             </label>
@@ -215,21 +202,16 @@ function updateSummaryCards(rows) {
 
     rows.forEach(row => {
         if (row.row_kind === "summary") return; 
-        
         totalRows++;
-        
         if (row.status === "present" || row.status === "present_on_rest_day") present++;
         if (row.status === "absent") absent++;
-        
         if (row.late_minutes > 0) {
             lateCount++;
             totalLateMinutes += row.late_minutes;
         }
-        
         if (row.overtime_hours > 0) {
             totalOvertime += parseFloat(row.overtime_hours);
         }
-        
         if (row.worked_on_rest_day) {
             restDayWork++;
         }
@@ -249,14 +231,12 @@ function filterTable(searchTerm) {
         renderTableBody(currentReportData);
         return;
     }
-    
     searchTerm = searchTerm.toLowerCase();
     const filteredRows = currentReportData.filter(row => {
         return (row.employee_name && row.employee_name.toLowerCase().includes(searchTerm)) || 
                (row.employee_code && row.employee_code.toString().toLowerCase().includes(searchTerm)) ||
                (row.department && row.department.toLowerCase().includes(searchTerm));
     });
-    
     renderTableBody(filteredRows);
 }
 
@@ -323,7 +303,6 @@ function renderTableBody(rows) {
         else if (row.status === 'present_on_rest_day') statusBadgeClass = 'bg-warning text-dark';
         else if (row.status === 'monthly_summary') statusBadgeClass = 'bg-primary';
 
-        // Format dates cleanly
         let checkIn = "-";
         if (row.check_in_time) {
             checkIn = new Date(row.check_in_time).toLocaleTimeString("ar-EG", {hour: '2-digit', minute:'2-digit'});
@@ -335,7 +314,14 @@ function renderTableBody(rows) {
         
         let nameHtml = `<strong>${row.employee_name || "-"}</strong>`;
         if (currentViewMode === "summary") {
-            nameHtml = `<a href="#" class="employee-detail-link fw-bold text-decoration-none" data-code="${row.employee_code}">${row.employee_name || "-"}</a>`;
+            nameHtml = `
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                    <span class="fw-bold text-dark">${row.employee_name || "-"}</span>
+                    <button class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill employee-detail-link text-nowrap" data-code="${row.employee_code}" title="عرض تفاصيل حركة الموظف اليومية خلال الشهر">
+                        <i class="bi bi-search ms-1"></i>التفاصيل
+                    </button>
+                </div>
+            `;
         }
 
         tbody.innerHTML += `
@@ -373,8 +359,19 @@ function renderTableBody(rows) {
         document.querySelectorAll(".employee-detail-link").forEach(link => {
             link.addEventListener("click", (e) => {
                 e.preventDefault();
-                currentDetailedEmployeeCode = e.target.dataset.code;
+                const btn = e.target.closest(".employee-detail-link");
+                if (!btn) return;
+                const code = btn.dataset.code;
+                currentDetailedEmployeeCode = code;
                 currentViewMode = "details";
+                
+                const empRow = currentReportData.find(r => r.employee_code == code);
+                const empName = empRow ? empRow.employee_name : code;
+                const titleSection = document.getElementById("reportTitleSection");
+                if (titleSection) {
+                    titleSection.innerHTML = `<i class="bi bi-person-lines-fill text-primary ms-2"></i>تفاصيل حركة الموظف: <span class="text-primary fw-bold">${empName}</span> (كود ${code})`;
+                }
+
                 setupColumnVisibilityMenu();
                 renderTableBody(currentReportData);
             });
@@ -392,6 +389,16 @@ async function renderReport(url) {
         const hasSummary = rows.some(r => r.row_kind === "summary");
         currentViewMode = hasSummary ? "summary" : "daily";
         currentDetailedEmployeeCode = null;
+
+        const titleSection = document.getElementById("reportTitleSection");
+        if (titleSection) {
+            const periodTitles = {
+                daily: "نتائج التقرير اليومي",
+                weekly: "نتائج التقرير الأسبوعي",
+                monthly: "نتائج التقرير الشهري (ملخص الموظفين)"
+            };
+            titleSection.innerText = periodTitles[currentPeriod] || "نتائج التقرير";
+        }
 
         const searchBox = document.getElementById("reportSearchBox");
         if(searchBox) searchBox.value = ""; 
@@ -420,11 +427,25 @@ function securedDownload(path) {
             link.href = url;
             const disposition = response.headers.get("Content-Disposition") || "";
             const fileNameMatch = disposition.match(/filename="(.+)"/);
-            link.download = fileNameMatch ? fileNameMatch[1] : "report";
+            link.download = fileNameMatch ? fileNameMatch[1] : "report.xlsx";
             link.click();
             window.URL.revokeObjectURL(url);
         })
         .catch((error) => showAlert("reportAlert", error.message));
+}
+
+function normalizeMonthInput(value) {
+    if (!value) return "";
+    value = value.trim().replace("/", "-");
+    const parts = value.split("-");
+    if (parts.length === 2) {
+        if (parts[0].length === 4) {
+            return `${parts[0]}-${parts[1].padStart(2, '0')}`;
+        } else if (parts[1].length === 4) {
+            return `${parts[1]}-${parts[0].padStart(2, '0')}`;
+        }
+    }
+    return value;
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -433,22 +454,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupColumnVisibilityMenu();
     updateReportTableColumns();
 
-    // Setup live search
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = today.substring(0, 7);
+    const dateInput = document.getElementById("reportDateInput");
+    const dateLabel = document.getElementById("reportDateLabel");
+
+    if (dateInput) dateInput.value = today;
+
+    // Period toggle handler
+    const periodRadios = document.querySelectorAll('input[name="reportPeriod"]');
+    periodRadios.forEach(radio => {
+        radio.addEventListener("change", (e) => {
+            currentPeriod = e.target.value;
+            if (currentPeriod === "monthly") {
+                if (dateLabel) dateLabel.textContent = "الشهر";
+                if (dateInput) {
+                    dateInput.type = "month";
+                    dateInput.value = currentMonth;
+                }
+            } else if (currentPeriod === "weekly") {
+                if (dateLabel) dateLabel.textContent = "تاريخ ضمن الأسبوع";
+                if (dateInput) {
+                    dateInput.type = "date";
+                    dateInput.value = today;
+                }
+            } else {
+                if (dateLabel) dateLabel.textContent = "التاريخ اليومي";
+                if (dateInput) {
+                    dateInput.type = "date";
+                    dateInput.value = today;
+                }
+            }
+        });
+    });
+
+    // Live search
     const searchBox = document.getElementById("reportSearchBox");
     if (searchBox) {
         searchBox.addEventListener("input", (e) => {
             filterTable(e.target.value);
-        });
-    }
-
-    const btnBackToSummary = document.getElementById("btnBackToSummary");
-    if (btnBackToSummary) {
-        btnBackToSummary.addEventListener("click", () => {
-            currentViewMode = "summary";
-            currentDetailedEmployeeCode = null;
-            setupColumnVisibilityMenu();
-            const searchTerm = searchBox ? searchBox.value : "";
-            filterTable(searchTerm);
         });
     }
 
@@ -462,117 +506,60 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // Set default input values
-    const today = new Date().toISOString().split('T')[0];
-    const currentMonth = today.substring(0, 7);
-    if (document.getElementById("daily_report_date")) document.getElementById("daily_report_date").value = today;
-    if (document.getElementById("weekly_report_date")) document.getElementById("weekly_report_date").value = today;
-    if (document.getElementById("monthly_report_month")) document.getElementById("monthly_report_month").value = currentMonth;
-
-    // Quick Date Buttons
-    document.getElementById("quickTodayBtn")?.addEventListener("click", () => {
-        const tab = new bootstrap.Tab(document.querySelector('#daily-tab'));
-        tab.show();
-        document.getElementById("daily_report_date").value = today;
-        document.getElementById("dailyReportForm").dispatchEvent(new Event("submit"));
-    });
-
-    document.getElementById("quickWeekBtn")?.addEventListener("click", () => {
-        const tab = new bootstrap.Tab(document.querySelector('#weekly-tab'));
-        tab.show();
-        document.getElementById("weekly_report_date").value = today;
-        document.getElementById("weeklyReportForm").dispatchEvent(new Event("submit"));
-    });
-
-    document.getElementById("quickMonthBtn")?.addEventListener("click", () => {
-        const tab = new bootstrap.Tab(document.querySelector('#monthly-tab'));
-        tab.show();
-        const currentMonth = today.substring(0, 7);
-        document.getElementById("monthly_report_month").value = currentMonth;
-        document.getElementById("monthlyReportForm").dispatchEvent(new Event("submit"));
-    });
-
-    document.getElementById("dailyReportForm")?.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const reportDate = document.getElementById("daily_report_date").value;
-        try {
-            await renderReport(`/api/reports/daily?report_date=${reportDate}${reportDepartmentQuery()}`);
-        } catch (error) {
-            showAlert("reportAlert", error.message);
-        }
-    });
-
-    document.getElementById("weeklyReportForm")?.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const reportDate = document.getElementById("weekly_report_date").value;
-        try {
-            await renderReport(`/api/reports/weekly?report_date=${reportDate}${reportDepartmentQuery()}`);
-        } catch (error) {
-            showAlert("reportAlert", error.message);
-        }
-    });
-
-    function normalizeMonthInput(value) {
-        if (!value) return "";
-        value = value.trim().replace("/", "-");
-        const parts = value.split("-");
-        if (parts.length === 2) {
-            if (parts[0].length === 4) {
-                return `${parts[0]}-${parts[1].padStart(2, '0')}`;
-            } else if (parts[1].length === 4) {
-                return `${parts[1]}-${parts[0].padStart(2, '0')}`;
+    const btnBackToSummary = document.getElementById("btnBackToSummary");
+    if (btnBackToSummary) {
+        btnBackToSummary.addEventListener("click", () => {
+            currentViewMode = "summary";
+            currentDetailedEmployeeCode = null;
+            const titleSection = document.getElementById("reportTitleSection");
+            if (titleSection) {
+                titleSection.innerHTML = `نتائج التقرير الشهري (ملخص الموظفين)`;
             }
-        }
-        return value;
+            setupColumnVisibilityMenu();
+            const searchTerm = searchBox ? searchBox.value : "";
+            filterTable(searchTerm);
+        });
     }
 
-    document.getElementById("monthlyReportForm")?.addEventListener("submit", async (event) => {
+    // Unified Form Submit
+    document.getElementById("unifiedReportForm")?.addEventListener("submit", async (event) => {
         event.preventDefault();
-        const rawMonth = document.getElementById("monthly_report_month").value;
-        const month = normalizeMonthInput(rawMonth);
+        const rawVal = dateInput ? dateInput.value : "";
+        if (!rawVal) return;
+
         try {
-            await renderReport(`/api/reports/monthly?month=${month}${reportDepartmentQuery()}`);
+            if (currentPeriod === "daily") {
+                await renderReport(`/api/reports/daily?report_date=${rawVal}${reportDepartmentQuery()}`);
+            } else if (currentPeriod === "weekly") {
+                await renderReport(`/api/reports/weekly?report_date=${rawVal}${reportDepartmentQuery()}`);
+            } else if (currentPeriod === "monthly") {
+                const month = normalizeMonthInput(rawVal);
+                await renderReport(`/api/reports/monthly?month=${month}${reportDepartmentQuery()}`);
+            }
         } catch (error) {
             showAlert("reportAlert", error.message);
         }
     });
 
-    document.getElementById("exportDailyExcel")?.addEventListener("click", () => {
-        const reportDate = document.getElementById("daily_report_date").value;
-        securedDownload(`/api/reports/daily/export/excel?report_date=${reportDate}${reportDepartmentQuery()}`);
-    });
-
-    document.getElementById("exportDailyPdf")?.addEventListener("click", () => {
-        const reportDate = document.getElementById("daily_report_date").value;
-        securedDownload(`/api/reports/daily/export/pdf?report_date=${reportDate}${reportDepartmentQuery()}`);
-    });
-
-    document.getElementById("exportWeeklyExcel")?.addEventListener("click", () => {
-        const reportDate = document.getElementById("weekly_report_date").value;
-        securedDownload(`/api/reports/weekly/export/excel?report_date=${reportDate}${reportDepartmentQuery()}`);
-    });
-
-    document.getElementById("exportWeeklyPdf")?.addEventListener("click", () => {
-        const reportDate = document.getElementById("weekly_report_date").value;
-        securedDownload(`/api/reports/weekly/export/pdf?report_date=${reportDate}${reportDepartmentQuery()}`);
-    });
-
-    document.getElementById("exportMonthlyExcel")?.addEventListener("click", () => {
-        const rawMonth = document.getElementById("monthly_report_month").value;
-        const month = normalizeMonthInput(rawMonth);
-        let query = `/api/reports/monthly/export/excel?month=${month}${reportDepartmentQuery()}&view_mode=${currentViewMode}`;
-        if (currentViewMode === "details" && currentDetailedEmployeeCode) {
-            query += `&employee_code=${currentDetailedEmployeeCode}`;
+    // Excel Export Button
+    document.getElementById("exportExcelBtn")?.addEventListener("click", () => {
+        const rawVal = dateInput ? dateInput.value : "";
+        if (!rawVal) {
+            showAlert("reportAlert", "يرجى اختيار التاريخ أولاً.");
+            return;
         }
-        securedDownload(query);
-    });
 
-    document.getElementById("exportMonthlyPdf")?.addEventListener("click", () => {
-        const rawMonth = document.getElementById("monthly_report_month").value;
-        const month = normalizeMonthInput(rawMonth);
-        let query = `/api/reports/monthly/export/pdf?month=${month}${reportDepartmentQuery()}&view_mode=${currentViewMode}`;
-        if (currentViewMode === "details" && currentDetailedEmployeeCode) {
-            query += `&employee_code=${currentDetailedEmployeeCode}`;
+        let query = "";
+        if (currentPeriod === "daily") {
+            query = `/api/reports/daily/export/excel?report_date=${rawVal}${reportDepartmentQuery()}`;
+        } else if (currentPeriod === "weekly") {
+            query = `/api/reports/weekly/export/excel?report_date=${rawVal}${reportDepartmentQuery()}`;
+        } else if (currentPeriod === "monthly") {
+            const month = normalizeMonthInput(rawVal);
+            query = `/api/reports/monthly/export/excel?month=${month}${reportDepartmentQuery()}&view_mode=${currentViewMode}`;
+            if (currentViewMode === "details" && currentDetailedEmployeeCode) {
+                query += `&employee_code=${currentDetailedEmployeeCode}`;
+            }
         }
         securedDownload(query);
     });

@@ -1,137 +1,82 @@
 {% extends "partials_layout.html" %}
 {% set title = "التقارير" %}
-{% set subtitle = "إنشاء تقارير الحضور والانصراف بسهولة مع الإحصائيات المباشرة" %}
+{% set subtitle = "عرض وتصدير تقارير الحضور والانصراف المخصصة" %}
 {% block page_content %}
 <div id="reportAlert"></div>
 
-<div class="card panel-card p-4 mb-4 shadow-sm border-0 rounded-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold text-primary mb-0"><i class="bi bi-funnel-fill ms-2"></i>إعدادات التقرير</h5>
-        <div class="d-flex gap-2">
-            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" id="quickTodayBtn">هذا اليوم</button>
-            <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3" id="quickWeekBtn">هذا الأسبوع</button>
-            <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3" id="quickMonthBtn">هذا الشهر</button>
+<!-- Modern Unified Filter Bar -->
+<div class="card panel-card p-4 mb-4 shadow-sm border-0 rounded-4 bg-white">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3 pb-2 border-bottom">
+        <h5 class="fw-bold text-primary mb-0 d-flex align-items-center">
+            <i class="bi bi-funnel-fill ms-2 fs-5"></i>إعدادات وتصفية التقرير
+        </h5>
+        <!-- Period Segmented Control (اليومي / الأسبوعي / الشهري) -->
+        <div class="btn-group p-1 bg-light rounded-pill border" role="group" id="periodToggleGroup">
+            <input type="radio" class="btn-check" name="reportPeriod" id="periodDaily" value="daily" checked>
+            <label class="btn btn-sm rounded-pill px-3 py-1 fw-bold" for="periodDaily">
+                <i class="bi bi-sun-fill text-warning ms-1"></i>يومي
+            </label>
+
+            <input type="radio" class="btn-check" name="reportPeriod" id="periodWeekly" value="weekly">
+            <label class="btn btn-sm rounded-pill px-3 py-1 fw-bold" for="periodWeekly">
+                <i class="bi bi-calendar3 text-primary ms-1"></i>أسبوعي
+            </label>
+
+            <input type="radio" class="btn-check" name="reportPeriod" id="periodMonthly" value="monthly">
+            <label class="btn btn-sm rounded-pill px-3 py-1 fw-bold" for="periodMonthly">
+                <i class="bi bi-calendar2-range text-success ms-1"></i>شهري
+            </label>
         </div>
     </div>
-    <div class="row g-3 align-items-end">
-        <div class="col-lg-4">
-            <label class="form-label text-muted small fw-bold">القسم</label>
-            <div class="input-group">
-                <span class="input-group-text bg-light border-0"><i class="bi bi-building text-secondary"></i></span>
-                <select id="reportDepartmentFilter" class="form-select border-0 bg-light">
-                    <option value="">— كل الأقسام —</option>
-                </select>
+
+    <form id="unifiedReportForm">
+        <div class="row g-3 align-items-end">
+            <!-- Department Selector -->
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label text-muted small fw-bold">القسم</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-0"><i class="bi bi-building text-secondary"></i></span>
+                    <select id="reportDepartmentFilter" class="form-select border-0 bg-light">
+                        <option value="">— كل الأقسام —</option>
+                    </select>
+                </div>
             </div>
-        </div>
-        <div class="col-lg-4" style="display: none;">
-            <label class="form-label text-muted small fw-bold">نوع السياسة</label>
-            <select id="reportPolicyFilter" class="form-select border-0 bg-light">
-                <option value="">— كل السياسات —</option>
-                <option value="reception_department">الريسبشن</option>
-                <option value="workers_department">قسم العمال</option>
-                <option value="doctors_department">الدكاترة</option>
-                <option value="call_center_department">الكول سنتر</option>
-                <option value="leather_department">قسم الجلدية</option>
-                <option value="default">الافتراضي</option>
-            </select>
-        </div>
-        <div class="col-lg-4">
-            <label class="form-label text-muted small fw-bold">بحث سريع في النتائج</label>
-            <div class="input-group">
-                <span class="input-group-text bg-light border-0"><i class="bi bi-search text-secondary"></i></span>
-                <input id="reportSearchBox" type="text" class="form-control border-0 bg-light" placeholder="اسم الموظف أو الكود...">
-                <button type="button" class="btn btn-light" id="clearReportSearchBtn" title="مسح البحث">
-                    <i class="bi bi-x"></i>
+
+            <!-- Dynamic Date/Month Input -->
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label text-muted small fw-bold" id="reportDateLabel">التاريخ اليومي</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-event text-secondary"></i></span>
+                    <input id="reportDateInput" type="date" class="form-control border-0 bg-light" required>
+                </div>
+            </div>
+
+            <!-- Live Search -->
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label text-muted small fw-bold">بحث في النتائج</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-0"><i class="bi bi-search text-secondary"></i></span>
+                    <input id="reportSearchBox" type="text" class="form-control border-0 bg-light" placeholder="اسم الموظف أو الكود...">
+                    <button type="button" class="btn btn-light" id="clearReportSearchBtn" title="مسح البحث">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="col-lg-3 col-md-6 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill fw-bold shadow-sm rounded-3">
+                    <i class="bi bi-play-circle-fill ms-1"></i>عرض التقرير
+                </button>
+                <button type="button" class="btn btn-success fw-bold px-3 shadow-sm rounded-3" id="exportExcelBtn" title="تصدير إلى ملف Excel">
+                    <i class="bi bi-file-earmark-excel-fill ms-1"></i>Excel
                 </button>
             </div>
         </div>
-    </div>
+    </form>
 </div>
 
-<div class="card panel-card p-0 mb-4 overflow-hidden">
-    <ul class="nav nav-tabs nav-tabs-lg p-2 pe-4 ps-4" id="reportTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily-tab-pane" type="button" role="tab">
-                <i class="bi bi-sun-fill text-warning ms-1"></i>التقرير اليومي
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold" id="weekly-tab" data-bs-toggle="tab" data-bs-target="#weekly-tab-pane" type="button" role="tab">
-                <i class="bi bi-calendar3 text-primary ms-1"></i>التقرير الأسبوعي
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold" id="monthly-tab" data-bs-toggle="tab" data-bs-target="#monthly-tab-pane" type="button" role="tab">
-                <i class="bi bi-calendar2-range text-success ms-1"></i>التقرير الشهري
-            </button>
-        </li>
-        <li class="nav-item me-auto ms-4 d-flex align-items-center">
-            <div id="reportStatusHint" class="small text-muted">
-                <i class="bi bi-info-circle ms-1"></i>اختر القسم واضغط على أحد الأزرار السريعة أو اختر تاريخًا يدويًا
-            </div>
-        </li>
-    </ul>
-    <div class="tab-content p-4" id="reportTabsContent">
-        <div class="tab-pane fade show active" id="daily-tab-pane" role="tabpanel">
-            <form id="dailyReportForm" class="row g-3 align-items-end">
-                <div class="col-lg-5">
-                    <label class="form-label fw-semibold">التاريخ</label>
-                    <input id="daily_report_date" type="date" class="form-control form-control-lg" required>
-                </div>
-                <div class="col-lg-7 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill btn-lg">
-                        <i class="bi bi-table ms-1"></i>عرض التقرير اليومي
-                    </button>
-                    <button type="button" class="btn btn-outline-success btn-lg" id="exportDailyExcel">
-                        <i class="bi bi-file-earmark-excel ms-1"></i>Excel
-                    </button>
-                    <button type="button" class="btn btn-outline-danger btn-lg" id="exportDailyPdf">
-                        <i class="bi bi-file-earmark-pdf ms-1"></i>PDF
-                    </button>
-                </div>
-            </form>
-        </div>
-        <div class="tab-pane fade" id="weekly-tab-pane" role="tabpanel">
-            <form id="weeklyReportForm" class="row g-3 align-items-end">
-                <div class="col-lg-5">
-                    <label class="form-label fw-semibold">التاريخ (اختر أي يوم ضمن الأسبوع المطلوب)</label>
-                    <input id="weekly_report_date" type="date" class="form-control form-control-lg" required>
-                </div>
-                <div class="col-lg-7 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill btn-lg">
-                        <i class="bi bi-table ms-1"></i>عرض التقرير الأسبوعي
-                    </button>
-                    <button type="button" class="btn btn-outline-success btn-lg" id="exportWeeklyExcel">
-                        <i class="bi bi-file-earmark-excel ms-1"></i>Excel
-                    </button>
-                    <button type="button" class="btn btn-outline-danger btn-lg" id="exportWeeklyPdf">
-                        <i class="bi bi-file-earmark-pdf ms-1"></i>PDF
-                    </button>
-                </div>
-            </form>
-        </div>
-        <div class="tab-pane fade" id="monthly-tab-pane" role="tabpanel">
-            <form id="monthlyReportForm" class="row g-3 align-items-end">
-                <div class="col-lg-5">
-                    <label class="form-label fw-semibold">الشهر</label>
-                    <input id="monthly_report_month" type="month" class="form-control form-control-lg" required>
-                </div>
-                <div class="col-lg-7 d-flex gap-2">
-                    <button class="btn btn-primary flex-fill btn-lg">
-                        <i class="bi bi-table ms-1"></i>عرض التقرير الشهري
-                    </button>
-                    <button type="button" class="btn btn-outline-success btn-lg" id="exportMonthlyExcel">
-                        <i class="bi bi-file-earmark-excel ms-1"></i>Excel
-                    </button>
-                    <button type="button" class="btn btn-outline-danger btn-lg" id="exportMonthlyPdf">
-                        <i class="bi bi-file-earmark-pdf ms-1"></i>PDF
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
+<!-- Summary KPI Cards -->
 <div id="summaryCards" class="card panel-card p-3 mb-4 shadow-sm border-0 bg-white rounded-4" style="display:none;">
     <div class="row g-2 text-center align-items-center justify-content-center">
         <!-- Total -->
@@ -185,13 +130,14 @@
     </div>
 </div>
 
-<div class="card panel-card p-4">
+<!-- Report Table Card -->
+<div class="card panel-card p-4 shadow-sm border-0 rounded-4 bg-white">
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <div>
             <h5 class="fw-bold mb-0 d-flex align-items-center">
-                <i class="bi bi-file-earmark-text text-primary ms-2"></i>
+                <i class="bi bi-table text-primary ms-2"></i>
                 <span id="reportTitleSection">نتائج التقرير</span>
-                <button id="btnBackToSummary" class="btn btn-sm btn-outline-primary ms-3" style="display: none;">
+                <button id="btnBackToSummary" class="btn btn-sm btn-outline-primary ms-3 rounded-pill px-3" style="display: none;">
                     <i class="bi bi-arrow-right ms-1"></i>العودة إلى الملخص
                 </button>
             </h5>
@@ -199,16 +145,16 @@
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
             <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-eye ms-1"></i>إخفاء / إظهار الأعمدة
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle rounded-pill px-3" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-eye ms-1"></i>تعديل الأعمدة
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end p-2" style="min-width:240px;" id="columnVisibilityMenu">
+                <ul class="dropdown-menu dropdown-menu-end p-2 shadow-sm rounded-3" style="min-width:240px;" id="columnVisibilityMenu">
                 </ul>
             </div>
         </div>
     </div>
     <div class="table-responsive">
-        <table id="reportTable" class="table align-middle table-hover table-striped align-middle">
+        <table id="reportTable" class="table align-middle table-hover table-striped">
             <thead class="table-light">
                 <tr>
                     <th data-column="employee_code" data-label="الكود">الكود</th>
@@ -240,10 +186,10 @@
             </thead>
             <tbody id="reportTableBody">
                 <tr id="emptyRowTr">
-                    <td colspan="19" class="text-center py-5 text-muted">
-                        <i class="bi bi-cloud-arrow-down fs-1 d-block mb-2 opacity-50"></i>
-                        <strong>لا توجد بيانات بعد</strong><br>
-                        <small class="text-muted">اختر القسم والتاريخ واضغط على عرض التقرير لعرض النتائج</small>
+                    <td colspan="25" class="text-center py-5 text-muted">
+                        <i class="bi bi-file-earmark-bar-graph fs-1 d-block mb-2 opacity-50 text-primary"></i>
+                        <strong>جاهز لإنشاء التقرير</strong><br>
+                        <small class="text-muted">حدد التصفية واضغط على "عرض التقرير" لعرض السجلات مباشرة</small>
                     </td>
                 </tr>
             </tbody>
@@ -252,5 +198,5 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="/static/js/reports.js?v=3"></script>
+<script src="/static/js/reports.js?v=4"></script>
 {% endblock %}
