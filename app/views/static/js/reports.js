@@ -30,7 +30,7 @@ const POLICY_COLUMNS = {
     doctors_department: {
         summary: [
             "employee_code", "employee_name", "department", "job_title", 
-            "full_shift_count", "half_shift_count", "total_shift_units", 
+            "working_days_count", "full_shift_count", "half_shift_count", "total_shift_units", 
             "working_hours", "overtime_hours", "late_minutes", "absent_days_count"
         ],
         daily: [
@@ -106,18 +106,22 @@ function getReportStatusLabel(status) {
 }
 
 async function loadDepartments() {
-    departmentsCache = await fetchJSON("/api/departments");
-    const select = document.getElementById("reportDepartmentFilter");
-    if (!select) return;
-    select.innerHTML = '<option value="">— كل الأقسام —</option>';
-    departmentsCache.forEach((department) => {
-        select.innerHTML += `<option value="${department.id}">${department.name}</option>`;
-    });
-    select.addEventListener("change", () => {
-        currentSelectedDepartment = select.value;
-        setupColumnVisibilityMenu();
-        updateReportTableColumns();
-    });
+    try {
+        departmentsCache = await fetchJSON("/api/departments");
+        const select = document.getElementById("reportDepartmentFilter");
+        if (!select) return;
+        select.innerHTML = '<option value="">— كل الأقسام —</option>';
+        departmentsCache.forEach((department) => {
+            select.innerHTML += `<option value="${department.id}">${department.name}</option>`;
+        });
+        select.addEventListener("change", () => {
+            currentSelectedDepartment = select.value;
+            setupColumnVisibilityMenu();
+            updateReportTableColumns();
+        });
+    } catch (e) {
+        console.warn("Could not load departments:", e);
+    }
 }
 
 function updateReportTableColumns() {
@@ -131,10 +135,7 @@ function updateReportTableColumns() {
         const columnName = th.dataset.column;
         const checkbox = document.querySelector(`.col-toggle[data-column="${columnName}"]`);
         
-        let isVisible = allowedColumns.includes(columnName);
-        if (checkbox && !checkbox.checked) {
-            isVisible = false;
-        }
+        const isVisible = checkbox ? checkbox.checked : allowedColumns.includes(columnName);
 
         th.style.display = isVisible ? "" : "none";
         
@@ -151,6 +152,8 @@ function updateReportTableColumns() {
     if (lateTh) lateTh.textContent = isSummary ? "إجمالي التأخير (د)" : "التأخير";
     if (hoursTh) hoursTh.textContent = isSummary ? "إجمالي الساعات" : "الساعات";
 }
+
+let columnMenuInitialized = false;
 
 function setupColumnVisibilityMenu() {
     const menu = document.getElementById("columnVisibilityMenu");
@@ -179,9 +182,12 @@ function setupColumnVisibilityMenu() {
         menu.appendChild(li);
     });
 
-    menu.addEventListener('click', function (e) {
-        e.stopPropagation();
-    });
+    if (!columnMenuInitialized) {
+        menu.addEventListener('click', function (e) {
+            e.stopPropagation();
+        });
+        columnMenuInitialized = true;
+    }
 
     document.querySelectorAll('.col-toggle').forEach(chk => {
         chk.addEventListener('change', updateReportTableColumns);
@@ -248,7 +254,7 @@ function renderTableBody(rows) {
     if (currentViewMode === "summary") {
         rowsToRender = rows.filter(r => r.row_kind === "summary");
     } else if (currentViewMode === "details" && currentDetailedEmployeeCode) {
-        rowsToRender = rows.filter(r => r.row_kind !== "summary" && r.employee_code === currentDetailedEmployeeCode);
+        rowsToRender = rows.filter(r => r.row_kind !== "summary" && String(r.employee_code) === String(currentDetailedEmployeeCode));
     } else {
         rowsToRender = rows.filter(r => r.row_kind !== "summary");
     }
@@ -305,11 +311,13 @@ function renderTableBody(rows) {
 
         let checkIn = "-";
         if (row.check_in_time) {
-            checkIn = new Date(row.check_in_time).toLocaleTimeString("ar-EG", {hour: '2-digit', minute:'2-digit'});
+            const d = new Date(row.check_in_time);
+            checkIn = isNaN(d.getTime()) ? row.check_in_time : d.toLocaleTimeString("ar-EG", {hour: '2-digit', minute:'2-digit'});
         }
         let checkOut = "-";
         if (row.check_out_time) {
-            checkOut = new Date(row.check_out_time).toLocaleTimeString("ar-EG", {hour: '2-digit', minute:'2-digit'});
+            const d = new Date(row.check_out_time);
+            checkOut = isNaN(d.getTime()) ? row.check_out_time : d.toLocaleTimeString("ar-EG", {hour: '2-digit', minute:'2-digit'});
         }
         
         let nameHtml = `<strong>${row.employee_name || "-"}</strong>`;

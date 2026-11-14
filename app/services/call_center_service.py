@@ -135,13 +135,16 @@ class CallCenterService:
         }
 
     def _query_employees(self, db, dept_id, branch_id=None):
-        return (
+        query = (
             db.query(Employee)
             .options(joinedload(Employee.department))
-            .filter(Employee.department_id == dept_id, Employee.is_active.is_(True))
-            .order_by(Employee.first_name.asc(), Employee.id.asc())
-            .all()
+            .filter(Employee.is_active.is_(True))
         )
+        if dept_id:
+            query = query.filter(Employee.department_id == dept_id)
+        if branch_id:
+            query = query.filter(Employee.branch_id == branch_id)
+        return query.order_by(Employee.first_name.asc(), Employee.id.asc()).all()
 
     def _day_metrics(self, emp, cur_date, rec, dlogs):
         is_rest = self._is_rest(emp, cur_date)

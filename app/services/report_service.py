@@ -4,6 +4,7 @@ from calendar import monthrange
 from datetime import date, datetime, timedelta
 from typing import Iterable
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.attendance import AttendanceRecord
@@ -60,8 +61,13 @@ class ReportService:
         return self._is_workers_department(department) or self._is_call_center_department(department)
 
     def _is_reception_family_department(self, department: Department | None) -> bool:
-        return bool(department and (department.attendance_policy == "reception_department" or
-                                    department.attendance_policy == "leather_department"))
+        return bool(
+            department
+            and (
+                department.attendance_policy
+                in ("reception_department", "leather_department", "doctors_department")
+            )
+        )
 
     def _normalize_shift_category(self, shift_category: str | None) -> str | None:
         mapping = {
@@ -276,6 +282,12 @@ class ReportService:
             return None
         return db.query(Department).filter(Department.id == department_id).first()
 
+    def _get_branch_departments(self, db: Session, branch_id: int | None) -> list[Department]:
+        query = db.query(Department).filter(Department.is_active.is_(True))
+        if branch_id:
+            query = query.filter(Department.branch_id == branch_id)
+        return query.order_by(Department.id.asc()).all()
+
     def daily_report(
         self,
         db: Session,
@@ -283,23 +295,34 @@ class ReportService:
         branch_id: int | None,
         department_id: int | None,
     ) -> list[ReportRow]:
+        if not department_id:
+            departments = self._get_branch_departments(db, branch_id)
+            all_rows: list[ReportRow] = []
+            for dept in departments:
+                if self._is_call_center_or_workers(dept):
+                    rows = self.call_center_service.build_report_rows(
+                        db, dept.id, report_date, report_date, branch_id
+                    )
+                else:
+                    rows = self.reception_service.build_report_rows(
+                        db, dept.id, report_date, report_date, branch_id
+                    )
+                all_rows.extend(rows)
+            all_rows.sort(key=lambda r: (r.department or "", r.employee_name or "", r.attendance_date))
+            return all_rows
+
         target_department = self._resolve_target_department(db, department_id)
 
         # Call Center & Workers: use CallCenterService with auto-shift detection
-        if department_id and self._is_call_center_or_workers(target_department):
+        if self._is_call_center_or_workers(target_department):
             return self.call_center_service.build_report_rows(
                 db, department_id, report_date, report_date, branch_id
             )
 
-        # Reception / Leather: use dedicated reception service
-        if department_id and self._is_reception_family_department(target_department):
-            return self.reception_service.build_report_rows(
-                db, department_id, report_date, report_date, branch_id
-            )
-
-        # Generic departments: build from attendance records
-        records = self._query_records(db, report_date, report_date, branch_id, department_id)
-        return self._build_rows_from_records(records)
+        # Reception / Leather / Doctors / Generic: use dedicated reception service
+        return self.reception_service.build_report_rows(
+            db, department_id, report_date, report_date, branch_id
+        )
 
     def weekly_report(
         self,
@@ -309,20 +332,32 @@ class ReportService:
         department_id: int | None,
     ) -> list[ReportRow]:
         start_date, end_date = self._week_range(report_date)
+        if not department_id:
+            departments = self._get_branch_departments(db, branch_id)
+            all_rows: list[ReportRow] = []
+            for dept in departments:
+                if self._is_call_center_or_workers(dept):
+                    rows = self.call_center_service.build_report_rows(
+                        db, dept.id, start_date, end_date, branch_id
+                    )
+                else:
+                    rows = self.reception_service.build_report_rows(
+                        db, dept.id, start_date, end_date, branch_id
+                    )
+                all_rows.extend(rows)
+            all_rows.sort(key=lambda r: (r.department or "", r.employee_name or "", r.attendance_date))
+            return all_rows
+
         target_department = self._resolve_target_department(db, department_id)
 
-        if department_id and self._is_call_center_or_workers(target_department):
+        if self._is_call_center_or_workers(target_department):
             return self.call_center_service.build_report_rows(
                 db, department_id, start_date, end_date, branch_id
             )
 
-        if department_id and self._is_reception_family_department(target_department):
-            return self.reception_service.build_report_rows(
-                db, department_id, start_date, end_date, branch_id
-            )
-
-        records = self._query_records(db, start_date, end_date, branch_id, department_id)
-        return self._build_rows_from_records(records)
+        return self.reception_service.build_report_rows(
+            db, department_id, start_date, end_date, branch_id
+        )
 
     def monthly_report(
         self,
@@ -332,18 +367,33 @@ class ReportService:
         department_id: int | None,
     ) -> list[ReportRow]:
         start_date, end_date = self._month_range(month)
+        if not department_id:
+            departments = self._get_branch_departments(db, branch_id)
+            all_rows: list[ReportRow] = []
+            for dept in departments:
+                if self._is_call_center_or_workers(dept):
+                    rows = self.call_center_service.build_monthly_summary_rows(
+                        db, dept.id, start_date, end_date, branch_id
+                    )
+                else:
+                    rows = self.reception_service.build_monthly_summary_rows(
+                        db, dept.id, start_date, end_date, branch_id
+                    )
+                all_rows.extend(rows)
+            all_rows.sort(key=lambda r: (
+                r.department or "", r.employee_name or "", r.employee_code or "",
+                0 if r.row_kind == "summary" else 1, r.attendance_date
+            ))
+            return all_rows
+
         target_department = self._resolve_target_department(db, department_id)
 
-        # Call Center & Workers: use new summary builder (one row per employee + daily detail rows)
-        if department_id and self._is_call_center_or_workers(target_department):
+        # Call Center & Workers: use summary builder
+        if self._is_call_center_or_workers(target_department):
             return self.call_center_service.build_monthly_summary_rows(
                 db, department_id, start_date, end_date, branch_id
             )
 
-        if department_id and self._is_reception_family_department(target_department):
-            return self.reception_service.build_monthly_summary_rows(
-                db, department_id, start_date, end_date, branch_id
-            )
-
-        records = self._query_records(db, start_date, end_date, branch_id, department_id)
-        return self._build_rows_from_records(records, include_monthly_summary=True)
+        return self.reception_service.build_monthly_summary_rows(
+            db, department_id, start_date, end_date, branch_id
+        )
