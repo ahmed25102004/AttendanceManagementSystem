@@ -367,6 +367,16 @@ class ReportService:
         department_id: int | None,
     ) -> list[ReportRow]:
         start_date, end_date = self._month_range(month)
+        return self.custom_range_report(db, start_date, end_date, branch_id, department_id)
+
+    def custom_range_report(
+        self,
+        db: Session,
+        start_date: date,
+        end_date: date,
+        branch_id: int | None,
+        department_id: int | None,
+    ) -> list[ReportRow]:
         if not department_id:
             departments = self._get_branch_departments(db, branch_id)
             all_rows: list[ReportRow] = []

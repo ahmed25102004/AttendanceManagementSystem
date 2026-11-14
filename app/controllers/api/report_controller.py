@@ -1,6 +1,6 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -51,6 +51,51 @@ def monthly_report(
     branch_id: int | None = Depends(get_current_branch_id),
 ):
     return report_service.monthly_report(db, month, branch_id, department_id)
+
+
+@router.get("/range")
+def custom_range_report(
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    department_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    branch_id: int | None = Depends(get_current_branch_id),
+):
+    if start_date > end_date:
+        raise HTTPException(status_code=400, detail="تاريخ البداية يجب أن يكون قبل أو يساوي تاريخ النهاية.")
+    return report_service.custom_range_report(db, start_date, end_date, branch_id, department_id)
+
+
+@router.get("/range/export/excel")
+def export_range_excel(
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    department_id: int | None = Query(default=None),
+    view_mode: str | None = Query(default=None),
+    employee_code: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    branch_id: int | None = Depends(get_current_branch_id),
+):
+    if start_date > end_date:
+        raise HTTPException(status_code=400, detail="تاريخ البداية يجب أن يكون قبل أو يساوي تاريخ النهاية.")
+    rows = report_service.custom_range_report(db, start_date, end_date, branch_id, department_id)
+    policy = _get_department_policy(db, department_id)
+    title = f"تقرير الحضور من {start_date.isoformat()} إلى {end_date.isoformat()}"
+    if view_mode == "summary":
+        file_stream = export_service.export_policy_summary_excel(title, rows, policy)
+    elif view_mode == "details" and employee_code:
+        rows = [r for r in rows if r.row_kind != "summary" and str(r.employee_code) == str(employee_code)]
+        file_stream = export_service.export_excel(title, rows)
+    elif view_mode == "daily":
+        rows = [r for r in rows if r.row_kind != "summary"]
+        file_stream = export_service.export_excel(title, rows)
+    else:
+        file_stream = export_service.export_excel(title, rows)
+    return StreamingResponse(
+        file_stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="report-{start_date.isoformat()}-to-{end_date.isoformat()}.xlsx"'},
+    )
 
 
 @router.get("/daily/export/excel")

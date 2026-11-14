@@ -10,9 +10,14 @@
         <h5 class="fw-bold text-primary mb-0 d-flex align-items-center">
             <i class="bi bi-funnel-fill ms-2 fs-5"></i>إعدادات وتصفية التقرير
         </h5>
-        <!-- Period Segmented Control (اليومي / الأسبوعي / الشهري) -->
+        <!-- Period Segmented Control (فترة محددة / يومي / أسبوعي / شهري) -->
         <div class="btn-group p-1 bg-light rounded-pill border" role="group" id="periodToggleGroup">
-            <input type="radio" class="btn-check" name="reportPeriod" id="periodDaily" value="daily" checked>
+            <input type="radio" class="btn-check" name="reportPeriod" id="periodCustom" value="custom" checked>
+            <label class="btn btn-sm rounded-pill px-3 py-1 fw-bold" for="periodCustom">
+                <i class="bi bi-calendar-range-fill text-info ms-1"></i>فترة مخصصة (من - إلى)
+            </label>
+
+            <input type="radio" class="btn-check" name="reportPeriod" id="periodDaily" value="daily">
             <label class="btn btn-sm rounded-pill px-3 py-1 fw-bold" for="periodDaily">
                 <i class="bi bi-sun-fill text-warning ms-1"></i>يومي
             </label>
@@ -42,21 +47,41 @@
                 </div>
             </div>
 
-            <!-- Dynamic Date/Month Input -->
-            <div class="col-lg-3 col-md-6">
-                <label class="form-label text-muted small fw-bold" id="reportDateLabel">التاريخ اليومي</label>
+            <!-- Custom Date Range Inputs (From - To) -->
+            <div class="col-lg-4 col-md-6" id="rangeDatesWrapper">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label text-muted small fw-bold">من تاريخ</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-check text-secondary"></i></span>
+                            <input id="reportStartDateInput" type="date" class="form-control border-0 bg-light">
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small fw-bold">إلى تاريخ</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-x text-secondary"></i></span>
+                            <input id="reportEndDateInput" type="date" class="form-control border-0 bg-light">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Single Dynamic Date/Month Input (for daily, weekly, monthly) -->
+            <div class="col-lg-3 col-md-6" id="singleDateWrapper" style="display: none;">
+                <label class="form-label text-muted small fw-bold" id="reportDateLabel">التاريخ</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-event text-secondary"></i></span>
-                    <input id="reportDateInput" type="date" class="form-control border-0 bg-light" required>
+                    <input id="reportDateInput" type="date" class="form-control border-0 bg-light">
                 </div>
             </div>
 
             <!-- Live Search -->
-            <div class="col-lg-3 col-md-6">
+            <div class="col-lg-2 col-md-6" id="searchBoxWrapper">
                 <label class="form-label text-muted small fw-bold">بحث في النتائج</label>
                 <div class="input-group">
                     <span class="input-group-text bg-light border-0"><i class="bi bi-search text-secondary"></i></span>
-                    <input id="reportSearchBox" type="text" class="form-control border-0 bg-light" placeholder="اسم الموظف أو الكود...">
+                    <input id="reportSearchBox" type="text" class="form-control border-0 bg-light" placeholder="اسم أو كود...">
                     <button type="button" class="btn btn-light" id="clearReportSearchBtn" title="مسح البحث">
                         <i class="bi bi-x"></i>
                     </button>
@@ -182,11 +207,12 @@
                     <th data-column="worked_on_rest_days_count" data-label="عدد العمل في الإجازة">عدد العمل في الإجازة</th>
                     <th data-column="weekly_rest_days_count" data-label="الإجازات الأسبوعية">الإجازات الأسبوعية</th>
                     <th data-column="absent_days_count" data-label="أيام الغياب">أيام الغياب</th>
+                    <th data-column="actions" data-label="التفاصيل">التفاصيل</th>
                 </tr>
             </thead>
             <tbody id="reportTableBody">
                 <tr id="emptyRowTr">
-                    <td colspan="25" class="text-center py-5 text-muted">
+                    <td colspan="26" class="text-center py-5 text-muted">
                         <i class="bi bi-file-earmark-bar-graph fs-1 d-block mb-2 opacity-50 text-primary"></i>
                         <strong>جاهز لإنشاء التقرير</strong><br>
                         <small class="text-muted">حدد التصفية واضغط على "عرض التقرير" لعرض السجلات مباشرة</small>
@@ -196,7 +222,97 @@
         </table>
     </div>
 </div>
+
+<!-- Modal: Detailed Employee Attendance Breakdown (التفصيل الممل) -->
+<div class="modal fade" id="employeeDetailsModal" tabindex="-1" aria-labelledby="employeeDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-light border-bottom p-3 px-4">
+                <div>
+                    <h5 class="modal-title fw-bold text-primary mb-1" id="employeeDetailsModalLabel">
+                        <i class="bi bi-person-lines-fill ms-2"></i>السجل التفصيلي اليومي للموظف
+                    </h5>
+                    <div class="text-muted small">
+                        الاسم: <span id="modalEmpName" class="fw-bold text-dark"></span> |
+                        الكود: <strong id="modalEmpCode" class="text-primary"></strong> |
+                        القسم: <strong id="modalEmpDept"></strong> |
+                        الفترة: <strong id="modalPeriodText" class="text-success"></strong>
+                    </div>
+                </div>
+                <button type="button" class="btn-close ms-0 me-auto" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Mini KPI Cards in Modal -->
+                <div class="row g-2 text-center mb-4" id="modalKpiRow">
+                    <div class="col-md-2 col-4">
+                        <div class="p-2 rounded-3 bg-light border text-dark h-100">
+                            <div class="small text-muted fw-bold">أيام الحضور</div>
+                            <div class="fs-5 fw-bold text-primary" id="modalStatDays">0</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-4" id="modalStatShiftsCol">
+                        <div class="p-2 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-primary h-100">
+                            <div class="small fw-bold">إجمالي الشيفتات</div>
+                            <div class="fs-5 fw-bold" id="modalStatShifts">0</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-4">
+                        <div class="p-2 rounded-3 bg-light border text-dark h-100">
+                            <div class="small text-muted fw-bold">ساعات العمل</div>
+                            <div class="fs-5 fw-bold text-success" id="modalStatHours">0</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-4">
+                        <div class="p-2 rounded-3 bg-light border text-dark h-100">
+                            <div class="small text-muted fw-bold">ساعات إضافي</div>
+                            <div class="fs-5 fw-bold text-info" id="modalStatOvertime">0</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-4">
+                        <div class="p-2 rounded-3 bg-light border text-dark h-100">
+                            <div class="small text-muted fw-bold">دقائق التأخير</div>
+                            <div class="fs-5 fw-bold text-warning-emphasis" id="modalStatLate">0</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2 col-4">
+                        <div class="p-2 rounded-3 bg-light border text-dark h-100">
+                            <div class="small text-muted fw-bold">أيام الغياب</div>
+                            <div class="fs-5 fw-bold text-danger" id="modalStatAbsent">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daily Detailed Table in Modal -->
+                <div class="table-responsive rounded-3 border">
+                    <table class="table table-hover table-striped align-middle mb-0 text-center" id="modalDailyTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>الحالة</th>
+                                <th>وقت الحضور</th>
+                                <th>وقت الانصراف</th>
+                                <th>الشيفت المحتسب</th>
+                                <th>ساعات العمل</th>
+                                <th>عمل إضافي (س)</th>
+                                <th>نقص الشيفت (س)</th>
+                                <th>التأخير (دقيقة)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalDailyTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light p-3 px-4 d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-success fw-bold rounded-pill px-3" id="modalExportSingleExcelBtn">
+                    <i class="bi bi-file-earmark-excel-fill ms-1"></i>تصدير تفاصيل الموظف Excel
+                </button>
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 {% block scripts %}
-<script src="/static/js/reports.js?v=5"></script>
+<script src="/static/js/reports.js?v=6"></script>
 {% endblock %}
