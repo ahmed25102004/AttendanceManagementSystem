@@ -5,6 +5,20 @@ let currentViewMode = "summary"; // "summary", "daily", or "details"
 let currentDetailedEmployeeCode = null;
 let currentPeriod = "custom"; // "custom", "daily", "weekly", or "monthly"
 
+// تحويل الساعات العشرية (مثل 112.73 أو 14.2) إلى صيغة ساعات ودقائق مفهومة (مثل: 112 س و 44 د)
+function formatDecimalHours(decimalHours) {
+    if (decimalHours === null || decimalHours === undefined || isNaN(decimalHours) || Number(decimalHours) === 0) {
+        return "0 س";
+    }
+    const val = Number(decimalHours);
+    const totalMinutes = Math.round(val * 60);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    if (h === 0) return `${m} د`;
+    if (m === 0) return `${h} س`;
+    return `${h} س و ${m} د`;
+}
+
 function reportDepartmentQuery() {
     const departmentId = document.getElementById("reportDepartmentFilter")?.value;
     return departmentId ? `&department_id=${departmentId}` : "";
@@ -345,9 +359,9 @@ function renderTableBody(rows) {
                 <td data-column="shift_end_time">${row.shift_end_time || "-"}</td>
                 <td data-column="check_in_time">${checkIn}</td>
                 <td data-column="check_out_time">${checkOut}</td>
-                <td data-column="working_hours" class="fw-bold text-white">${row.working_hours || 0}</td>
-                <td data-column="overtime_hours" class="${overtimeClass}">${overtimeValue}</td>
-                <td data-column="shift_deficit_hours">${row.shift_deficit_hours || 0}</td>
+                <td data-column="working_hours" class="fw-bold text-white text-nowrap" title="${row.working_hours || 0} ساعة">${formatDecimalHours(row.working_hours)}</td>
+                <td data-column="overtime_hours" class="${overtimeClass} text-nowrap" title="${overtimeValue} ساعة">${overtimeValue > 0 ? formatDecimalHours(overtimeValue) : "0"}</td>
+                <td data-column="shift_deficit_hours" class="text-nowrap" title="${row.shift_deficit_hours || 0} ساعة">${row.shift_deficit_hours > 0 ? formatDecimalHours(row.shift_deficit_hours) : "0"}</td>
                 <td data-column="late_minutes" class="${lateClass}">${lateValue}</td>
                 <td data-column="status"><span class="badge ${statusBadgeClass}">${statusLabel}</span></td>
                 <td data-column="worked_on_rest_day">${row.worked_on_rest_day ? '<i class="bi bi-check-circle-fill text-success"></i>' : '-'}</td>
@@ -423,8 +437,14 @@ function openEmployeeModal(employeeCode) {
         document.getElementById("modalStatShifts").innerText = totalUnits > 0 ? `${totalUnits}` : `${totalDays} يوم`;
     }
     
-    document.getElementById("modalStatHours").innerText = Number(totalHours).toFixed(2) + " س";
-    document.getElementById("modalStatOvertime").innerText = Number(totalOt).toFixed(2) + " س";
+    document.getElementById("modalStatHours").innerHTML = `
+        ${formatDecimalHours(totalHours)}
+        <div class="fw-normal text-secondary opacity-75" style="font-size:0.75rem;">(${Number(totalHours).toFixed(2)} س)</div>
+    `;
+    document.getElementById("modalStatOvertime").innerHTML = `
+        ${totalOt > 0 ? formatDecimalHours(totalOt) : "0 س"}
+        <div class="fw-normal text-secondary opacity-75" style="font-size:0.75rem;">(${Number(totalOt).toFixed(2)} س)</div>
+    `;
     document.getElementById("modalStatLate").innerText = totalLate + " دقيقة";
     document.getElementById("modalStatAbsent").innerText = totalAbsent + " يوم";
 
@@ -466,9 +486,9 @@ function openEmployeeModal(employeeCode) {
                     <td><span class="badge badge-code font-monospace">${checkIn}</span></td>
                     <td><span class="badge badge-code font-monospace">${checkOut}</span></td>
                     <td><strong class="text-white">${r.shift_name || "-"}</strong></td>
-                    <td class="fw-bold text-white">${r.working_hours || 0}</td>
-                    <td class="${otClass}">${r.overtime_hours || 0}</td>
-                    <td class="${deficitClass}">${r.shift_deficit_hours || 0}</td>
+                    <td class="fw-bold text-white text-nowrap" title="${r.working_hours || 0} ساعة">${formatDecimalHours(r.working_hours)}</td>
+                    <td class="${otClass} text-nowrap" title="${r.overtime_hours || 0} ساعة">${r.overtime_hours > 0 ? formatDecimalHours(r.overtime_hours) : "0"}</td>
+                    <td class="${deficitClass} text-nowrap" title="${r.shift_deficit_hours || 0} ساعة">${r.shift_deficit_hours > 0 ? formatDecimalHours(r.shift_deficit_hours) : "0"}</td>
                     <td class="${lateClass}">${r.late_minutes ? r.late_minutes + ' د' : '0'}</td>
                 </tr>
             `;
