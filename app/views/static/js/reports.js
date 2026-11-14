@@ -285,10 +285,10 @@ function renderTableBody(rows) {
         let overtimeClass = "";
         
         if (row.row_kind === "summary") {
-            trClass = "table-light fw-semibold";
+            trClass = "report-row-summary";
         } else {
-            if (row.status === "absent") trClass = "table-danger";
-            else if (row.worked_on_rest_day) trClass = "table-secondary";
+            trClass = "report-row-daily";
+            if (row.status === "absent") trClass += " report-row-absent";
             
             if (row.late_minutes > 0) lateClass = "text-danger fw-bold";
             if (row.overtime_hours > 0) overtimeClass = "text-success fw-bold";
@@ -320,45 +320,45 @@ function renderTableBody(rows) {
             checkOut = isNaN(d.getTime()) ? row.check_out_time : d.toLocaleTimeString("ar-EG", {hour: '2-digit', minute:'2-digit'});
         }
         
-        let nameHtml = `<strong class="text-dark">${row.employee_name || "-"}</strong>`;
+        let nameHtml = `<strong class="text-white">${row.employee_name || "-"}</strong>`;
         let actionsHtml = "-";
         if (isSummary) {
             actionsHtml = `
-                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm btn-open-emp-modal text-nowrap" data-code="${row.employee_code}" title="عرض تفاصيل بصمات وساعات وحضور الموظف في الفترة">
-                    <i class="bi bi-eye-fill ms-1"></i>التفاصيل اليومية
+                <button type="button" class="btn btn-sm btn-report-details rounded-pill px-3 shadow-sm btn-open-emp-modal text-nowrap" data-code="${row.employee_code}" title="عرض تفاصيل بصمات وساعات وحضور الموظف في الفترة">
+                    <i class="bi bi-eye ms-1"></i>التفاصيل اليومية
                 </button>
             `;
         }
 
-        let shiftsBadgeHtml = `<span class="badge bg-primary fs-6 px-3 py-2 rounded-pill">${row.total_shift_units || 0} شفت</span>`;
+        let shiftsBadgeHtml = `<span class="badge badge-shifts px-3 py-1 rounded-pill">${row.total_shift_units || 0} شفت</span>`;
 
         tbody.innerHTML += `
             <tr class="${trClass}">
-                <td data-column="employee_code"><span class="badge bg-light text-dark border px-2 py-1 font-monospace">${row.employee_code || "-"}</span></td>
+                <td data-column="employee_code"><span class="badge badge-code font-monospace">${row.employee_code || "-"}</span></td>
                 <td data-column="employee_name">${nameHtml}</td>
-                <td data-column="department"><span class="badge bg-light text-dark border">${row.department || "-"}</span></td>
-                <td data-column="job_title" class="text-muted small">${row.job_title || "-"}</td>
+                <td data-column="department"><span class="badge badge-dept">${row.department || "-"}</span></td>
+                <td data-column="job_title" class="text-secondary small">${row.job_title || "-"}</td>
                 <td data-column="attendance_date">${row.attendance_date || "-"}</td>
-                <td data-column="working_days_count"><span class="badge bg-info bg-opacity-25 text-dark fw-bold px-2 py-1">${row.working_days_count || 0} يوم</span></td>
-                <td data-column="shift_name"><span class="badge bg-secondary bg-opacity-10 text-dark">${row.shift_name || "-"}</span></td>
+                <td data-column="working_days_count"><span class="badge badge-days fw-bold px-2 py-1">${row.working_days_count || 0} يوم</span></td>
+                <td data-column="shift_name"><span class="badge badge-dept">${row.shift_name || "-"}</span></td>
                 <td data-column="shift_start_time">${row.shift_start_time || "-"}</td>
                 <td data-column="shift_end_time">${row.shift_end_time || "-"}</td>
                 <td data-column="check_in_time">${checkIn}</td>
                 <td data-column="check_out_time">${checkOut}</td>
-                <td data-column="working_hours" class="fw-bold text-dark">${row.working_hours || 0}</td>
+                <td data-column="working_hours" class="fw-bold text-white">${row.working_hours || 0}</td>
                 <td data-column="overtime_hours" class="${overtimeClass}">${overtimeValue}</td>
                 <td data-column="shift_deficit_hours">${row.shift_deficit_hours || 0}</td>
                 <td data-column="late_minutes" class="${lateClass}">${lateValue}</td>
                 <td data-column="status"><span class="badge ${statusBadgeClass}">${statusLabel}</span></td>
                 <td data-column="worked_on_rest_day">${row.worked_on_rest_day ? '<i class="bi bi-check-circle-fill text-success"></i>' : '-'}</td>
-                <td data-column="full_shift_count"><span class="badge bg-success bg-opacity-75">${row.full_shift_count || 0}</span></td>
-                <td data-column="half_shift_count"><span class="badge bg-warning bg-opacity-75 text-dark">${row.half_shift_count || 0}</span></td>
+                <td data-column="full_shift_count"><span class="badge badge-full-shift">${row.full_shift_count || 0}</span></td>
+                <td data-column="half_shift_count"><span class="badge badge-half-shift">${row.half_shift_count || 0}</span></td>
                 <td data-column="total_shift_units">${shiftsBadgeHtml}</td>
                 <td data-column="shift_1_count">${row.shift_1_count || 0}</td>
                 <td data-column="shift_2_count">${row.shift_2_count || 0}</td>
                 <td data-column="worked_on_rest_days_count">${row.worked_on_rest_days_count || 0}</td>
                 <td data-column="weekly_rest_days_count">${row.weekly_rest_days_count || 0}</td>
-                <td data-column="absent_days_count"><span class="badge bg-danger bg-opacity-10 text-danger">${row.absent_days_count || 0}</span></td>
+                <td data-column="absent_days_count"><span class="badge bg-danger bg-opacity-25 text-danger">${row.absent_days_count || 0}</span></td>
                 <td data-column="actions">${actionsHtml}</td>
             </tr>
         `;
@@ -461,12 +461,12 @@ function openEmployeeModal(employeeCode) {
 
             tbody.innerHTML += `
                 <tr>
-                    <td class="fw-bold">${r.attendance_date || "-"}</td>
+                    <td class="fw-bold text-white">${r.attendance_date || "-"}</td>
                     <td><span class="badge ${statusBadge}">${getReportStatusLabel(r.status)}</span></td>
-                    <td><span class="badge bg-light text-dark border">${checkIn}</span></td>
-                    <td><span class="badge bg-light text-dark border">${checkOut}</span></td>
-                    <td><strong>${r.shift_name || "-"}</strong></td>
-                    <td class="fw-bold">${r.working_hours || 0}</td>
+                    <td><span class="badge badge-code font-monospace">${checkIn}</span></td>
+                    <td><span class="badge badge-code font-monospace">${checkOut}</span></td>
+                    <td><strong class="text-white">${r.shift_name || "-"}</strong></td>
+                    <td class="fw-bold text-white">${r.working_hours || 0}</td>
                     <td class="${otClass}">${r.overtime_hours || 0}</td>
                     <td class="${deficitClass}">${r.shift_deficit_hours || 0}</td>
                     <td class="${lateClass}">${r.late_minutes ? r.late_minutes + ' د' : '0'}</td>

@@ -5,13 +5,13 @@
 <div id="reportAlert"></div>
 
 <!-- Modern Unified Filter Bar -->
-<div class="card panel-card p-4 mb-4 shadow-sm border-0 rounded-4 bg-white">
+<div class="card panel-card p-4 mb-4">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3 pb-2 border-bottom">
         <h5 class="fw-bold text-primary mb-0 d-flex align-items-center">
             <i class="bi bi-funnel-fill ms-2 fs-5"></i>إعدادات وتصفية التقرير
         </h5>
         <!-- Period Segmented Control (فترة محددة / يومي / أسبوعي / شهري) -->
-        <div class="btn-group p-1 bg-light rounded-pill border" role="group" id="periodToggleGroup">
+        <div class="btn-group p-1 rounded-pill" role="group" id="periodToggleGroup" style="background: rgba(255,255,255,0.04); border: 1px solid var(--border-card);">
             <input type="radio" class="btn-check" name="reportPeriod" id="periodCustom" value="custom" checked>
             <label class="btn btn-sm rounded-pill px-3 py-1 fw-bold" for="periodCustom">
                 <i class="bi bi-calendar-range-fill text-info ms-1"></i>فترة مخصصة (من - إلى)
@@ -40,8 +40,8 @@
             <div class="col-lg-3 col-md-6">
                 <label class="form-label text-muted small fw-bold">القسم</label>
                 <div class="input-group">
-                    <span class="input-group-text bg-light border-0"><i class="bi bi-building text-secondary"></i></span>
-                    <select id="reportDepartmentFilter" class="form-select border-0 bg-light">
+                    <span class="input-group-text"><i class="bi bi-building text-secondary"></i></span>
+                    <select id="reportDepartmentFilter" class="form-select">
                         <option value="">— كل الأقسام —</option>
                     </select>
                 </div>
@@ -53,15 +53,15 @@
                     <div class="col-6">
                         <label class="form-label text-muted small fw-bold">من تاريخ</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-check text-secondary"></i></span>
-                            <input id="reportStartDateInput" type="date" class="form-control border-0 bg-light">
+                            <span class="input-group-text"><i class="bi bi-calendar-check text-secondary"></i></span>
+                            <input id="reportStartDateInput" type="date" class="form-control">
                         </div>
                     </div>
                     <div class="col-6">
                         <label class="form-label text-muted small fw-bold">إلى تاريخ</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-x text-secondary"></i></span>
-                            <input id="reportEndDateInput" type="date" class="form-control border-0 bg-light">
+                            <span class="input-group-text"><i class="bi bi-calendar-x text-secondary"></i></span>
+                            <input id="reportEndDateInput" type="date" class="form-control">
                         </div>
                     </div>
                 </div>
@@ -71,8 +71,8 @@
             <div class="col-lg-3 col-md-6" id="singleDateWrapper" style="display: none;">
                 <label class="form-label text-muted small fw-bold" id="reportDateLabel">التاريخ</label>
                 <div class="input-group">
-                    <span class="input-group-text bg-light border-0"><i class="bi bi-calendar-event text-secondary"></i></span>
-                    <input id="reportDateInput" type="date" class="form-control border-0 bg-light">
+                    <span class="input-group-text"><i class="bi bi-calendar-event text-secondary"></i></span>
+                    <input id="reportDateInput" type="date" class="form-control">
                 </div>
             </div>
 
@@ -80,9 +80,9 @@
             <div class="col-lg-2 col-md-6" id="searchBoxWrapper">
                 <label class="form-label text-muted small fw-bold">بحث في النتائج</label>
                 <div class="input-group">
-                    <span class="input-group-text bg-light border-0"><i class="bi bi-search text-secondary"></i></span>
-                    <input id="reportSearchBox" type="text" class="form-control border-0 bg-light" placeholder="اسم أو كود...">
-                    <button type="button" class="btn btn-light" id="clearReportSearchBtn" title="مسح البحث">
+                    <span class="input-group-text"><i class="bi bi-search text-secondary"></i></span>
+                    <input id="reportSearchBox" type="text" class="form-control" placeholder="اسم أو كود...">
+                    <button type="button" class="btn btn-outline-secondary" id="clearReportSearchBtn" title="مسح البحث">
                         <i class="bi bi-x"></i>
                     </button>
                 </div>
@@ -102,61 +102,61 @@
 </div>
 
 <!-- Summary KPI Cards -->
-<div id="summaryCards" class="card panel-card p-3 mb-4 shadow-sm border-0 bg-white rounded-4" style="display:none;">
+<div id="summaryCards" class="card panel-card p-3 mb-4" style="display:none;">
     <div class="row g-2 text-center align-items-center justify-content-center">
         <!-- Total -->
         <div class="col-6 col-md-2">
-            <div class="p-2 rounded-3 bg-light text-dark h-100">
+            <div class="p-2 rounded-3 h-100" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-card);">
                 <i class="bi bi-list-ul fs-4 mb-1 text-primary"></i>
                 <div class="fs-5 fw-bold" id="statTotalRows">0</div>
-                <div class="small fw-semibold">السجلات</div>
+                <div class="small fw-semibold text-secondary">السجلات</div>
             </div>
         </div>
         <!-- Present -->
         <div class="col-6 col-md-2">
-            <div class="p-2 rounded-3 bg-success bg-opacity-10 text-success h-100">
-                <i class="bi bi-check-circle-fill fs-4 mb-1"></i>
-                <div class="fs-5 fw-bold" id="statPresent">0</div>
-                <div class="small fw-semibold">حاضر</div>
+            <div class="p-2 rounded-3 h-100" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25);">
+                <i class="bi bi-check-circle-fill fs-4 mb-1 text-success"></i>
+                <div class="fs-5 fw-bold text-success" id="statPresent">0</div>
+                <div class="small fw-semibold text-success">حاضر</div>
             </div>
         </div>
         <!-- Absent -->
         <div class="col-6 col-md-2">
-            <div class="p-2 rounded-3 bg-danger bg-opacity-10 text-danger h-100">
-                <i class="bi bi-x-circle-fill fs-4 mb-1"></i>
-                <div class="fs-5 fw-bold" id="statAbsent">0</div>
-                <div class="small fw-semibold">غائب</div>
+            <div class="p-2 rounded-3 h-100" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25);">
+                <i class="bi bi-x-circle-fill fs-4 mb-1 text-danger"></i>
+                <div class="fs-5 fw-bold text-danger" id="statAbsent">0</div>
+                <div class="small fw-semibold text-danger">غائب</div>
             </div>
         </div>
         <!-- Late -->
         <div class="col-6 col-md-2">
-            <div class="p-2 rounded-3 bg-warning bg-opacity-10 text-warning-emphasis h-100">
-                <i class="bi bi-clock-history fs-4 mb-1"></i>
-                <div class="fs-5 fw-bold" id="statLateCount">0</div>
-                <div class="small fw-semibold">تأخير <span class="fw-normal opacity-75" id="statLateMinutes" style="font-size: 0.75rem;">(0 دقيقة)</span></div>
+            <div class="p-2 rounded-3 h-100" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25);">
+                <i class="bi bi-clock-history fs-4 mb-1 text-warning"></i>
+                <div class="fs-5 fw-bold text-warning" id="statLateCount">0</div>
+                <div class="small fw-semibold text-warning">تأخير <span class="fw-normal opacity-75" id="statLateMinutes" style="font-size: 0.75rem;">(0 دقيقة)</span></div>
             </div>
         </div>
         <!-- Overtime -->
         <div class="col-6 col-md-2">
-            <div class="p-2 rounded-3 bg-info bg-opacity-10 text-info h-100">
-                <i class="bi bi-lightning-charge-fill fs-4 mb-1"></i>
-                <div class="fs-5 fw-bold" id="statOvertime">0</div>
-                <div class="small fw-semibold">عمل إضافي</div>
+            <div class="p-2 rounded-3 h-100" style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.25);">
+                <i class="bi bi-lightning-charge-fill fs-4 mb-1 text-info"></i>
+                <div class="fs-5 fw-bold text-info" id="statOvertime">0</div>
+                <div class="small fw-semibold text-info">عمل إضافي</div>
             </div>
         </div>
         <!-- Rest day work -->
         <div class="col-6 col-md-2">
-            <div class="p-2 rounded-3 bg-secondary bg-opacity-10 text-secondary h-100">
-                <i class="bi bi-calendar-x-fill fs-4 mb-1"></i>
-                <div class="fs-5 fw-bold" id="statRestDay">0</div>
-                <div class="small fw-semibold">عمل في إجازة</div>
+            <div class="p-2 rounded-3 h-100" style="background: rgba(148, 163, 184, 0.1); border: 1px solid rgba(148, 163, 184, 0.25);">
+                <i class="bi bi-calendar-x-fill fs-4 mb-1 text-secondary"></i>
+                <div class="fs-5 fw-bold text-secondary" id="statRestDay">0</div>
+                <div class="small fw-semibold text-secondary">عمل في إجازة</div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Report Table Card -->
-<div class="card panel-card p-4 shadow-sm border-0 rounded-4 bg-white">
+<div class="card panel-card p-4">
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <div>
             <h5 class="fw-bold mb-0 d-flex align-items-center">
@@ -179,8 +179,8 @@
         </div>
     </div>
     <div class="table-responsive">
-        <table id="reportTable" class="table align-middle table-hover table-striped">
-            <thead class="table-light">
+        <table id="reportTable" class="table align-middle table-hover">
+            <thead>
                 <tr>
                     <th data-column="employee_code" data-label="الكود">الكود</th>
                     <th data-column="employee_name" data-label="الاسم">الاسم</th>
@@ -227,15 +227,15 @@
 <div class="modal fade" id="employeeDetailsModal" tabindex="-1" aria-labelledby="employeeDetailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content rounded-4 border-0 shadow">
-            <div class="modal-header bg-light border-bottom p-3 px-4">
+            <div class="modal-header border-bottom p-3 px-4">
                 <div>
                     <h5 class="modal-title fw-bold text-primary mb-1" id="employeeDetailsModalLabel">
                         <i class="bi bi-person-lines-fill ms-2"></i>السجل التفصيلي اليومي للموظف
                     </h5>
-                    <div class="text-muted small">
-                        الاسم: <span id="modalEmpName" class="fw-bold text-dark"></span> |
+                    <div class="text-secondary small">
+                        الاسم: <span id="modalEmpName" class="fw-bold text-white"></span> |
                         الكود: <strong id="modalEmpCode" class="text-primary"></strong> |
-                        القسم: <strong id="modalEmpDept"></strong> |
+                        القسم: <strong id="modalEmpDept" class="text-light"></strong> |
                         الفترة: <strong id="modalPeriodText" class="text-success"></strong>
                     </div>
                 </div>
@@ -245,38 +245,38 @@
                 <!-- Mini KPI Cards in Modal -->
                 <div class="row g-2 text-center mb-4" id="modalKpiRow">
                     <div class="col-md-2 col-4">
-                        <div class="p-2 rounded-3 bg-light border text-dark h-100">
-                            <div class="small text-muted fw-bold">أيام الحضور</div>
+                        <div class="p-2 rounded-3 h-100" style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-card);">
+                            <div class="small text-secondary fw-bold">أيام الحضور</div>
                             <div class="fs-5 fw-bold text-primary" id="modalStatDays">0</div>
                         </div>
                     </div>
                     <div class="col-md-2 col-4" id="modalStatShiftsCol">
-                        <div class="p-2 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 text-primary h-100">
-                            <div class="small fw-bold">إجمالي الشيفتات</div>
-                            <div class="fs-5 fw-bold" id="modalStatShifts">0</div>
+                        <div class="p-2 rounded-3 h-100" style="background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.3);">
+                            <div class="small fw-bold text-info">إجمالي الشيفتات</div>
+                            <div class="fs-5 fw-bold text-info" id="modalStatShifts">0</div>
                         </div>
                     </div>
                     <div class="col-md-2 col-4">
-                        <div class="p-2 rounded-3 bg-light border text-dark h-100">
-                            <div class="small text-muted fw-bold">ساعات العمل</div>
+                        <div class="p-2 rounded-3 h-100" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25);">
+                            <div class="small text-secondary fw-bold">ساعات العمل</div>
                             <div class="fs-5 fw-bold text-success" id="modalStatHours">0</div>
                         </div>
                     </div>
                     <div class="col-md-2 col-4">
-                        <div class="p-2 rounded-3 bg-light border text-dark h-100">
-                            <div class="small text-muted fw-bold">ساعات إضافي</div>
+                        <div class="p-2 rounded-3 h-100" style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.25);">
+                            <div class="small text-secondary fw-bold">ساعات إضافي</div>
                             <div class="fs-5 fw-bold text-info" id="modalStatOvertime">0</div>
                         </div>
                     </div>
                     <div class="col-md-2 col-4">
-                        <div class="p-2 rounded-3 bg-light border text-dark h-100">
-                            <div class="small text-muted fw-bold">دقائق التأخير</div>
-                            <div class="fs-5 fw-bold text-warning-emphasis" id="modalStatLate">0</div>
+                        <div class="p-2 rounded-3 h-100" style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25);">
+                            <div class="small text-secondary fw-bold">دقائق التأخير</div>
+                            <div class="fs-5 fw-bold text-warning" id="modalStatLate">0</div>
                         </div>
                     </div>
                     <div class="col-md-2 col-4">
-                        <div class="p-2 rounded-3 bg-light border text-dark h-100">
-                            <div class="small text-muted fw-bold">أيام الغياب</div>
+                        <div class="p-2 rounded-3 h-100" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25);">
+                            <div class="small text-secondary fw-bold">أيام الغياب</div>
                             <div class="fs-5 fw-bold text-danger" id="modalStatAbsent">0</div>
                         </div>
                     </div>
@@ -284,8 +284,8 @@
 
                 <!-- Daily Detailed Table in Modal -->
                 <div class="table-responsive rounded-3 border">
-                    <table class="table table-hover table-striped align-middle mb-0 text-center" id="modalDailyTable">
-                        <thead class="table-light">
+                    <table class="table table-hover align-middle mb-0 text-center" id="modalDailyTable">
+                        <thead>
                             <tr>
                                 <th>التاريخ</th>
                                 <th>الحالة</th>
@@ -303,7 +303,7 @@
                     </table>
                 </div>
             </div>
-            <div class="modal-footer bg-light p-3 px-4 d-flex justify-content-between">
+            <div class="modal-footer p-3 px-4 d-flex justify-content-between">
                 <button type="button" class="btn btn-outline-success fw-bold rounded-pill px-3" id="modalExportSingleExcelBtn">
                     <i class="bi bi-file-earmark-excel-fill ms-1"></i>تصدير تفاصيل الموظف Excel
                 </button>
@@ -314,5 +314,5 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="/static/js/reports.js?v=6"></script>
+<script src="/static/js/reports.js?v=8"></script>
 {% endblock %}

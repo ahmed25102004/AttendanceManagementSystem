@@ -1247,3 +1247,91 @@ body {
 .sidebar::-webkit-scrollbar-thumb:hover {
     background: #3b82f6;
 }
+
+/* ===================================================
+   Reports Page Dark Theme & Row Highlighting
+   =================================================== */
+.report-row-summary {
+    background: #111a2e !important;
+    border-bottom: 2px solid rgba(59, 130, 246, 0.25) !important;
+    transition: background-color 0.2s ease;
+}
+
+.report-row-summary:hover {
+    background: #172440 !important;
+}
+
+.report-row-summary td {
+    background: #111a2e !important;
+    color: #f1f5f9 !important;
+}
+
+.report-row-summary:hover td {
+    background: #172440 !important;
+    color: #ffffff !important;
+}
+
+.report-row-daily {
+    background: transparent !important;
+}
+
+.report-row-daily:hover {
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.report-row-absent {
+    background: rgba(239, 68, 68, 0.07) !important;
+}
+
+.badge-shifts {
+    background: rgba(59, 130, 246, 0.2) !important;
+    color: #60a5fa !important;
+    border: 1px solid rgba(59, 130, 246, 0.4) !important;
+    font-weight: 700;
+}
+
+.badge-full-shift {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #34d399 !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+.badge-half-shift {
+    background: rgba(245, 158, 11, 0.15) !important;
+    color: #fbbf24 !important;
+    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+.badge-days {
+    background: rgba(6, 182, 212, 0.15) !important;
+    color: #38bdf8 !important;
+    border: 1px solid rgba(6, 182, 212, 0.3) !important;
+}
+
+.badge-code {
+    background: #090e1a !important;
+    color: #94a3b8 !important;
+    border: 1px solid #1e293b !important;
+}
+
+.badge-dept {
+    background: #090e1a !important;
+    color: #cbd5e1 !important;
+    border: 1px solid #1e293b !important;
+}
+
+.btn-report-details {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
+    border: 1px solid rgba(59, 130, 246, 0.45) !important;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-report-details:hover {
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.45) !important;
+    transform: translateY(-1px);
+}
+
