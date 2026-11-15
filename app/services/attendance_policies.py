@@ -315,24 +315,94 @@ class DoctorsDepartmentPolicy(AttendancePolicy):
     def calculate_late_minutes(self, db: Session, employee: Employee, check_in_time: datetime) -> int:
         if not employee.department:
             return 0
-        
-        # Use department's new shift settings
-        late_start = getattr(employee.department, 'late_start_time', time(8, 30))
-        start_time = datetime.combine(check_in_time.date(), late_start)
-        
-        if check_in_time.timestamp() > start_time.timestamp():
-            return int((check_in_time.timestamp() - start_time.timestamp()) / 60)
+        dept = employee.department
+        target_date = check_in_time.date()
+        m_start = dept.shift_start_time or time(8, 0)
+        if dept.late_start_time:
+            m_grace_dt = datetime.combine(target_date, dept.late_start_time)
+        elif getattr(dept, "grace_period_minutes", None):
+            m_grace_dt = datetime.combine(target_date, m_start) + timedelta(minutes=dept.grace_period_minutes)
+        else:
+            m_grace_dt = datetime.combine(target_date, m_start) + timedelta(minutes=15)
+
+        ev_start = getattr(dept, "evening_shift_start_time", None)
+        if ev_start:
+            ev_hour = ev_start.hour
+            if 0 < ev_hour < 12:
+                ev_hour += 12
+            ev_start = time(ev_hour, ev_start.minute)
+        else:
+            ev_start = time(15, 0)
+
+        ev_grace_time = getattr(dept, "evening_shift_late_start_time", None)
+        if ev_grace_time:
+            ev_grace_hour = ev_grace_time.hour
+            if 0 < ev_grace_hour < 12:
+                ev_grace_hour += 12
+            ev_grace_dt = datetime.combine(target_date, time(ev_grace_hour, ev_grace_time.minute))
+        else:
+            grace_mins = getattr(dept, "grace_period_minutes", 15) or 15
+            ev_grace_dt = datetime.combine(target_date, ev_start) + timedelta(minutes=grace_mins)
+
+        if check_in_time.time() < time(13, 0):
+            grace_dt = m_grace_dt
+        else:
+            grace_dt = ev_grace_dt
+
+        if check_in_time > grace_dt:
+            return int((check_in_time - grace_dt).total_seconds() // 60)
         return 0
 
-    def calculate_working_hours(self, check_in_time: datetime, check_out_time: datetime) -> float:
-        seconds = max((check_out_time - check_in_time).total_seconds(), 0)
+    def calculate_working_hours(self, check_in_time: datetime, check_out_time: datetime, employee: Optional[Employee] = None) -> float:
+        effective_in = check_in_time
+        if employee and employee.department:
+            dept = employee.department
+            target_date = check_in_time.date()
+            m_start = dept.shift_start_time or time(8, 0)
+            if dept.late_start_time:
+                m_grace_dt = datetime.combine(target_date, dept.late_start_time)
+            elif getattr(dept, "grace_period_minutes", None):
+                m_grace_dt = datetime.combine(target_date, m_start) + timedelta(minutes=dept.grace_period_minutes)
+            else:
+                m_grace_dt = datetime.combine(target_date, m_start) + timedelta(minutes=15)
+
+            ev_start = getattr(dept, "evening_shift_start_time", None)
+            if ev_start:
+                ev_hour = ev_start.hour
+                if 0 < ev_hour < 12:
+                    ev_hour += 12
+                ev_start = time(ev_hour, ev_start.minute)
+            else:
+                ev_start = time(15, 0)
+
+            ev_grace_time = getattr(dept, "evening_shift_late_start_time", None)
+            if ev_grace_time:
+                ev_grace_hour = ev_grace_time.hour
+                if 0 < ev_grace_hour < 12:
+                    ev_grace_hour += 12
+                ev_grace_dt = datetime.combine(target_date, time(ev_grace_hour, ev_grace_time.minute))
+            else:
+                grace_mins = getattr(dept, "grace_period_minutes", 15) or 15
+                ev_grace_dt = datetime.combine(target_date, ev_start) + timedelta(minutes=grace_mins)
+
+            if check_in_time.time() < time(13, 0):
+                sched_dt = datetime.combine(target_date, m_start)
+                grace_dt = m_grace_dt
+            else:
+                sched_dt = datetime.combine(target_date, ev_start)
+                grace_dt = ev_grace_dt
+
+            if check_in_time <= grace_dt:
+                effective_in = min(check_in_time, sched_dt)
+
+        seconds = max((check_out_time - effective_in).total_seconds(), 0)
         return round(seconds / 3600, 2)
     
     def calculate_overtime_hours(self, employee: Employee, check_in_time: datetime, check_out_time: datetime) -> float:
         if not employee.department:
             return 0.0
         
-        working_hours = self.calculate_working_hours(check_in_time, check_out_time)
+        working_hours = self.calculate_working_hours(check_in_time, check_out_time, employee=employee)
         # For doctors: full shift is double half shift, so use 2 * shift hours as full shift
         half_shift_hours = getattr(employee.department, 'shift_hours', 7)
         full_shift_hours = half_shift_hours * 2
@@ -345,7 +415,7 @@ class DoctorsDepartmentPolicy(AttendancePolicy):
         if not employee.department:
             return 0.0
         
-        working_hours = self.calculate_working_hours(check_in_time, check_out_time)
+        working_hours = self.calculate_working_hours(check_in_time, check_out_time, employee=employee)
         # Minimum is half shift
         half_shift_hours = getattr(employee.department, 'shift_hours', 7)
         
@@ -357,13 +427,13 @@ class DoctorsDepartmentPolicy(AttendancePolicy):
         if not employee.department:
             return "half_shift"
         
-        working_hours = self.calculate_working_hours(check_in_time, check_out_time)
+        working_hours = self.calculate_working_hours(check_in_time, check_out_time, employee=employee)
         half_shift_hours = getattr(employee.department, 'shift_hours', 7)
         full_shift_hours = half_shift_hours * 2
         
-        if working_hours >= full_shift_hours:
+        if working_hours >= (full_shift_hours - 0.05):
             return "full_shift"
-        elif working_hours >= half_shift_hours:
+        elif working_hours >= (half_shift_hours - 0.05):
             return "half_shift"
         return "incomplete"
 

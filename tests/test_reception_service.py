@@ -12,6 +12,7 @@ from app.models.department import Department
 from app.models.device import Device
 from app.models.employee import Employee
 from app.services.reception_service import ReceptionService
+from app.services.report_service import ReportService
 
 
 class ReceptionServiceTests(unittest.TestCase):
@@ -215,6 +216,125 @@ class ReceptionServiceTests(unittest.TestCase):
             self.assertEqual(row.check_out_time, "2026-07-15T21:25:00")
             self.assertEqual(row.late_minutes, 0)
             self.assertEqual(row.working_hours, 7.33)
+        finally:
+            session.close()
+
+    def test_doctors_grace_period_and_full_shift_calculation(self) -> None:
+        session = self.Session()
+        try:
+            branch = Branch(name="Doctors Branch")
+            department = Department(
+                name="الدكاتره",
+                attendance_policy="doctors_department",
+                shift_start_time=time(8, 0),
+                shift_end_time=time(15, 0),
+                shift_hours=7,
+                late_start_time=time(8, 15),
+                grace_period_minutes=15,
+                evening_shift_start_time=time(15, 0),
+                evening_shift_end_time=time(22, 0),
+                evening_shift_hours=7,
+                evening_shift_late_start_time=time(15, 15),
+            )
+            session.add_all([branch, department])
+            session.flush()
+
+            device = Device(
+                device_name="ZK-DOC",
+                device_code="DEV-DOC",
+                branch_id=branch.id,
+            )
+            doctor = Employee(
+                branch_id=branch.id,
+                employee_code="DOC001",
+                first_name="Alaa",
+                last_name="Gamal",
+                email="doc001@example.com",
+                phone="01011111111",
+                job_title="Doctor",
+                hire_date=date(2024, 1, 1),
+                is_active=True,
+                department_id=department.id,
+            )
+            session.add_all([device, doctor])
+            session.flush()
+
+            # Day 1 (Nov 7): Arrives at 08:05 (within 15 min grace of 08:00), leaves at 22:00
+            # Must count as full 14 hours (شفت كامل), 0 late minutes, 0 deduction!
+            session.add_all([
+                AttendanceLog(
+                    employee_id=doctor.id,
+                    branch_id=branch.id,
+                    device_id=device.id,
+                    employee_code=doctor.employee_code,
+                    check_time=datetime(2026, 11, 7, 8, 5),
+                    attendance_type="check_in",
+                ),
+                AttendanceLog(
+                    employee_id=doctor.id,
+                    branch_id=branch.id,
+                    device_id=device.id,
+                    employee_code=doctor.employee_code,
+                    check_time=datetime(2026, 11, 7, 22, 0),
+                    attendance_type="check_out",
+                ),
+                # Day 2 (Nov 5): Arrives at 15:16 for evening shift (starts 15:00, grace 15:15), leaves at 22:17
+                # Late minutes must be 1 minute (15:16 - 15:15), NOT 7 hours!
+                AttendanceLog(
+                    employee_id=doctor.id,
+                    branch_id=branch.id,
+                    device_id=device.id,
+                    employee_code=doctor.employee_code,
+                    check_time=datetime(2026, 11, 5, 15, 16),
+                    attendance_type="check_in",
+                ),
+                AttendanceLog(
+                    employee_id=doctor.id,
+                    branch_id=branch.id,
+                    device_id=device.id,
+                    employee_code=doctor.employee_code,
+                    check_time=datetime(2026, 11, 5, 22, 17),
+                    attendance_type="check_out",
+                ),
+            ])
+            session.commit()
+
+            rows = ReceptionService().build_report_rows(
+                session,
+                department_id=department.id,
+                start_date=date(2026, 11, 5),
+                end_date=date(2026, 11, 7),
+                branch_id=branch.id,
+            )
+
+            nov_7_row = next(r for r in rows if r.attendance_date == "2026-11-07" and r.row_kind != "summary")
+            self.assertEqual(nov_7_row.shift_name, "شفت كامل")
+            self.assertEqual(nov_7_row.full_shift_count, 1)
+            self.assertEqual(nov_7_row.total_shift_units, 1.0)
+            self.assertEqual(nov_7_row.working_hours, 14.0)
+            self.assertEqual(nov_7_row.late_minutes, 0)
+            self.assertEqual(nov_7_row.shift_deficit_hours, 0.0)
+
+            nov_5_row = next(r for r in rows if r.attendance_date == "2026-11-05" and r.row_kind != "summary")
+            self.assertEqual(nov_5_row.shift_name, "نصف شيفت")
+            self.assertEqual(nov_5_row.half_shift_count, 1)
+            self.assertEqual(nov_5_row.total_shift_units, 0.5)
+            self.assertEqual(nov_5_row.late_minutes, 1)
+
+            # Test ReportService.custom_range_report produces identical correct doctor shift units & hours
+            range_rows = ReportService().custom_range_report(
+                session,
+                start_date=date(2026, 11, 5),
+                end_date=date(2026, 11, 7),
+                department_id=department.id,
+                branch_id=branch.id,
+            )
+            r_nov_7 = next(r for r in range_rows if r.attendance_date == "2026-11-07" and r.row_kind != "summary")
+            self.assertEqual(r_nov_7.shift_name, "شفت كامل")
+            self.assertEqual(r_nov_7.full_shift_count, 1)
+            self.assertEqual(r_nov_7.total_shift_units, 1.0)
+            self.assertEqual(r_nov_7.working_hours, 14.0)
+            self.assertEqual(r_nov_7.late_minutes, 0)
         finally:
             session.close()
 

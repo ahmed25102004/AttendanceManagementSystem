@@ -75,6 +75,103 @@ class ReceptionService:
             return int((check_in_time - shift_start).total_seconds() // 60)
         return 0
 
+    def _effective_check_in_and_late(
+        self,
+        first_log: datetime | None,
+        emp_dept: Department | None,
+        shift_info: dict | None = None,
+        is_doctors: bool = False,
+    ) -> tuple[datetime | None, int]:
+        """
+        Calculates effective check-in time and late minutes based on department grace period.
+        If employee arrives within the allowed grace period:
+        - late_minutes = 0
+        - effective_check_in = scheduled shift start time (so grace minutes are NOT deducted from work hours)
+        If employee arrives after grace period:
+        - late_minutes = calculated late minutes
+        - effective_check_in = first_log (late time is not counted in work hours)
+        """
+        if not first_log or not emp_dept:
+            return first_log, 0
+
+        target_date = first_log.date()
+
+        if is_doctors:
+            m_start = emp_dept.shift_start_time or time(8, 0)
+            if emp_dept.late_start_time:
+                m_grace_dt = datetime.combine(target_date, emp_dept.late_start_time)
+            elif getattr(emp_dept, "grace_period_minutes", None):
+                m_grace_dt = datetime.combine(target_date, m_start) + timedelta(minutes=emp_dept.grace_period_minutes)
+            else:
+                m_grace_dt = datetime.combine(target_date, m_start) + timedelta(minutes=15)
+
+            ev_start = getattr(emp_dept, "evening_shift_start_time", None)
+            if ev_start:
+                ev_hour = ev_start.hour
+                if 0 < ev_hour < 12:
+                    ev_hour += 12
+                ev_start = time(ev_hour, ev_start.minute)
+            else:
+                ev_start = time(15, 0)
+
+            ev_grace_time = getattr(emp_dept, "evening_shift_late_start_time", None)
+            if ev_grace_time:
+                ev_grace_hour = ev_grace_time.hour
+                if 0 < ev_grace_hour < 12:
+                    ev_grace_hour += 12
+                ev_grace_dt = datetime.combine(target_date, time(ev_grace_hour, ev_grace_time.minute))
+            else:
+                grace_mins = getattr(emp_dept, "grace_period_minutes", None)
+                if grace_mins is None and emp_dept.shift_start_time and emp_dept.late_start_time:
+                    t1 = datetime.combine(target_date, emp_dept.shift_start_time)
+                    t2 = datetime.combine(target_date, emp_dept.late_start_time)
+                    grace_mins = max(0, int((t2 - t1).total_seconds() // 60)) or 15
+                ev_grace_dt = datetime.combine(target_date, ev_start) + timedelta(minutes=(grace_mins or 15))
+
+            # Determine whether doctor came for morning/full shift or evening shift
+            if first_log.time() < time(13, 0):
+                sched_dt = datetime.combine(target_date, m_start)
+                grace_dt = m_grace_dt
+            else:
+                sched_dt = datetime.combine(target_date, ev_start)
+                grace_dt = ev_grace_dt
+
+            if first_log <= grace_dt:
+                late_mins = 0
+                effective_in = min(first_log, sched_dt)
+            else:
+                late_mins = max(0, int((first_log - grace_dt).total_seconds() // 60))
+                effective_in = first_log
+
+            return effective_in, late_mins
+
+        else:
+            # Reception, workers, or other unified shifts
+            start_t = shift_info["start_time"] if shift_info and "start_time" in shift_info else emp_dept.shift_start_time
+            if not start_t:
+                return first_log, 0
+
+            sched_dt = datetime.combine(target_date, start_t)
+            grace_mins = (shift_info.get("grace_period_minutes") if shift_info else None) or getattr(emp_dept, "grace_period_minutes", None)
+            if grace_mins is None:
+                if emp_dept.late_start_time:
+                    t1 = datetime.combine(target_date, start_t)
+                    t2 = datetime.combine(target_date, emp_dept.late_start_time)
+                    grace_mins = max(0, int((t2 - t1).total_seconds() // 60))
+                else:
+                    grace_mins = 15
+
+            grace_dt = sched_dt + timedelta(minutes=grace_mins)
+
+            if first_log <= grace_dt:
+                late_mins = 0
+                effective_in = min(first_log, sched_dt)
+            else:
+                late_mins = max(0, int((first_log - sched_dt).total_seconds() // 60))
+                effective_in = first_log
+
+            return effective_in, late_mins
+
     def _working_hours(self, first_log: datetime | None, last_log: datetime | None) -> float:
         if not first_log or not last_log or last_log <= first_log:
             return 0.0
@@ -210,8 +307,17 @@ class ReceptionService:
                     first_log = record.check_in_time
                     last_log = record.check_out_time
                     worked_on_rest_day = bool(record.worked_on_rest_day) if not (is_leather or is_doctors) else False
-                    late_minutes = record.late_minutes if not is_leather else 0
-                    working_hours = round(record.working_hours, 2) if record.working_hours is not None else self._working_hours(first_log, last_log)
+                    is_manual = bool(getattr(record, "is_manual_attendance", False) or getattr(record, "source_type", "") == "manual")
+                    if is_manual and record.working_hours is not None:
+                        working_hours = round(record.working_hours, 2)
+                        late_minutes = record.late_minutes if not is_leather else 0
+                    else:
+                        effective_first_log, auto_late = self._effective_check_in_and_late(
+                            first_log, emp_dept, shift_info=shift_info, is_doctors=is_doctors
+                        )
+                        working_hours = self._working_hours(effective_first_log, last_log)
+                        late_minutes = auto_late if not is_leather else 0
+
                     overtime_hours = round(getattr(record, "overtime_hours", 0.0) or 0.0, 2)
                     shift_deficit_hours = round(getattr(record, "shift_deficit_hours", 0.0) or 0.0, 2)
                     status = record.status or ("present" if first_log else "absent")
@@ -221,44 +327,44 @@ class ReceptionService:
                     if first_log and last_log and last_log <= first_log:
                         last_log = None
 
-                    working_hours = self._working_hours(first_log, last_log)
+                    effective_first_log, auto_late = self._effective_check_in_and_late(
+                        first_log, emp_dept, shift_info=shift_info, is_doctors=is_doctors
+                    )
+                    working_hours = self._working_hours(effective_first_log, last_log)
+                    late_minutes = auto_late if not is_leather else 0
+                    overtime_hours = 0.0
+                    shift_deficit_hours = 0.0
+                    worked_on_rest_day = False
+                    status = "present" if first_log else "absent"
 
-                    if is_leather:
-                        worked_on_rest_day = False
-                        late_minutes = 0
-                        overtime_hours = 0.0
-                        shift_deficit_hours = 0.0
-                        status = "present" if first_log else "absent"
-                    elif is_doctors:
-                        worked_on_rest_day = False
-                        shift_hours = emp_dept.shift_hours if (emp_dept and emp_dept.shift_hours) else 7
-                        full_shift_hours = shift_hours * 2
-                        overtime_hours = round(working_hours - full_shift_hours, 2) if working_hours > full_shift_hours else 0.0
-                        shift_deficit_hours = round(shift_hours - working_hours, 2) if (0 < working_hours < shift_hours) else 0.0
-                        late_minutes = 0
-                        if first_log and emp_dept and emp_dept.late_start_time:
-                            late_thresh = datetime.combine(first_log.date(), emp_dept.late_start_time)
-                            if first_log > late_thresh:
-                                late_minutes = int((first_log - late_thresh).total_seconds() // 60)
-                        status = "present" if first_log else "absent"
+                if is_leather:
+                    worked_on_rest_day = False
+                    late_minutes = 0
+                    overtime_hours = 0.0
+                    shift_deficit_hours = 0.0
+                    status = "present" if first_log else "absent"
+                elif is_doctors:
+                    worked_on_rest_day = False
+                    shift_hours = emp_dept.shift_hours if (emp_dept and emp_dept.shift_hours) else 7
+                    full_shift_hours = shift_hours * 2
+                    overtime_hours = round(working_hours - full_shift_hours, 2) if working_hours > full_shift_hours else 0.0
+                    shift_deficit_hours = round(shift_hours - working_hours, 2) if (0 < working_hours < shift_hours) else 0.0
+                    status = "present" if first_log else "absent"
+                else:
+                    worked_on_rest_day = bool(first_log and is_rest_day)
+                    if shift_info and last_log and shift_info.get("end_time"):
+                        shift_end = datetime.combine(last_log.date(), shift_info["end_time"])
+                        if last_log > shift_end:
+                            overtime_hours = round((last_log - shift_end).total_seconds() / 3600, 2)
+                        if last_log < shift_end and first_log:
+                            shift_deficit_hours = round((shift_end - last_log).total_seconds() / 3600, 2)
+
+                    if first_log:
+                        status = "present_on_rest_day" if worked_on_rest_day else "present"
+                    elif is_rest_day:
+                        status = "weekly_rest"
                     else:
-                        worked_on_rest_day = bool(first_log and is_rest_day)
-                        late_minutes = self._late_minutes(shift_info, first_log, is_rest_day)
-                        overtime_hours = 0.0
-                        shift_deficit_hours = 0.0
-                        if shift_info and last_log and shift_info.get("end_time"):
-                            shift_end = datetime.combine(last_log.date(), shift_info["end_time"])
-                            if last_log > shift_end:
-                                overtime_hours = round((last_log - shift_end).total_seconds() / 3600, 2)
-                            if last_log < shift_end and first_log:
-                                shift_deficit_hours = round((shift_end - last_log).total_seconds() / 3600, 2)
-
-                        if first_log:
-                            status = "present_on_rest_day" if worked_on_rest_day else "present"
-                        elif is_rest_day:
-                            status = "weekly_rest"
-                        else:
-                            status = "absent"
+                        status = "absent"
 
                 if status == "present_on_rest_day":
                     worked_on_rest_days_count += 1
@@ -271,8 +377,8 @@ class ReceptionService:
                 if is_doctors:
                     shift_hours = emp_dept.shift_hours if (emp_dept and emp_dept.shift_hours) else 7
                     full_shift_hours = shift_hours * 2
-                    is_full = working_hours >= full_shift_hours
-                    is_half = (full_shift_hours > working_hours >= shift_hours)
+                    is_full = working_hours >= (full_shift_hours - 0.05)
+                    is_half = not is_full and (working_hours >= (shift_hours - 0.05))
                     full_shift_count = 1 if is_full else 0
                     half_shift_count = 1 if is_half else 0
                     total_shift_units = 1.0 if is_full else (0.5 if is_half else 0.0)
@@ -410,8 +516,17 @@ class ReceptionService:
                     first_log = record.check_in_time
                     last_log = record.check_out_time
                     worked_on_rest_day = bool(record.worked_on_rest_day) if not (is_leather or is_doctors) else False
-                    late_minutes = record.late_minutes if not is_leather else 0
-                    working_hours = round(record.working_hours, 2) if record.working_hours is not None else self._working_hours(first_log, last_log)
+                    is_manual = bool(getattr(record, "is_manual_attendance", False) or getattr(record, "source_type", "") == "manual")
+                    if is_manual and record.working_hours is not None:
+                        working_hours = round(record.working_hours, 2)
+                        late_minutes = record.late_minutes if not is_leather else 0
+                    else:
+                        effective_first_log, auto_late = self._effective_check_in_and_late(
+                            first_log, emp_dept, shift_info=shift_info, is_doctors=is_doctors
+                        )
+                        working_hours = self._working_hours(effective_first_log, last_log)
+                        late_minutes = auto_late if not is_leather else 0
+
                     overtime_hours = round(getattr(record, "overtime_hours", 0.0) or 0.0, 2)
                     shift_deficit_hours = round(getattr(record, "shift_deficit_hours", 0.0) or 0.0, 2)
                     status = record.status or ("present" if first_log else "absent")
@@ -421,44 +536,44 @@ class ReceptionService:
                     if first_log and last_log and last_log <= first_log:
                         last_log = None
 
-                    working_hours = self._working_hours(first_log, last_log)
+                    effective_first_log, auto_late = self._effective_check_in_and_late(
+                        first_log, emp_dept, shift_info=shift_info, is_doctors=is_doctors
+                    )
+                    working_hours = self._working_hours(effective_first_log, last_log)
+                    late_minutes = auto_late if not is_leather else 0
+                    overtime_hours = 0.0
+                    shift_deficit_hours = 0.0
+                    worked_on_rest_day = False
+                    status = "present" if first_log else "absent"
 
-                    if is_leather:
-                        worked_on_rest_day = False
-                        late_minutes = 0
-                        overtime_hours = 0.0
-                        shift_deficit_hours = 0.0
-                        status = "present" if first_log else "absent"
-                    elif is_doctors:
-                        worked_on_rest_day = False
-                        shift_hours = emp_dept.shift_hours if (emp_dept and emp_dept.shift_hours) else 7
-                        full_shift_hours = shift_hours * 2
-                        overtime_hours = round(working_hours - full_shift_hours, 2) if working_hours > full_shift_hours else 0.0
-                        shift_deficit_hours = round(shift_hours - working_hours, 2) if (0 < working_hours < shift_hours) else 0.0
-                        late_minutes = 0
-                        if first_log and emp_dept and emp_dept.late_start_time:
-                            late_thresh = datetime.combine(first_log.date(), emp_dept.late_start_time)
-                            if first_log > late_thresh:
-                                late_minutes = int((first_log - late_thresh).total_seconds() // 60)
-                        status = "present" if first_log else "absent"
+                if is_leather:
+                    worked_on_rest_day = False
+                    late_minutes = 0
+                    overtime_hours = 0.0
+                    shift_deficit_hours = 0.0
+                    status = "present" if first_log else "absent"
+                elif is_doctors:
+                    worked_on_rest_day = False
+                    shift_hours = emp_dept.shift_hours if (emp_dept and emp_dept.shift_hours) else 7
+                    full_shift_hours = shift_hours * 2
+                    overtime_hours = round(working_hours - full_shift_hours, 2) if working_hours > full_shift_hours else 0.0
+                    shift_deficit_hours = round(shift_hours - working_hours, 2) if (0 < working_hours < shift_hours) else 0.0
+                    status = "present" if first_log else "absent"
+                else:
+                    worked_on_rest_day = bool(first_log and is_rest_day)
+                    if shift_info and last_log and shift_info.get("end_time"):
+                        shift_end = datetime.combine(last_log.date(), shift_info["end_time"])
+                        if last_log > shift_end:
+                            overtime_hours = round((last_log - shift_end).total_seconds() / 3600, 2)
+                        if last_log < shift_end and first_log:
+                            shift_deficit_hours = round((shift_end - last_log).total_seconds() / 3600, 2)
+
+                    if first_log:
+                        status = "present_on_rest_day" if worked_on_rest_day else "present"
+                    elif is_rest_day:
+                        status = "weekly_rest"
                     else:
-                        worked_on_rest_day = bool(first_log and is_rest_day)
-                        late_minutes = self._late_minutes(shift_info, first_log, is_rest_day)
-                        overtime_hours = 0.0
-                        shift_deficit_hours = 0.0
-                        if shift_info and last_log and shift_info.get("end_time"):
-                            shift_end = datetime.combine(last_log.date(), shift_info["end_time"])
-                            if last_log > shift_end:
-                                overtime_hours = round((last_log - shift_end).total_seconds() / 3600, 2)
-                            if last_log < shift_end and first_log:
-                                shift_deficit_hours = round((shift_end - last_log).total_seconds() / 3600, 2)
-
-                        if first_log:
-                            status = "present_on_rest_day" if worked_on_rest_day else "present"
-                        elif is_rest_day:
-                            status = "weekly_rest"
-                        else:
-                            status = "absent"
+                        status = "absent"
 
                 if status in ("present", "present_on_rest_day"):
                     working_days += 1
@@ -477,8 +592,8 @@ class ReceptionService:
                 if is_doctors:
                     shift_hours = emp_dept.shift_hours if (emp_dept and emp_dept.shift_hours) else 7
                     full_shift_hours = shift_hours * 2
-                    is_full = working_hours >= full_shift_hours
-                    is_half = (full_shift_hours > working_hours >= shift_hours)
+                    is_full = working_hours >= (full_shift_hours - 0.05)
+                    is_half = not is_full and (working_hours >= (shift_hours - 0.05))
                     day_full_count = 1 if is_full else 0
                     day_half_count = 1 if is_half else 0
                     day_units = 1.0 if is_full else (0.5 if is_half else 0.0)
